@@ -65,11 +65,14 @@ ARC_OFFSETS = {
 
 def options(parser):
     parser.add_option("-d", "--distro", type="string", metavar="DISTRO",
-                      default=OUR_DISTRO,
+                      default=None,
                       help="Distribution to generate stats for")
 
 def main(options, args):
-    distro = options.distro
+    if not options.dest_distro:
+        our_distros = [options.dest_distro]
+    else:
+        our_distros = OUR_DISTROS
 
     # Read from the stats file
     stats = read_stats()
@@ -85,13 +88,14 @@ def main(options, args):
 
     # Iterate the components and calculate the peaks over the last six
     # months, as well as the current stats
-    for component in DISTROS[distro]["components"]:
-        # Extract current and historical stats for this component
-        current = get_current(stats[component])
-        history = get_history(stats[component], start)
+    for our_distro in our_distros:
+        for component in DISTROS[our_distro]["components"]:
+            # Extract current and historical stats for this component
+            current = get_current(stats[component])
+            history = get_history(stats[component], start)
 
-        pie_chart(component, current)
-        range_chart(component, history, start, today, events)
+            pie_chart(component, current)
+            range_chart(component, history, start, today, events)
 
 
 def date_to_datetime(s):

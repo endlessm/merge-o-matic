@@ -47,65 +47,14 @@ except ImportError:
     from elementtree import ElementTree
 
 
-# Output root
-ROOT = "/srv/patches.ubuntu.com"
-
-# Distribution definitions
-DISTROS = {
-    "ubuntu": {
-        "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "precise" ],
-        "components": [ "main", "restricted", "universe", "multiverse" ],
-        "expire": True,
-        },
-    "debian": {
-        "mirror": "http://ftp.uk.debian.org/debian",
-        "dists": [ "unstable", "testing", "testing-proposed-updates", "experimental" ],
-        "components": [ "main", "contrib", "non-free" ],
-        "expire": True,
-        },
-#    "dapper-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "dapper-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-#    "hardy-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "hardy-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-#    "intrepid-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "intrepid-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-#    "jaunty-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "jaunty-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-    }
-
-# Destination distribution and release
-OUR_DISTRO = "ubuntu"
-OUR_DIST   = "precise"
-
-# Default source distribution and release
-SRC_DISTRO = "debian"
-SRC_DIST   = "testing"
-
-
-# Time format for RSS feeds
-RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
-
+MOM_CONFIG_PATH = "/etc/merge-o-matic"
+sys.path.insert(1, MOM_CONFIG_PATH)
+from momsettings import *
+sys.path.remove(MOM_CONFIG_PATH)
+    
 
 # Cache of parsed sources files
 SOURCES_CACHE = {}
-
 
 # --------------------------------------------------------------------------- #
 # Command-line tool functions
@@ -172,8 +121,12 @@ def md5sum(filename):
 
 def sources_file(distro, dist, component):
     """Return the location of a local Sources file."""
-    return "%s/dists/%s-%s/%s/source/Sources.gz" % (ROOT, distro, dist,
-                                                    component)
+    path = "%s/dists/%s" % (ROOT, distro)
+    if dist is not None:
+        path = "%s-%s" % (path, dist)
+    if component is not None:
+        path = "%s/%s" % (path, component)
+    return path + "/source/Sources.gz"
 
 def pool_directory(distro, package):
     """Return the pool directory for a source"""
@@ -337,7 +290,7 @@ def get_pool_source(distro, package, version=None):
     else:
         raise IndexError
 
-def get_nearest_source(package, base):
+def get_nearest_source(our_distro, package, base):
     """Return the base source or nearest to it."""
     try:
         sources = get_pool_sources(SRC_DISTRO, package)
@@ -352,7 +305,7 @@ def get_nearest_source(package, base):
             bases.append(source)
     else:
         try:
-            return get_pool_source(OUR_DISTRO, package, base)
+            return get_pool_source(our_distro, package, base)
         except (IOError, IndexError):
             version_sort(bases)
             return bases.pop()
@@ -392,7 +345,7 @@ def get_base(source, slip=False):
 
     version = source["Version"]
     version = strip_suffix(version, "build")
-    version = strip_suffix(version, "ubuntu")
+    version = strip_suffix(version, "co")
 
     if version.endswith("-"):
         version += "0"

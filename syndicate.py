@@ -52,18 +52,18 @@ def main(options, args):
     subscriptions = read_subscriptions()
 
     patch_rss = read_rss(patch_rss_file(),
-                         title="Ubuntu Patches from Debian",
-                         link="http://patches.ubuntu.com/",
+                         title="DISTRO Merge-o-Matic Patches from Ubuntu",
+                         link=MOM_URL,
                          description="This feed announces new patches from "
-                         "Ubuntu to Debian, each patch filename contains "
+                         "DISTRO to Ubuntu, each patch filename contains "
                          "the complete difference between the two "
                          "distributions for that package.")
 
     diff_rss = read_rss(diff_rss_file(),
-                        title="Ubuntu Uploads",
-                        link="http://patches.ubuntu.com/by-release/atomic/",
-                        description="This feed announces new changes in "
-                        "Ubuntu, each patch filename contains the difference "
+                        title="DISTRO Merge-o-Matic Uploads",
+                        link=MOM_URL + "by-release/atomic/",
+                        description="This feed announces new changes in DISTRO"
+                        ", each patch filename contains the difference "
                         "between the new version and the previous one.")
 
 
@@ -92,22 +92,21 @@ def main(options, args):
                         continue
 
                     this_patch_rss = read_rss(patch_rss_file(distro, source),
-                                             title="Ubuntu Patches from Debian for %s" % source["Package"],
-                                             link=("http://patches.ubuntu.com/by-release/" +
+                                             title="DISTRO Merge-o-Matic Patches from Ubuntu for %s" % source["Package"],
+                                             link=(MOM_URL + "by-release/" +
                                                    tree.subdir("%s/patches" % ROOT,
                                                                patch_directory(distro, source))),
                                               description="This feed announces new patches from "
-                                              "Ubuntu to Debian for %s, each patch filename contains "
+                                              "DISTRO to Ubuntu for %s, each patch filename contains "
                                               "the complete difference between the two "
                                               "distributions for that package." % source["Package"])
                     this_diff_rss = read_rss(diff_rss_file(distro, source),
-                                             title="Ubuntu Uploads for %s" % source["Package"],
-                                             link=("http://patches.ubuntu.com/by-release/atomic/" +
+                                             title="DISTRO Merge-o-Matic Uploads for %s" % source["Package"],
+                                             link=(MOM_URL + "by-release/atomic/" +
                                                    tree.subdir("%s/diffs" % ROOT,
                                                                diff_directory(distro, source))),
-                                             description="This feed announces new changes in "
-                                             "Ubuntu for %s, each patch filename contains the "
-                                             "difference between the new version and the "
+                                             description="This feed announces new changes in DISTRO"
+                                             ", each patch filename contains the difference "
                                              "previous one." % source["Package"])
 
                     last = None
@@ -169,12 +168,12 @@ def mail_diff(distro, last, this, uploader, subscriptions):
 
     if distro == SRC_DISTRO:
         # Debian uploads always just have a diff
-        subject = "Debian %s %s" % (this["Package"], this["Version"])
+        subject = "Ubuntu %s %s" % (this["Package"], this["Version"])
         intro = MIMEText("""\
-This e-mail has been sent due to an upload to Debian, and contains the
+This e-mail has been sent due to an upload to Ubuntu, and contains the
 difference between the new version and the previous one.""")
         payload = diff_part(distro, this)
-    elif distro != OUR_DISTRO:
+    elif distro not in OUR_DISTROS:
         # Other uploads always just have a diff
         subject = "%s %s %s" % (distro, this["Package"], this["Version"])
         intro = MIMEText("""\
@@ -182,36 +181,36 @@ This e-mail has been sent due to an upload to %s, and contains the
 difference between the new version and the previous one.""" % distro)
         payload = diff_part(distro, this)
     elif get_base(this) == this["Version"]:
-        # Never e-mail ubuntu uploads without local changes
+        # Never e-mail our uploads without local changes
         return
     elif last is None:
-        # Initial ubuntu uploads, send the patch
-        subject = "Ubuntu (new) %s %s" % (this["Package"], this["Version"])
+        # Our initial uploads, send the patch
+        subject = "DISTRO (new) %s %s" % (this["Package"], this["Version"])
         intro = MIMEText("""\
-This e-mail has been sent due to an upload to Ubuntu of a new source package
-which already contains Ubuntu changes.  It contains the difference between
-the Ubuntu version and the equivalent base version in Debian.""")
+This e-mail has been sent due to an upload to DISTRO of a new source package
+which already contains DISTRO changes.  It contains the difference between
+the DISTRO version and the equivalent base version in Ubuntu.""")
         payload = patch_part(distro, this)
     elif get_base(last) != get_base(this):
-        # Ubuntu changed upstream version, send the patech
-        subject = "Ubuntu (new upstream) %s %s"\
+        # We changed upstream version, send the patch
+        subject = "DISTRO (new upstream) %s %s"\
                   % (this["Package"], this["Version"])
         intro = MIMEText("""\
-This e-mail has been sent due to an upload to Ubuntu of a new upstream
-version which still contains Ubuntu changes.  It contains the difference
-between the Ubuntu version and the equivalent base version in Debian, note
+This e-mail has been sent due to an upload to DISTRO of a new upstream
+version which still contains DISTRO changes.  It contains the difference
+between the DISTRO version and the equivalent base version in Ubuntu, note
 that this difference may include the upstream changes.""")
         payload = patch_part(distro, this)
     else:
-        # Ubuntu revision, send the diff
+        # Our revision, send the diff
         subject = "Ubuntu %s %s" % (this["Package"], this["Version"])
         intro = MIMEText("""\
-This e-mail has been sent due to an upload to Ubuntu that contains Ubuntu
+This e-mail has been sent due to an upload to DISTRO that contains DISTRO
 changes.  It contains the difference between the new version and the
-previous version of the same source package in Ubuntu.""")
+previous version of the same source package in DISTRO.""")
         payload = diff_part(distro, this)
 
-    # Allow patches to be missing (no Debian version)
+    # Allow patches to be missing (no Ubuntu version)
     if payload is None:
         return
 
@@ -226,12 +225,12 @@ previous version of the same source package in Ubuntu.""")
 
     # Build up the message
     message = MIMEMultipart()
-    message.add_header("From", "Ubuntu Merge-o-Matic <mom@ubuntu.com>")
-    message.add_header("To", "Ubuntu Merge-o-Matic <mom@ubuntu.com>")
+    message.add_header("From", "%s <%s>" % (MOM_NAME, MOM_EMAIL))
+    message.add_header("To", "%s <%s>" % (MOM_NAME, MOM_EMAIL))
     message.add_header("Date", formatdate())
     message.add_header("Subject", subject)
     message.add_header("Message-ID", make_msgid())
-    message.add_header("X-Your-Mom", "mom.ubuntu.com %s" % this["Package"])
+    message.add_header("X-Your-Mom", "%s %s" % (MOM_URL, this["Package"]))
     message.add_header("X-PTS-Approved", "yes")
     message.attach(intro)
     message.attach(changes)
@@ -311,7 +310,7 @@ def send_message(message, recipients):
         message.replace_header("To", addr)
 
         try:
-            smtp.sendmail("mom@ubuntu.com", env_addr , message.as_string())
+            smtp.sendmail(MOM_EMAIL, env_addr , message.as_string())
         except (SMTPSenderRefused, SMTPDataError):
             logging.exception("smtp failed")
             smtp = SMTP("localhost")
@@ -339,14 +338,14 @@ def update_feeds(distro, last, this, uploader, patch_rss, this_patch_rss,
     if patch_filename is not None:
         append_rss(patch_rss,
                    title=os.path.basename(patch_filename),
-                   link=("http://patches.ubuntu.com/by-release/" +
+                   link=(MOM_URL + "by-release/" +
                          tree.subdir("%s/patches" % ROOT, patch_filename)),
                    author=uploader,
                    filename=patch_filename)
 
         append_rss(this_patch_rss,
                    title=os.path.basename(patch_filename),
-                   link=("http://patches.ubuntu.com/by-release/" +
+                   link=(MOM_URL + "by-release/" +
                          tree.subdir("%s/patches" % ROOT, patch_filename)),
                    author=uploader,
                    filename=patch_filename)
@@ -362,14 +361,14 @@ def update_feeds(distro, last, this, uploader, patch_rss, this_patch_rss,
     if diff_filename is not None:
         append_rss(diff_rss,
                    title=os.path.basename(diff_filename),
-                   link=("http://patches.ubuntu.com/by-release/atomic/" +
+                   link=(MOM_URL + "by-release/atomic/" +
                          tree.subdir("%s/diffs" % ROOT, diff_filename)),
                    author=uploader,
                    filename=diff_filename)
 
         append_rss(this_diff_rss,
                    title=os.path.basename(diff_filename),
-                   link=("http://patches.ubuntu.com/by-release/atomic/" +
+                   link=(MOM_URL + "by-release/atomic/" +
                          tree.subdir("%s/diffs" % ROOT, diff_filename)),
                    author=uploader,
                    filename=diff_filename)

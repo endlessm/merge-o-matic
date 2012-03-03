@@ -45,10 +45,10 @@ def options(parser):
                       help="Source suite (aka distrorelease)")
 
     parser.add_option("-d", "--dest-distro", type="string", metavar="DISTRO",
-                      default=OUR_DISTRO,
+                      default=None,
                       help="Destination distribution")
     parser.add_option("-s", "--dest-suite", type="string", metavar="SUITE",
-                      default=OUR_DIST,
+                      default=None,
                       help="Destination suite (aka distrorelease)")
 
     parser.add_option("-c", "--component", type="string", metavar="COMPONENT",
@@ -58,8 +58,15 @@ def options(parser):
 def main(options, args):
     src_distro = options.source_distro
 
-    our_distro = options.dest_distro
-    our_dist = options.dest_suite
+    if not options.dest_distro:
+        our_distros = [options.dest_distro]
+    else:
+        our_distros = OUR_DISTROS
+
+    if not options.dest_suite:
+        our_dists = [options.dest_suite]
+    else:
+        our_dists = [OUR_DISTS[d] for d in our_distros]
 
     outstanding = []
     if os.path.isfile("%s/outstanding-merges.txt" % ROOT):
@@ -74,74 +81,75 @@ def main(options, args):
 
     # For each package in the destination distribution, find out whether
     # there's an open merge, and if so add an entry to the table for it.
-    for our_component in DISTROS[our_distro]["components"]:
-        if options.component is not None \
-               and our_component not in options.component:
-            continue
-
-        merges = []
-
-        for source in get_sources(our_distro, our_dist, our_component):
-            try:
-                output_dir = result_dir(source["Package"])
-                (base_version, left_version, right_version) \
-                               = read_report(output_dir,
-                                             our_distro, src_distro)
-            except ValueError:
+    for (our_distro, our_dist) in zip(our_distros, our_dists):
+        for our_component in DISTROS[our_distro]["components"]:
+            if options.component is not None \
+                and our_component not in options.component:
                 continue
 
-            try:
-                priority_idx = PRIORITY.index(source["Priority"])
-            except KeyError:
-                priority_idx = 0
+            merges = []
 
-            filename = changes_file(our_distro, source)
-            if os.path.isfile(filename):
-                changes = open(filename)
-            elif os.path.isfile(filename + ".bz2"):
-                changes = bz2.BZ2File(filename + ".bz2")
-            else:
-                changes = None
-
-            if changes is not None:
-                info = ControlFile(fileobj=changes,
-                                   multi_para=False, signed=False).para
+            for source in get_sources(our_distro, our_dist, our_component):
+                try:
+                    output_dir = result_dir(source["Package"])
+                    (base_version, left_version, right_version) \
+                                = read_report(output_dir,
+                                                our_distro, src_distro)
+                except ValueError:
+                    continue
 
                 try:
-                    user = info["Changed-By"]
+                    priority_idx = PRIORITY.index(source["Priority"])
                 except KeyError:
+                    priority_idx = 0
+
+                filename = changes_file(our_distro, source)
+                if os.path.isfile(filename):
+                    changes = open(filename)
+                elif os.path.isfile(filename + ".bz2"):
+                    changes = bz2.BZ2File(filename + ".bz2")
+                else:
+                    changes = None
+
+                if changes is not None:
+                    info = ControlFile(fileobj=changes,
+                                    multi_para=False, signed=False).para
+
+                    try:
+                        user = info["Changed-By"]
+                    except KeyError:
+                        user = None
+                    try:
+                        uploaded = info["Distribution"] == our_distro
+                    except KeyError:
+                        uploaded = False
+                else:
                     user = None
-                try:
-                    uploaded = info["Distribution"] == OUR_DIST
-                except KeyError:
                     uploaded = False
-            else:
-                user = None
-                uploaded = False
 
-            uploader = get_uploader(our_distro, source)
+                uploader = get_uploader(our_distro, source)
 
-            if uploaded:
-                section = "updated"
-            elif not after_uvf:
-                section = "outstanding"
-            elif source["Package"] in outstanding:
-                section = "outstanding"
-            else:
-                section = "new"
+                if uploaded:
+                    section = "updated"
+                elif not after_uvf:
+                    section = "outstanding"
+                elif source["Package"] in outstanding:
+                    section = "outstanding"
+                else:
+                    section = "new"
 
-            merges.append((section, priority_idx, source["Package"], user,
-                           uploader, source, base_version,
-                           left_version, right_version))
+                merges.append((section, priority_idx, source["Package"], user,
+                            uploader, source, base_version,
+                            left_version, right_version))
 
-        merges.sort()
+            merges.sort()
 
-        write_status_page(our_component, merges, our_distro, src_distro)
-        write_status_json(our_component, merges, our_distro, src_distro)
+            write_status_page(our_component, merges, our_distro, src_distro)
+            write_status_json(our_component, merges, our_distro, src_distro)
 
-        status_file = "%s/merges/tomerge-%s" % (ROOT, our_component)
-        remove_old_comments(status_file, merges)
-        write_status_file(status_file, merges)
+            status_file = "%s/merges/tomerge-%s" % (ROOT, our_component)
+            remove_old_comments(status_file, merges)
+            write_status_file(status_file, merges)
 
 
 def get_uploader(distro, source):

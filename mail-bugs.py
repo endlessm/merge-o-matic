@@ -40,9 +40,6 @@ from deb.version import Version
 SEVERITY = [ "unknown", "critical", "grave", "serious", "important", "normal",
              "minor", "wishlist" ]
 
-# Who to send to
-RECIPIENTS = [ "ubuntu-archive@lists.ubuntu.com",
-               "ubuntu-devel@lists.ubuntu.com" ]
 
 
 def options(parser):
@@ -180,10 +177,10 @@ def mail_closures(bugs):
         text += "\n"
 
     message = MIMEText(text)
-    message.add_header("From", "Ubuntu Merge-o-Matic <mom@ubuntu.com>")
-    message.add_header("To", "Ubuntu Merge-o-Matic <mom@ubuntu.com>")
+    message.add_header("From", "%s <%s>" % (MOM_NAME, MOM_EMAIL))
+    message.add_header("To", "%s <%s>" % (MOM_NAME, MOM_EMAIL))
     message.add_header("Date", formatdate())
-    message.add_header("Subject", "Bugs closed in Debian")
+    message.add_header("Subject", "Bugs closed in Ubuntu")
     message.add_header("Message-ID", make_msgid())
 
     send_message(message, RECIPIENTS)
@@ -196,7 +193,7 @@ def send_message(message, recipients):
         logging.debug("Sending to %s", addr)
         message.replace_header("To", addr)
 
-        smtp.sendmail("mom@ubuntu.com", addr , message.as_string())
+        smtp.sendmail(MOM_EMAIL, addr , message.as_string())
 
     smtp.quit()
 

@@ -24,23 +24,23 @@ if [ "$DEBUG" = "y" ]; then
 else
 	QUIET="-q"
 
-	if ! mkdir /srv/patches.ubuntu.com/.lock 2>/dev/null; then
+	if ! mkdir /srv/merge-o-matic/.lock 2>/dev/null; then
 		echo "LOCKED (another one running?)"
 		exit 1
 	fi
-	trap "rmdir /srv/patches.ubuntu.com/.lock" 0
+	trap "rmdir /srv/merge-o-matic/.lock" 0
 fi
 
-cd /srv/patches.ubuntu.com/code
+cd /srv/merge-o-matic/code
 #bzr update
 
-cp addcomment.py /srv/patches.ubuntu.com/merges
+cp addcomment.py /srv/merge-o-matic/merges
 
 # Update the blacklist
-wget -q -O/srv/patches.ubuntu.com/sync-blacklist.txt http://people.canonical.com/~ubuntu-archive/sync-blacklist.txt
+#wget -q -O/srv/merge-o-matic/sync-blacklist.txt http://people.canonical.com/~ubuntu-archive/sync-blacklist.txt
 
 # Download new packages
-./update-pool.py $QUIET debian ubuntu
+./update-pool.py $QUIET ubuntu DISTRO-standard
 
 # Update the Sources files against new packages that have been downloaded.
 ./update-sources.py $QUIET
