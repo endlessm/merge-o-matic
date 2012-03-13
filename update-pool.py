@@ -41,6 +41,19 @@ def main(options, args):
     else:
         distros = get_pool_distros()
 
+    # Update our sources and calculate the list of packages we are
+    # interested in (no need to download the entire Ubuntu archive...)
+    updated_sources = set()
+    our_packages = set()
+    for our_distro in OUR_DISTROS:
+        for our_dist in OUR_DISTS[our_distro]:
+            for our_component in DISTROS[our_distro]["components"]:
+                update_sources(our_distro, our_dist, our_component)
+                updated_sources.add((our_distro, our_dist, our_component))
+                sources = get_sources(our_distro, our_dist, our_component)
+                for source in sources:
+                    our_packages.add(source["Package"])
+
     # Download the current sources for the given distributions and download
     # any new contents into our pool
     for distro in distros:
@@ -53,13 +66,25 @@ def main(options, args):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
+                    if source["Package"] not in our_packages:
+                        continue
                     update_pool(distro, source)
 
 
 def sources_url(distro, dist, component):
     """Return a URL for a remote Sources.gz file."""
+    try:
+        return DISTROS[distro]["sources_urls"][(dist, component)]
+    except KeyError:
+        pass
+        
     mirror = DISTROS[distro]["mirror"]
-    return "%s/dists/%s/%s/source/Sources.gz" % (mirror, dist, component)
+    url = mirror + "/dists"
+    if dist is not None:
+        url += "/" + dist
+    if component is not None:
+        url += "/" + component
+    return url + "/source/Sources.gz"
 
 def update_sources(distro, dist, component):
     """Update a Sources file."""

@@ -21,11 +21,12 @@ DISTROS = {
         "dists": [ None ],
         "components": [ None ],
         "expire": True,
+        "sources_urls" : { (None, None): "http://SERVER:82/DISTRO/standard/Packages.gz" }
         },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
         "dists": [ "precise" ],
-        "components": [ "main", "restricted" ], # "universe", "multiverse"
+        "components": [ "main", "restricted", "universe", "multiverse" ]
         "expire": True,
         },
 #    "dapper-security": {
@@ -56,7 +57,7 @@ DISTROS = {
 
 # Destination distributions and releases
 OUR_DISTROS = [ "DISTRO-standard" ]
-OUR_DISTS   = { "DISTRO-standard" : None }
+OUR_DISTS   = { "DISTRO-standard" : [ None ] }
 
 # Default source distribution and release
 SRC_DISTRO = "ubuntu"
