@@ -105,6 +105,8 @@ def update_sources(distro, dist, component):
     logging.debug("Downloading %s", url)
 
     try:
+        if not os.path.isdir(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
         urllib.URLopener().retrieve(url, filename)
     except IOError:
         logging.error("Downloading %s failed", url)
