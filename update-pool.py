@@ -104,19 +104,11 @@ def update_sources(distro, dist, component):
 
     logging.debug("Downloading %s", url)
 
-    gzfilename = tempfile.mktemp()
     try:
-        urllib.URLopener().retrieve(url, gzfilename)
+        urllib.URLopener().retrieve(url, filename)
     except IOError:
         logging.error("Downloading %s failed", url)
         raise
-    try:
-        with closing(gzip.GzipFile(gzfilename)) as gzfile:
-            ensure(filename)
-            with open(filename, "w") as local:
-                local.write(gzfile.read())
-    finally:
-        os.unlink(gzfilename)
 
     logging.info("Saved %s", tree.subdir(ROOT, filename))
     return filename
