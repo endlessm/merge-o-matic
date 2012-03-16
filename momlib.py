@@ -29,12 +29,14 @@ except ImportError:
     md5 = _mod_md5.new
 import time
 import fcntl
+import gzip
 import errno
 import logging
 import datetime
 import stat
 
 from cgi import escape
+from contextlib import closing
 from optparse import OptionParser
 
 from deb.controlfile import ControlFile
@@ -55,6 +57,8 @@ sys.path.remove(MOM_CONFIG_PATH)
 
 # Cache of parsed sources files
 SOURCES_CACHE = {}
+# Cache of mappings of Debian package names to OBS package names
+OBS_CACHE = {}
 
 # --------------------------------------------------------------------------- #
 # Command-line tool functions
@@ -210,7 +214,110 @@ def result_dir(package):
     """Return the directory to store the result in."""
     return "%s/merges/%s/%s" % (ROOT, pathhash(package), package)
 
+# --------------------------------------------------------------------------- #
+# OBS handling
+# --------------------------------------------------------------------------- #
 
+def obs_package_cache(distro):
+    """Cache the mapping of Debian package names to OBS package names"""
+    global OBS_CACHE
+
+    if distro in OBS_CACHE:
+        return
+
+    OBS_CACHE[distro] = {}
+    d = obs_directory(distro)
+    for package_elt in ElementTree.parse(d + "/.osc/_packages").findall(".//package"):
+        obs_package = package_elt.get("name")
+        files = []
+        for file_elt in ElementTree.parse("%s/%s/.osc/_files" % (d, obs_package)).findall(".//entry"):
+            filename = file_elt.get("name")
+            files.append(filename)
+            if filename[-4:] == ".dsc":
+                source = ControlFile("%s/%s/.osc/%s" % (d, obs_package, filename), multi_para=False, signed=True)
+        assert source is not None
+        OBS_CACHE[distro][source.para["Source"]] = {
+            "name": source.para["Source"],
+            "obs-name": obs_package,
+            "files": files
+        }
+
+def obs_directory(distro=None, package=None):
+    """Return the directory where the *Debian* package is checked out"""
+    if distro is None:
+        return "%s/osc" % ROOT
+    d = "%s/osc/%s" % (ROOT, DISTROS[distro]["obs"]["project"])
+    if package is None:
+        return d
+    obs_package_cache(distro)
+    return d + "/" + OBS_CACHE[distro][package]["obs-name"]
+
+def obs_packages(distro):
+    """Return the list of *Debian* package names in an osc checkout"""
+    if distro not in OBS_CACHE:
+        obs_package_cache(distro)
+
+    return OBS_CACHE[distro].keys()
+    
+def obs_files(distro, package):
+    """Return paths to the source files checked out from osc"""
+    if distro not in OBS_CACHE:
+        obs_package_cache(distro)
+
+    d = obs_directory(distro, package)
+    return [ "%s/.osc/%s" % (d, f) for f in OBS_CACHE[distro][package]["files"] ]
+
+def obs_is_checked_out(distro):
+    """Return True if the distro has been checked out via osc"""
+    return os.path.exists(obs_directory(distro) + "/.osc/_packages")
+
+def obs_checkout_or_update(distro):
+    """If the distro is not checked out, checkout via osc, else update"""
+    if not os.path.isdir(obs_directory()):
+        os.makedirs(obs_directory())
+
+    if obs_is_checked_out(distro):
+        shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "update", DISTROS[distro]["obs"]["project"]),
+                  chdir=obs_directory())
+    else:
+        shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "checkout", DISTROS[distro]["obs"]["project"]),
+                  chdir=obs_directory())
+
+def obs_update_pool(distro):
+    """Symlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
+    if distro not in OBS_CACHE:
+        obs_package_cache(distro)
+
+    for package, cache in OBS_CACHE[distro].items():
+        pooldir = "%s/%s" % (ROOT, pool_directory(distro, package))
+        obsdir = obs_directory(distro, cache["name"])
+        if not os.path.isdir(pooldir):
+            os.makedirs(pooldir)
+        for f in cache["files"]:
+            target = "%s/%s" % (pooldir, f)
+            if os.path.lexists(target):
+                os.unlink(target)
+            os.symlink("%s/.osc/%s" % (obsdir, f), target)
+
+    def walker(arg, dirname, filenames):
+        is_pooldir = False
+        for filename in filenames:
+            if filename[-4:] == ".dsc" or filename == "Sources" or filename == "Sources.gz":
+                is_pooldir = True
+            fullname = "%s/%s" % (dirname, filename)
+            if not os.path.exists(fullname):
+                logging.info("Unlinking stale %s", tree.subdir(ROOT, fullname))
+                os.unlink(fullname)
+
+    os.path.walk("%s/pool/%s" % (ROOT, pool_name(distro)), walker, None)
+
+    sources_filename = sources_file(distro, None, None)
+    logging.info("Updating %s", tree.subdir(ROOT, sources_filename))
+    if not os.path.isdir(os.path.dirname(sources_filename)):
+        os.makedirs(os.path.dirname(sources_filename))
+    with closing(gzip.GzipFile(sources_filename, "w")) as gzfile:
+        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, pool_name(distro))), chdir=ROOT, stdout=gzfile)
+    
 # --------------------------------------------------------------------------- #
 # Sources file handling
 # --------------------------------------------------------------------------- #

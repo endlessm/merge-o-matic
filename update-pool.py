@@ -48,7 +48,10 @@ def main(options, args):
     for our_distro in OUR_DISTROS:
         for our_dist in OUR_DISTS[our_distro]:
             for our_component in DISTROS[our_distro]["components"]:
-                update_sources(our_distro, our_dist, our_component)
+                if "obs" in DISTROS[our_distro]:
+                    update_obs(our_distro)
+                else:
+                    update_sources(our_distro, our_dist, our_component)
                 updated_sources.add((our_distro, our_dist, our_component))
                 sources = get_sources(our_distro, our_dist, our_component)
                 for source in sources:
@@ -59,7 +62,11 @@ def main(options, args):
     for distro in distros:
         for dist in DISTROS[distro]["dists"]:
             for component in DISTROS[distro]["components"]:
-                update_sources(distro, dist, component)
+                if (our_distro, our_dist, our_component) in updated_sources:
+                    if "obs" in DISTROS[our_distro]:
+                        continue
+                else:
+                    update_sources(distro, dist, component)
 
                 sources = get_sources(distro, dist, component)
                 for source in sources:
@@ -70,6 +77,10 @@ def main(options, args):
                         continue
                     update_pool(distro, source)
 
+def update_obs(distro):
+    """Check out (or update) a distro from OBS, symlink it into the pool, and generate Sources files"""
+    obs_checkout_or_update(distro)
+    obs_update_pool(distro)
 
 def sources_url(distro, dist, component):
     """Return a URL for a remote Sources.gz file."""

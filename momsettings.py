@@ -1,5 +1,5 @@
 # Output root
-ROOT = "/srv/merge-o-matic"
+ROOT = "/obs/merge-o-matic"
 
 # Website root
 MOM_URL = "http://SERVER:82/DISTRO/merge-o-matic/"
@@ -17,16 +17,19 @@ RECIPIENTS = []
 # For additional subprojects, use additional distro definitions
 DISTROS = {
     "DISTRO-standard": {
-        "mirror": "http://SERVER:82/DISTRO/standard/",
+        "obs": {
+            "url": "https://SERVER:444",
+            "project": "DISTRO"
+        },
+        "mirror": "http://SERVER:82/debian/DISTRO/standard/",
         "dists": [ None ],
         "components": [ None ],
         "expire": True,
-        "sources_urls" : { (None, None): "http://SERVER:82/DISTRO/standard/Packages.gz" }
         },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
         "dists": [ "precise" ],
-        "components": [ "main", "restricted", "universe", "multiverse" ]
+        "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
 #    "dapper-security": {
