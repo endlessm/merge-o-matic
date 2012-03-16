@@ -36,7 +36,6 @@ import datetime
 import stat
 
 from cgi import escape
-from contextlib import closing
 from optparse import OptionParser
 
 from deb.controlfile import ControlFile
@@ -123,14 +122,17 @@ def md5sum(filename):
 # Location functions
 # --------------------------------------------------------------------------- #
 
-def sources_file(distro, dist, component):
+def uncompressed_sources_file(distro, dist, component):
     """Return the location of a local Sources file."""
     path = "%s/dists/%s" % (ROOT, distro)
     if dist is not None:
         path = "%s-%s" % (path, dist)
     if component is not None:
         path = "%s/%s" % (path, component)
-    return path + "/source/Sources.gz"
+    return path + "/source/Sources"
+
+def sources_file(distro, dist, component):
+    return uncompressed_sources_file(distro, dist, component) + ".gz"
 
 def pool_directory(distro, package):
     """Return the pool directory for a source"""
@@ -315,8 +317,14 @@ def obs_update_pool(distro):
     logging.info("Updating %s", tree.subdir(ROOT, sources_filename))
     if not os.path.isdir(os.path.dirname(sources_filename)):
         os.makedirs(os.path.dirname(sources_filename))
-    with closing(gzip.GzipFile(sources_filename, "w")) as gzfile:
-        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, pool_name(distro))), chdir=ROOT, stdout=gzfile)
+
+    # For some reason, if we try to write directly to the gzipped stream,
+    # it gets corrupted at the end
+    with open(uncompressed_sources_file(distro, None, None), "w") as f:
+        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, pool_name(distro))), chdir=ROOT, stdout=f)
+    with open(uncompressed_sources_file(distro, None, None)) as f:
+        with gzip.open(sources_filename, "wb") as gzf:
+            gzf.write(f.read())
     
 # --------------------------------------------------------------------------- #
 # Sources file handling

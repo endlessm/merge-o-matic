@@ -19,6 +19,8 @@
 
 from __future__ import with_statement
 
+import gzip
+
 class ControlFile(object):
     """Debian control file.
 
@@ -64,12 +66,17 @@ class ControlFile(object):
 
     def open(self, file, *args, **kwds):
         """Open and parse a control-file format file."""
-        with open(file) as f:
-            try:
-                self.parse(f, *args, **kwds)
-            except Exception, e:
-                e.path = file
-                raise e
+        try:
+            if file[-3:] == ".gz":
+                with gzip.open(file) as gzf:
+                    self.parse(gzf, *args, **kwds)
+            else:
+                with open(file) as f:
+                    self.parse(f, *args, **kwds)
+
+        except Exception, e:
+            e.path = file
+            raise e
 
     def parse(self, file, multi_para=False, signed=False):
         """Parse a control-file format file.
