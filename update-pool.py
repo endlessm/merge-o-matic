@@ -62,8 +62,8 @@ def main(options, args):
     for distro in distros:
         for dist in DISTROS[distro]["dists"]:
             for component in DISTROS[distro]["components"]:
-                if (our_distro, our_dist, our_component) in updated_sources:
-                    if "obs" in DISTROS[our_distro]:
+                if (distro, dist, component) in updated_sources:
+                    if "obs" in DISTROS[distro]:
                         continue
                 else:
                     update_sources(distro, dist, component)
