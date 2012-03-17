@@ -299,7 +299,7 @@ def obs_checkout_or_update(distro):
                   chdir=obs_directory())
 
 def obs_update_pool(distro):
-    """Symlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
+    """Hardlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
     if distro not in OBS_CACHE:
         obs_package_cache(distro)
 
@@ -312,7 +312,9 @@ def obs_update_pool(distro):
             target = "%s/%s" % (pooldir, f)
             if os.path.lexists(target):
                 os.unlink(target)
-            os.symlink("%s/.osc/%s" % (obsdir, f), target)
+            # Hardlink instead of symlink because we want to preserve files in the pool for diffs
+            # even after they are removed from obs checkouts
+            os.link("%s/.osc/%s" % (obsdir, f), target)
 
     def walker(arg, dirname, filenames):
         is_pooldir = False
