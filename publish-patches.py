@@ -43,8 +43,6 @@ def main(options, args):
     else:
         our_dists = [OUR_DISTS[d] for d in our_distros]
 
-    blacklist = read_blacklist()
-
     # Write to a new list
     list_filename = patch_list_file()
     list_file = open(list_filename + ".new", "w")
@@ -56,7 +54,7 @@ def main(options, args):
                 for source in get_sources(our_distro, our_dist, component):
                     package = source["Package"]
 
-                    if package in blacklist:
+                    if not check_blackwhitelist(package):
                         continue
 
                     # Publish slipped patches in preference to true-base ones

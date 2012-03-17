@@ -38,8 +38,6 @@ def main(options, args):
     else:
         distros = get_pool_distros()
 
-    blacklist = read_blacklist()
-
     # For each package in the given distributions, iterate the pool in order
     # and extract patches from debian/patches
     for distro in distros:
@@ -53,7 +51,7 @@ def main(options, args):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
-                    if source["Package"] in blacklist:
+                    if not check_blackwhitelist(source["Package"]):
                         continue
 
                     sources = get_pool_sources(distro, source["Package"])

@@ -62,8 +62,6 @@ def main(options, args):
     else:
         our_dists = [OUR_DISTS[d] for d in our_distros]
 
-    blacklist = read_blacklist()
-
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination
     for (our_distro, our_dist) in zip(our_distros, our_dists):
@@ -92,8 +90,8 @@ def main(options, args):
 
                 stats["total"] += 1
 
-                if package in blacklist:
-                    logging.debug("%s: blacklisted (locally packaged)", package)
+                if not check_blackwhitelist(package):
+                    logging.debug("%s: blacklisted or not whitelisted", package)
                     stats["local"] += 1
                     continue
 

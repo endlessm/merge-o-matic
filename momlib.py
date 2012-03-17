@@ -56,8 +56,21 @@ sys.path.remove(MOM_CONFIG_PATH)
 
 # Cache of parsed sources files
 SOURCES_CACHE = {}
+
 # Cache of mappings of Debian package names to OBS package names
 OBS_CACHE = {}
+
+# Blacklist and whitelist cache
+BLACKWHITE_CACHE = {
+    "black": set(),
+    "white": set(),
+    "is_cached": False,
+    "is_white": False,
+    "filename": {
+        "black": "%s/sync-blacklist.txt" % ROOT,
+        "white": "%s/post-sync-whitelist.txt" % ROOT
+    }
+}
 
 # --------------------------------------------------------------------------- #
 # Command-line tool functions
@@ -600,31 +613,55 @@ def read_report(output_dir, left_distro, right_distro):
     return (base_version, left_version, right_version)
 
 # --------------------------------------------------------------------------- #
-# Blacklist handling
+# Blacklist and whitelist handling
 # --------------------------------------------------------------------------- #
 
+def cache_blackwhitelist():
+    """Build the black/whitelist cache"""
+    BLACKWHITE_CACHE["black"] = set()
+    BLACKWHITE_CACHE["white"] = set()
+    BLACKWHITE_CACHE["is_cached"] = True
+    BLACKWHITE_CACHE["is_white"] = os.path.isfile(BLACKWHITE_CACHE["filename"]["white"])
+
+    for color in "black", "white":
+        if not os.path.isfile(BLACKWHITE_CACHE["filename"][color]):
+            continue
+        with open(BLACKWHITE_CACHE["filename"][color]) as f:
+            for line in f:
+                try:
+                    line = line[:line.index("#")]
+                except ValueError:
+                    pass
+
+                line = line.strip()
+                if not line:
+                    continue
+
+                BLACKWHITE_CACHE[color].add(line)
+
 def read_blacklist():
-    """Read the blacklist file."""
-    filename = "%s/sync-blacklist.txt" % ROOT
-    if not os.path.isfile(filename):
-        return []
+    """Read the blacklist"""
+    if not BLACKWHITE_CACHE["is_cached"]:
+        cache_blackwhitelist()
 
-    bl = []
-    with open(filename) as blacklist:
-        for line in blacklist:
-            try:
-                line = line[:line.index("#")]
-            except ValueError:
-                pass
+    return list(BLACKWHITE_CACHE["black"])
 
-            line = line.strip()
-            if not line:
-                continue
+def read_whitelist():
+    """Read the whitelist"""
+    if not BLACKWHITE_CACHE["is_cached"]:
+        cache_blackwhitelist()
 
-            bl.append(line)
+    return list(BLACKWHITE_CACHE["white"])
 
-    return bl
+def check_blackwhitelist(package):
+    """Check whether the package passes black and white lists"""
+    if not BLACKWHITE_CACHE["is_cached"]:
+        cache_blackwhitelist()
 
+    if BLACKWHITE_CACHE["is_white"]:
+        return package in BLACKWHITE_CACHE["white"] and package not in BLACKWHITE_CACHE["black"]
+    else:
+        return package not in BLACKWHITE_CACHE["black"]
 
 # --------------------------------------------------------------------------- #
 # RSS feed handling

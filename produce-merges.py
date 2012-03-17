@@ -97,8 +97,6 @@ def main(options, args):
         for filename in options.include:
             includes.extend(read_package_list(filename))
 
-    blacklist = read_blacklist()
-
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # produce a merge combining both sets of changes
@@ -112,7 +110,7 @@ def main(options, args):
                 if options.package is not None \
                     and our_source["Package"] not in options.package:
                     continue
-                if our_source["Package"] in blacklist:
+                if not check_blackwhitelist(our_source["Package"]):
                     continue
                 if len(includes) and our_source["Package"] not in includes:
                     continue

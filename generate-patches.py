@@ -64,8 +64,6 @@ def main(options, args):
     else:
         our_dists = [OUR_DISTS[d] for d in our_distros]
 
-    blacklist = read_blacklist()
-
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # create patches from that to both
@@ -79,7 +77,7 @@ def main(options, args):
                 if options.package is not None \
                     and our_source["Package"] not in options.package:
                     continue
-                if our_source["Package"] in blacklist:
+                if not check_blackwhitelist(our_source["Package"]):
                     continue
 
                 if search(".*build[0-9]+$", our_source["Version"]):
