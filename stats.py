@@ -58,74 +58,75 @@ def main(options, args):
         our_distros = OUR_DISTROS
 
     if options.dest_suite:
-        our_dists = [options.dest_suite]
+        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
     else:
-        our_dists = [OUR_DISTS[d] for d in our_distros]
+        our_dists = OUR_DISTS
 
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination
-    for (our_distro, our_dist) in zip(our_distros, our_dists):
-        for our_component in DISTROS[our_distro]["components"]:
-            stats = {}
-            stats["total"] = 0
-            stats["local"] = 0
-            stats["unmodified"] = 0
-            stats["needs-sync"] = 0
-            stats["needs-merge"] = 0
-            stats["repackaged"] = 0
-            stats["modified"] = 0
+    for our_distro in our_distros:
+        for our_dist in our_dists[our_distro]:
+            for our_component in DISTROS[our_distro]["components"]:
+                stats = {}
+                stats["total"] = 0
+                stats["local"] = 0
+                stats["unmodified"] = 0
+                stats["needs-sync"] = 0
+                stats["needs-merge"] = 0
+                stats["repackaged"] = 0
+                stats["modified"] = 0
 
-            if options.component is not None \
-                and our_component not in options.component:
-                continue
-
-            for our_source in get_sources(our_distro, our_dist, our_component):
-                if options.package is not None \
-                    and our_source["Package"] not in options.package:
+                if options.component is not None \
+                    and our_component not in options.component:
                     continue
 
-                package = our_source["Package"]
-                our_version = Version(our_source["Version"])
-                logging.debug("%s: %s is %s", package, our_distro, our_version)
+                for our_source in get_sources(our_distro, our_dist, our_component):
+                    if options.package is not None \
+                        and our_source["Package"] not in options.package:
+                        continue
 
-                stats["total"] += 1
+                    package = our_source["Package"]
+                    our_version = Version(our_source["Version"])
+                    logging.debug("%s: %s is %s", package, our_distro, our_version)
 
-                if not check_blackwhitelist(package):
-                    logging.debug("%s: blacklisted or not whitelisted", package)
-                    stats["local"] += 1
-                    continue
+                    stats["total"] += 1
 
-                try:
-                    (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, package)
-                    logging.debug("%s: %s is %s", package, src_distro, src_version)
-                except IndexError:
-                    logging.debug("%s: locally packaged", package)
-                    stats["local"] += 1
-                    continue
+                    if not check_blackwhitelist(package):
+                        logging.debug("%s: blacklisted or not whitelisted", package)
+                        stats["local"] += 1
+                        continue
 
-                base = get_base(our_source)
+                    try:
+                        (src_source, src_version, src_pool_source) \
+                                    = get_same_source(src_distro, src_dist, package)
+                        logging.debug("%s: %s is %s", package, src_distro, src_version)
+                    except IndexError:
+                        logging.debug("%s: locally packaged", package)
+                        stats["local"] += 1
+                        continue
 
-                if our_version == src_version:
-                    logging.debug("%s: unmodified", package)
-                    stats["unmodified"] += 1
-                elif base > src_version:
-                    logging.debug("%s: locally repackaged", package)
-                    stats["repackaged"] += 1
-                elif our_version == base:
-                    logging.debug("%s: needs sync", package)
-                    stats["needs-sync"] += 1
-                elif our_version < src_version:
-                    logging.debug("%s: needs merge", package)
-                    stats["needs-merge"] += 1
-                elif "-0co" in str(our_version):
-                    logging.debug("%s: locally repackaged", package)
-                    stats["repackaged"] += 1
-                else:
-                    logging.debug("%s: modified", package)
-                    stats["modified"] += 1
+                    base = get_base(our_source)
 
-            write_stats(our_component, stats)
+                    if our_version == src_version:
+                        logging.debug("%s: unmodified", package)
+                        stats["unmodified"] += 1
+                    elif base > src_version:
+                        logging.debug("%s: locally repackaged", package)
+                        stats["repackaged"] += 1
+                    elif our_version == base:
+                        logging.debug("%s: needs sync", package)
+                        stats["needs-sync"] += 1
+                    elif our_version < src_version:
+                        logging.debug("%s: needs merge", package)
+                        stats["needs-merge"] += 1
+                    elif "-0co" in str(our_version):
+                        logging.debug("%s: locally repackaged", package)
+                        stats["repackaged"] += 1
+                    else:
+                        logging.debug("%s: modified", package)
+                        stats["modified"] += 1
+
+                write_stats(our_component, stats)
 
 def write_stats(component, stats):
     """Write out the collected stats."""

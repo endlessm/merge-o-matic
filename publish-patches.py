@@ -39,9 +39,9 @@ def main(options, args):
         our_distros = OUR_DISTROS
 
     if options.dest_suite:
-        our_dists = [options.dest_suite]
+        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
     else:
-        our_dists = [OUR_DISTS[d] for d in our_distros]
+        our_dists = OUR_DISTS
 
     # Write to a new list
     list_filename = patch_list_file()
@@ -49,24 +49,25 @@ def main(options, args):
     try:
         # For each package in the distribution, check for a patch for the
         # current version; publish if it exists, clean up if not
-        for (our_distro, our_dist) in zip(our_distros, our_dists):
-            for component in DISTROS[our_distro]["components"]:
-                for source in get_sources(our_distro, our_dist, component):
-                    package = source["Package"]
+        for our_distro in our_distros:
+            for our_dist in our_dists[our_distro]:
+                for component in DISTROS[our_distro]["components"]:
+                    for source in get_sources(our_distro, our_dist, component):
+                        package = source["Package"]
 
-                    if not check_blackwhitelist(package):
-                        continue
+                        if not check_blackwhitelist(package):
+                            continue
 
-                    # Publish slipped patches in preference to true-base ones
-                    slip_filename = patch_file(our_distro, source, True)
-                    filename = patch_file(our_distro, source, False)
+                        # Publish slipped patches in preference to true-base ones
+                        slip_filename = patch_file(our_distro, source, True)
+                        filename = patch_file(our_distro, source, False)
 
-                    if os.path.isfile(slip_filename):
-                        publish_patch(our_distro, source, slip_filename, list_file)
-                    elif os.path.isfile(filename):
-                        publish_patch(our_distro, source, filename, list_file)
-                    else:
-                        unpublish_patch(our_distro, source)
+                        if os.path.isfile(slip_filename):
+                            publish_patch(our_distro, source, slip_filename, list_file)
+                        elif os.path.isfile(filename):
+                            publish_patch(our_distro, source, filename, list_file)
+                        else:
+                            unpublish_patch(our_distro, source)
     finally:
         list_file.close()
 

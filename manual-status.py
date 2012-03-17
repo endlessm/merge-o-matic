@@ -65,86 +65,87 @@ def main(options, args):
         our_distros = OUR_DISTROS
 
     if options.dest_suite:
-        our_dists = [options.dest_suite]
+        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
     else:
-        our_dists = [OUR_DISTS[d] for d in our_distros]
+        our_dists = OUR_DISTS
 
     # For each package in the destination distribution, find out whether
     # there's an open merge, and if so add an entry to the table for it.
-    for (our_distro, our_dist) in zip(our_distros, our_dists):
-        for our_component in DISTROS[our_distro]["components"]:
-            if options.component is not None \
-                and our_component not in options.component:
-                continue
-
-            merges = []
-
-            for our_source in get_sources(our_distro, our_dist, our_component):
-                try:
-                    package = our_source["Package"]
-                    our_version = Version(our_source["Version"])
-                    our_pool_source = get_pool_source(our_distro, package,
-                                                    our_version)
-                    logging.debug("%s: %s is %s", package, our_distro, our_version)
-                except IndexError:
+    for our_distro in our_distros:
+        for our_dist in our_dists[our_distro]:
+            for our_component in DISTROS[our_distro]["components"]:
+                if options.component is not None \
+                    and our_component not in options.component:
                     continue
 
-                try:
-                    (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, package)
-                    logging.debug("%s: %s is %s", package, src_distro, src_version)
-                except IndexError:
-                    continue
+                merges = []
 
-                try:
-                    base = get_base(our_pool_source)
-                    base_source = get_nearest_source(our_distro, package, base)
-                    base_version = Version(base_source["Version"])
-                    logging.debug("%s: base is %s (%s wanted)",
-                                package, base_version, base)
-                    continue
-                except IndexError:
-                    pass
+                for our_source in get_sources(our_distro, our_dist, our_component):
+                    try:
+                        package = our_source["Package"]
+                        our_version = Version(our_source["Version"])
+                        our_pool_source = get_pool_source(our_distro, package,
+                                                        our_version)
+                        logging.debug("%s: %s is %s", package, our_distro, our_version)
+                    except IndexError:
+                        continue
 
-                try:
-                    priority_idx = PRIORITY.index(our_source["Priority"])
-                except KeyError:
-                    priority_idx = 0
+                    try:
+                        (src_source, src_version, src_pool_source) \
+                                    = get_same_source(src_distro, src_dist, package)
+                        logging.debug("%s: %s is %s", package, src_distro, src_version)
+                    except IndexError:
+                        continue
 
-                filename = changes_file(our_distro, our_source)
-                if os.path.isfile(filename):
-                    changes = open(filename)
-                elif os.path.isfile(filename + ".bz2"):
-                    changes = bz2.BZ2File(filename + ".bz2")
-                else:
-                    changes = None
+                    try:
+                        base = get_base(our_pool_source)
+                        base_source = get_nearest_source(our_distro, package, base)
+                        base_version = Version(base_source["Version"])
+                        logging.debug("%s: base is %s (%s wanted)",
+                                    package, base_version, base)
+                        continue
+                    except IndexError:
+                        pass
 
-                if changes is not None:
-                    info = ControlFile(fileobj=changes,
-                                    multi_para=False, signed=False).para
+                    try:
+                        priority_idx = PRIORITY.index(our_source["Priority"])
+                    except KeyError:
+                        priority_idx = 0
 
-                    user = info["Changed-By"]
-                    uploaded = info["Distribution"] == our_distro
-                else:
-                    user = None
-                    uploaded = False
+                    filename = changes_file(our_distro, our_source)
+                    if os.path.isfile(filename):
+                        changes = open(filename)
+                    elif os.path.isfile(filename + ".bz2"):
+                        changes = bz2.BZ2File(filename + ".bz2")
+                    else:
+                        changes = None
 
-                uploader = get_uploader(our_distro, our_source)
+                    if changes is not None:
+                        info = ControlFile(fileobj=changes,
+                                        multi_para=False, signed=False).para
 
-                if uploaded:
-                    section = "updated"
-                else:
-                    section = "new"
+                        user = info["Changed-By"]
+                        uploaded = info["Distribution"] == our_distro
+                    else:
+                        user = None
+                        uploaded = False
 
-                merges.append((section, priority_idx, package, user, uploader,
-                            our_source, our_version, src_version))
+                    uploader = get_uploader(our_distro, our_source)
 
-            write_status_page(our_component, merges, our_distro, src_distro)
-            write_status_json(our_component, merges, our_distro, src_distro)
+                    if uploaded:
+                        section = "updated"
+                    else:
+                        section = "new"
 
-            status_file = "%s/merges/tomerge-%s-manual" % (ROOT, our_component)
-            remove_old_comments(status_file, merges)
-            write_status_file(status_file, merges)
+                    merges.append((section, priority_idx, package, user, uploader,
+                                our_source, our_version, src_version))
+
+                write_status_page(our_component, merges, our_distro, src_distro)
+                write_status_json(our_component, merges, our_distro, src_distro)
+
+                status_file = "%s/merges/tomerge-%s-manual" % (ROOT, our_component)
+                remove_old_comments(status_file, merges)
+                write_status_file(status_file, merges)
 
 
 def write_status_page(component, merges, left_distro, right_distro):

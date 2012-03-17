@@ -83,9 +83,9 @@ def main(options, args):
         our_distros = OUR_DISTROS
 
     if options.dest_suite:
-        our_dists = [options.dest_suite]
+        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
     else:
-        our_dists = [OUR_DISTS[d] for d in our_distros]
+        our_dists = OUR_DISTS
 
     excludes = []
     if options.exclude is not None:
@@ -100,54 +100,55 @@ def main(options, args):
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # produce a merge combining both sets of changes
-    for (our_distro, our_dist) in zip(our_distros, our_dists):
-        for our_component in DISTROS[our_distro]["components"]:
-            if options.component is not None \
-                and our_component not in options.component:
-                continue
-
-            for our_source in get_sources(our_distro, our_dist, our_component):
-                if options.package is not None \
-                    and our_source["Package"] not in options.package:
-                    continue
-                if not check_blackwhitelist(our_source["Package"]):
-                    continue
-                if len(includes) and our_source["Package"] not in includes:
-                    continue
-                if len(excludes) and our_source["Package"] in excludes:
+    for our_distro in our_distros:
+        for our_dist in our_dists[our_distro]:
+            for our_component in DISTROS[our_distro]["components"]:
+                if options.component is not None \
+                    and our_component not in options.component:
                     continue
 
-                try:
-                    package = our_source["Package"]
-                    if options.version:
-                        our_version = Version(options.version)
-                    else:
-                        our_version = Version(our_source["Version"])
-                    our_pool_source = get_pool_source(our_distro, package,
-                                                    our_version)
-                    logging.debug("%s: %s is %s", package, our_distro, our_version)
-                except IndexError:
-                    continue
+                for our_source in get_sources(our_distro, our_dist, our_component):
+                    if options.package is not None \
+                        and our_source["Package"] not in options.package:
+                        continue
+                    if not check_blackwhitelist(our_source["Package"]):
+                        continue
+                    if len(includes) and our_source["Package"] not in includes:
+                        continue
+                    if len(excludes) and our_source["Package"] in excludes:
+                        continue
 
-                try:
-                    (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, package)
-                    logging.debug("%s: %s is %s", package, src_distro, src_version)
-                except IndexError:
-                    continue
+                    try:
+                        package = our_source["Package"]
+                        if options.version:
+                            our_version = Version(options.version)
+                        else:
+                            our_version = Version(our_source["Version"])
+                        our_pool_source = get_pool_source(our_distro, package,
+                                                        our_version)
+                        logging.debug("%s: %s is %s", package, our_distro, our_version)
+                    except IndexError:
+                        continue
 
-                try:
-                    base = get_base(our_pool_source)
-                    base_source = get_nearest_source(our_distro, package, base)
-                    base_version = Version(base_source["Version"])
-                    logging.debug("%s: base is %s (%s wanted)",
-                                package, base_version, base)
-                except IndexError:
-                    continue
+                    try:
+                        (src_source, src_version, src_pool_source) \
+                                    = get_same_source(src_distro, src_dist, package)
+                        logging.debug("%s: %s is %s", package, src_distro, src_version)
+                    except IndexError:
+                        continue
 
-                produce_merge(our_pool_source, our_distro, our_dist, base_source,
-                            src_pool_source, src_distro, src_dist,
-                            force=options.force)
+                    try:
+                        base = get_base(our_pool_source)
+                        base_source = get_nearest_source(our_distro, package, base)
+                        base_version = Version(base_source["Version"])
+                        logging.debug("%s: base is %s (%s wanted)",
+                                    package, base_version, base)
+                    except IndexError:
+                        continue
+
+                    produce_merge(our_pool_source, our_distro, our_dist, base_source,
+                                src_pool_source, src_distro, src_dist,
+                                force=options.force)
 
 def produce_merge(left_source, left_distro, left_dist, base_source,
                   right_source, right_distro, right_dist, force=False):
