@@ -69,7 +69,7 @@ def options(parser):
                       help="Distribution to generate stats for")
 
 def main(options, args):
-    if not options.dest_distro:
+    if options.dest_distro:
         our_distros = [options.dest_distro]
     else:
         our_distros = OUR_DISTROS

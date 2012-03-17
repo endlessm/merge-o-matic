@@ -52,12 +52,12 @@ def main(options, args):
     src_distro = options.source_distro
     src_dist = options.source_suite
 
-    if not options.dest_distro:
+    if options.dest_distro:
         our_distros = [options.dest_distro]
     else:
         our_distros = OUR_DISTROS
 
-    if not options.dest_suite:
+    if options.dest_suite:
         our_dists = [options.dest_suite]
     else:
         our_dists = [OUR_DISTS[d] for d in our_distros]
