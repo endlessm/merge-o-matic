@@ -33,13 +33,13 @@ def options(parser):
                       help="Suite (aka distrorelease) to publish")
 
 def main(options, args):
-    if options.dest_distro:
-        our_distros = [options.dest_distro]
+    if options.distro:
+        our_distros = [options.distro]
     else:
         our_distros = OUR_DISTROS
 
-    if options.dest_suite:
-        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
+    if options.suite:
+        our_dists = dict(zip(our_distros, [options.suite for d in our_distros]))
     else:
         our_dists = OUR_DISTS
 
