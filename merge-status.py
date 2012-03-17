@@ -177,6 +177,8 @@ def get_uploader(distro, source):
 def write_status_page(component, merges, left_distro, right_distro):
     """Write out the merge status page."""
     status_file = "%s/merges/%s.html" % (ROOT, component)
+    if not os.path.isdir(os.path.dirname(status_file)):
+        os.makedirs(os.path.dirname(status_file))
     with open(status_file + ".new", "w") as status:
         print >>status, "<html>"
         print >>status

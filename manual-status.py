@@ -153,6 +153,8 @@ def write_status_page(component, merges, left_distro, right_distro):
     merges.sort()
 
     status_file = "%s/merges/%s-manual.html" % (ROOT, component)
+    if not os.path.isdir(os.path.dirname(status_file)):
+        os.makedirs(os.path.dirname(status_file))
     with open(status_file + ".new", "w") as status:
         print >>status, "<html>"
         print >>status
