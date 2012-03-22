@@ -106,6 +106,11 @@ class Process(object):
         This is called automatically by __init__ and is separated out to
         allow sub-classes to override __init__ or open as they see fit.
         """
+        if stderr is None:
+            (pipe_err_r, pipe_err_w) = os.pipe()
+        else:
+            (pipe_err_r, pipe_err_w) = (None, None)
+
         if self.mode[0] != "x":
             (pipe_r, pipe_w) = os.pipe()
         else:
@@ -114,7 +119,7 @@ class Process(object):
         self.pid = os.fork()
         if self.pid == 0:
             try:
-                self.child(pipe_r, pipe_w, stdin, stdout, stderr, chdir)
+                self.child(pipe_r, pipe_w, pipe_err_w, stdin, stdout, stderr, chdir)
             except OSError:
                 os._exit(250)
             except Exception:
@@ -131,11 +136,17 @@ class Process(object):
                 self._pipe = os.fdopen(pipe_w, self.mode)
             elif self.mode[0] == "x":
                 self._pipe = None
+
+            if pipe_err_r is not None:
+                os.close(pipe_err_w)
+                self._pipe_err = os.fdopen(pipe_err_r, "r")
+            else:
+                self._pipe_err = None
         else:
             # Failure
             raise OSError, "%s failed" % " ".join(self.args)
 
-    def child(self, pipe_r, pipe_w, stdin, stdout, stderr, chdir):
+    def child(self, pipe_r, pipe_w, pipe_err_w, stdin, stdout, stderr, chdir):
         """Child process.
 
         Called by open inside the child process, separated out so it can
@@ -149,8 +160,11 @@ class Process(object):
             elif stderr != sys.stderr:
                 os.dup2(stderr.fileno(), sys.__stderr__.fileno())
         else:
-            with file("/dev/null", "w") as null:
-                os.dup2(null.fileno(), sys.__stderr__.fileno())
+            if pipe_err_w is not None:
+                os.dup2(pipe_err_w, sys.__stderr__.fileno())
+            else:
+                with file("/dev/null", "w") as null:
+                    os.dup2(null.fileno(), sys.__stderr__.fileno())
 
         # Set up stdout
         if self.mode[0] == "r":
@@ -199,18 +213,30 @@ class Process(object):
                 # ignore broken pipe
                 pass
 
+        err_output = "(error output not saved)"
+        if self._pipe_err is not None:
+            try:
+                err_output = self._pipe_err.read()
+            except:
+                pass
+
+            try:
+                self._pipe_err.close()
+            except:
+                pass
+
         (pid, status) = os.waitpid(self.pid, 0)
         if not os.WIFEXITED(status):
-            raise OSError, "abnormal exit: %s" % " ".join(self.args)
+            raise OSError, "abnormal exit: %s\n%s" % (" ".join(self.args), err_output)
         elif os.WEXITSTATUS(status) == 250:
-            raise OSError, "exec error: %s" % " ".join(self.args)
+            raise OSError, "exec error: %s\n%s" % (" ".join(self.args), err_output)
         elif os.WEXITSTATUS(status) == 251:
-            raise OSError, "exec error: %s" % " ".join(self.args)
+            raise OSError, "exec error: %s\n%s" % (" ".join(self.args), err_output)
         elif os.WEXITSTATUS(status) == 252:
-            raise OSError, "exec error: %s" % " ".join(self.args)
+            raise OSError, "exec error: %s\n%s" % (" ".join(self.args), err_output)
         elif os.WEXITSTATUS(status) not in self.okstatus:
-            raise ValueError, "process failed %d: %s" \
-                  % (os.WEXITSTATUS(status), " ".join(self.args))
+            raise ValueError, "process failed %d: %s\n%s" \
+                  % (os.WEXITSTATUS(status), " ".join(self.args), err_output)
 
         return os.WEXITSTATUS(status)
 
