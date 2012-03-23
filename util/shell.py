@@ -20,6 +20,7 @@
 from __future__ import with_statement
 
 import os
+import signal
 import sys
 
 
@@ -192,6 +193,12 @@ class Process(object):
 
         if chdir is not None:
             os.chdir(chdir)
+
+        # Remove python's default signal handlers; we want the new executable
+        # to be able to handle them in the way it sees fit. This is required
+        # e.g. for reliably executing dpkg-source.
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
         # Run the command
         os.execvp(self.args[0], self.args)
