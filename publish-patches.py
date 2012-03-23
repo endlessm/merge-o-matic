@@ -45,6 +45,7 @@ def main(options, args):
 
     # Write to a new list
     list_filename = patch_list_file()
+    ensure(list_filename)
     list_file = open(list_filename + ".new", "w")
     try:
         # For each package in the distribution, check for a patch for the
