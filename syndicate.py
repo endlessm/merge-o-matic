@@ -378,7 +378,11 @@ def read_subscriptions():
     """Read the subscriptions file."""
     subscriptions = []
 
-    with open("%s/subscriptions.txt" % ROOT) as f:
+    subscriptions_filename = "%s/subscriptions.txt" % ROOT
+    if not os.path.exists(subscriptions_filename):
+        return subscriptions
+
+    with open(subscriptions_filename) as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_SH)
 
         for line in f:
