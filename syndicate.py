@@ -80,6 +80,8 @@ def main(options, args):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
+                    if not check_blackwhitelist(source["Package"]):
+                        continue
 
                     watermark = read_watermark(distro, source)
                     sources = get_pool_sources(distro, source["Package"])
