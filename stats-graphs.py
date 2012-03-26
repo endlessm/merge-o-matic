@@ -90,12 +90,16 @@ def main(options, args):
     # months, as well as the current stats
     for our_distro in our_distros:
         for component in DISTROS[our_distro]["components"]:
+            if component is None:
+                component_string = our_distro
+            else:
+                component_string = component
             # Extract current and historical stats for this component
-            current = get_current(stats[component])
-            history = get_history(stats[component], start)
+            current = get_current(stats[component_string])
+            history = get_history(stats[component_string], start)
 
-            pie_chart(component, current)
-            range_chart(component, history, start, today, events)
+            pie_chart(component_string, current)
+            range_chart(component_string, history, start, today, events)
 
 
 def date_to_datetime(s):

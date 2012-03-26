@@ -126,7 +126,11 @@ def main(options, args):
                         logging.debug("%s: modified", package)
                         stats["modified"] += 1
 
-                write_stats(our_component, stats)
+                if our_component is None:
+                    component_string = our_distro
+                else:
+                    component_string = our_component
+                write_stats(component_string, stats)
 
 def write_stats(component, stats):
     """Write out the collected stats."""
