@@ -137,7 +137,6 @@ def md5sum(filename):
 
 def uncompressed_sources_file(distro, dist, component):
     """Return the location of a local Sources file."""
-    print "Distro: %s dist: %s component: %s" % (distro, dist, component)
     path = "%s/dists/%s" % (ROOT, distro)
     if dist is not None:
         path = "%s-%s" % (path, dist)
