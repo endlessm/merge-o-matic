@@ -489,6 +489,10 @@ def version_sort(sources):
     """Sort the source list by version number."""
     sources.sort(key=lambda x: Version(x["Version"]))
 
+def has_files(source):
+    """Return true if source has a Files entry"""
+    return "Files" in source
+
 def files(source):
     """Return (md5sum, size, name) for each file."""
     files = source["Files"].strip("\n").split("\n")

@@ -86,8 +86,9 @@ def expire_pool_sources(distro, package, base):
     # Identify filenames we don't want to delete
     keep_files = []
     for source in keep:
-        for md5sum, size, name in files(source):
-            keep_files.append(name)
+        if has_files(source):
+            for md5sum, size, name in files(source):
+                keep_files.append(name)
 
     # Expire the older packages
     need_update = False
