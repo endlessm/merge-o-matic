@@ -914,7 +914,7 @@ def write_report(left_source, left_distro, left_patch, base_source,
         print >>report, "================"
         print >>report
         if merged_is_right:
-            print >>report, fill("The %s version supersedes the %s version "
+            print >>report, fill("The %s version supercedes the %s version "
                                  "and can be added to %s with no changes." %
                                  (right_distro.title(), left_distro.title(),
                                   left_distro.title()))
