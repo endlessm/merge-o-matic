@@ -178,13 +178,13 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
 
     base_version = Version(base_source["Version"])
     if base_version >= left_source["Version"]:
+        cleanup(output_dir)
         if left_source["Version"] < right_source["Version"]:
             ensure("%s/%s" % (output_dir, "REPORT"))
             write_report(left_source, left_distro, None, base_source,
                         right_source, right_distro, None,
                         merged_version, None, None, None,
                         output_dir, None, True, is_safe_update(left_source, right_source))
-        cleanup(output_dir)
         return
     elif base_version >= right_source["Version"]:
         cleanup(output_dir)
