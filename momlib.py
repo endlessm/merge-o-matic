@@ -293,10 +293,10 @@ def obs_checkout_or_update(distro):
 
     if obs_is_checked_out(distro):
         shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "update", DISTROS[distro]["obs"]["project"]),
-                  chdir=obs_directory())
+                  chdir=obs_directory(), stdout=sys.stdout, stderr=sys.stderr)
     else:
         shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "checkout", DISTROS[distro]["obs"]["project"]),
-                  chdir=obs_directory())
+                  chdir=obs_directory(), stdout=sys.stdout, stderr=sys.stderr)
 
 def obs_update_pool(distro):
     """Hardlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
@@ -537,7 +537,7 @@ def unpack_source(source):
         # output directory for "dpkg-source -x" must not exist
         if (os.path.isdir(destdir)):
             os.rmdir(destdir)
-        shell.run(("dpkg-source", "-x", dsc_file, destdir), chdir=srcdir)
+        shell.run(("dpkg-source", "-x", dsc_file, destdir), chdir=srcdir, stdout=sys.stdout, stderr=sys.stderr)
         # Make sure we can at least read everything under .pc, which isn't
         # automatically true with dpkg-dev 1.15.4.
         pc_dir = os.path.join(destdir, ".pc")
