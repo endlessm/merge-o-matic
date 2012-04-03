@@ -26,6 +26,15 @@ DISTROS = {
         "components": [ None ],
         "expire": True,
         },
+    "DISTRO-SERVER2": {
+        "obs": {
+            "url": "https://SERVER2:444",
+            "project": "DISTRO"
+        },
+        "dists": [ None ],
+        "components": [ None ],
+        "expire": True,
+        },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
         "dists": [ "precise" ],
@@ -59,8 +68,8 @@ DISTROS = {
     }
 
 # Destination distributions and releases
-OUR_DISTROS = [ "DISTRO-standard" ]
-OUR_DISTS   = { "DISTRO-standard" : [ None ] }
+OUR_DISTROS = [ "DISTRO-SERVER2" ]
+OUR_DISTS   = { "DISTRO-SERVER2" : [ None ] }
 
 # Default source distribution and release
 SRC_DISTRO = "ubuntu"
