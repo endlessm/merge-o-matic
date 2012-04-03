@@ -150,6 +150,21 @@ def main(options, args):
                                 src_pool_source, src_distro, src_dist,
                                 force=options.force)
 
+def is_safe_update(left_source, right_source):
+    """Heuristically determine if right_source is a "safe" update for left_source,
+       and can be committed automatically."""
+    if left_source is None or right_source is None:
+        return False
+    for field in ["Binary", "Architecture", "Build-Depends", "Build-Depends-Indep", "Build-Conflicts", "Build-Conflicts-Indep"]:
+        if field in left_source and field not in right_source:
+            return False
+        if field not in left_source and field in right_source:
+            return False
+        if field in left_source and field in right_source and left_source[field] != right_source[field]:
+            return False
+
+    return True
+
 def produce_merge(left_source, left_distro, left_dist, base_source,
                   right_source, right_distro, right_dist, force=False):
     """Produce a merge for the given two packages."""
@@ -163,6 +178,12 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
 
     base_version = Version(base_source["Version"])
     if base_version >= left_source["Version"]:
+        if left_source["Version"] < right_source["Version"]:
+            ensure("%s/%s" % (output_dir, "REPORT"))
+            write_report(left_source, left_distro, None, base_source,
+                        right_source, right_distro, None,
+                        merged_version, None, None, None,
+                        output_dir, None, True, is_safe_update(left_source, right_source))
         cleanup(output_dir)
         return
     elif base_version >= right_source["Version"]:
@@ -213,6 +234,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             right_patch = copy_in(output_dir, right_source, right_distro)
 
             patch_file = None
+            safe_update = False
             if len(conflicts):
                 src_file = create_tarball(package, merged_version,
                                           output_dir, merged_dir)
@@ -221,6 +243,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                                          Version(left_source["Version"]),
                                          output_dir, merged_dir)
                 if src_file.endswith(".dsc"):
+                    safe_update = is_safe_update(left_source, ControlFile(src_file))
                     patch_file = create_patch(package, merged_version,
                                               output_dir, merged_dir,
                                               right_source, right_dir)
@@ -228,7 +251,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             write_report(left_source, left_distro, left_patch, base_source,
                          right_source, right_distro, right_patch,
                          merged_version, conflicts, src_file, patch_file,
-                         output_dir, merged_dir)
+                         output_dir, merged_dir, False, safe_update)
         finally:
             cleanup(merged_dir)
     finally:
@@ -821,7 +844,7 @@ def create_patch(package, version, output_dir, merged_dir,
 def write_report(left_source, left_distro, left_patch, base_source,
                  right_source, right_distro, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
-                 merged_dir):
+                 merged_dir, merged_is_right, safe_to_commit):
     """Write the merge report."""
     filename = "%s/REPORT" % output_dir
     with open(filename, "w") as report:
@@ -890,96 +913,111 @@ def write_report(left_source, left_distro, left_patch, base_source,
         print >>report, "Generated Result"
         print >>report, "================"
         print >>report
-        if src_file.endswith(".dsc"):
-            print >>report, fill("No problems were encountered during the "
-                                 "merge, so a source package has been "
-                                 "produced along with a patch containing "
-                                 "the differences from the %s version to the "
-                                 "new version." % right_distro.title())
+        if merged_is_right:
+            print >>report, fill("The %s version supersedes the %s version "
+                                 "and can be added to %s with no changes." %
+                                 (right_distro.title(), left_distro.title(),
+                                  left_distro.title()))
             print >>report
-            print >>report, fill("You should compare the generated patch "
-                                 "against the patch for the %s version "
-                                 "given above and ensure that there are no "
-                                 "unexpected changes.  You should also "
-                                 "sanity check the source package."
-                                 % left_distro.title())
+            print >>report, "Merged without changes: YES"
             print >>report
-
-            print >>report, "generated: %s" % merged_version
-
-            # Files from the dsc
-            dsc = ControlFile("%s/%s" % (output_dir, src_file),
-                              multi_para=False, signed=False).para
-            print >>report, "    %s" % src_file
-            for md5sum, size, name in files(dsc):
-                print >>report, "    %s" % name
-            print >>report
-            if patch_file is not None:
-                print >>report, "%s -> generated" % right_distro
-                print >>report, "    %s" % patch_file
+            if safe_to_commit:
+                print >>report, "Safe to commit: YES"
                 print >>report
         else:
-            print >>report, fill("Due to conflict or error, it was not "
-                                 "possible to automatically create a source "
-                                 "package.  Instead the result of the merge "
-                                 "has been placed into the following tar file "
-                                 "which you will need to turn into a source "
-                                 "package once the problems have been "
-                                 "resolved.")
-            print >>report
-            print >>report, "    %s" % src_file
-            print >>report
+            if src_file.endswith(".dsc"):
+                print >>report, fill("No problems were encountered during the "
+                                    "merge, so a source package has been "
+                                    "produced along with a patch containing "
+                                    "the differences from the %s version to the "
+                                    "new version." % right_distro.title())
+                print >>report
+                print >>report, fill("You should compare the generated patch "
+                                    "against the patch for the %s version "
+                                    "given above and ensure that there are no "
+                                    "unexpected changes.  You should also "
+                                    "sanity check the source package."
+                                    % left_distro.title())
+                print >>report
 
-        if len(conflicts):
-            print >>report
-            print >>report, "Conflicts"
-            print >>report, "========="
-            print >>report
-            print >>report, fill("In one or more cases, there were different "
-                                 "changes made in both %s and %s to the same "
-                                 "file; these are known as conflicts."
-                                 % (left_distro.title(), right_distro.title()))
-            print >>report
-            print >>report, fill("It is not possible for these to be "
-                                 "automatically resolved, so this source "
-                                 "needs human attention.")
-            print >>report
-            print >>report, fill("Those files marked with 'C ' contain diff3 "
-                                 "conflict markers, which can be resolved "
-                                 "using the text editor of your choice.  "
-                                 "Those marked with 'C*' could not be merged "
-                                 "that way, so you will find .%s and .%s "
-                                 "files instead and should chose one of them "
-                                 "or a combination of both, moving it to the "
-                                 "real filename and deleting the other."
-                                 % (left_distro.upper(), right_distro.upper()))
-            print >>report
+                print >>report, "generated: %s" % merged_version
 
-            conflicts.sort()
-            for name in conflicts:
-                if os.path.isfile("%s/%s" % (merged_dir, name)):
-                    print >>report, "  C  %s" % name
-                else:
-                    print >>report, "  C* %s" % name
+                # Files from the dsc
+                dsc = ControlFile("%s/%s" % (output_dir, src_file),
+                                multi_para=False, signed=False).para
+                print >>report, "    %s" % src_file
+                for md5sum, size, name in files(dsc):
+                    print >>report, "    %s" % name
+                print >>report
+                if patch_file is not None:
+                    print >>report, "%s -> generated" % right_distro
+                    print >>report, "    %s" % patch_file
+                    print >>report
+                if safe_to_commit:
+                    print >>report, "Safe to commit: YES"
+                    print >>report
+            else:
+                print >>report, fill("Due to conflict or error, it was not "
+                                    "possible to automatically create a source "
+                                    "package.  Instead the result of the merge "
+                                    "has been placed into the following tar file "
+                                    "which you will need to turn into a source "
+                                    "package once the problems have been "
+                                    "resolved.")
+                print >>report
+                print >>report, "    %s" % src_file
+                print >>report
+
+            if len(conflicts):
+                print >>report
+                print >>report, "Conflicts"
+                print >>report, "========="
+                print >>report
+                print >>report, fill("In one or more cases, there were different "
+                                    "changes made in both %s and %s to the same "
+                                    "file; these are known as conflicts."
+                                    % (left_distro.title(), right_distro.title()))
+                print >>report
+                print >>report, fill("It is not possible for these to be "
+                                    "automatically resolved, so this source "
+                                    "needs human attention.")
+                print >>report
+                print >>report, fill("Those files marked with 'C ' contain diff3 "
+                                    "conflict markers, which can be resolved "
+                                    "using the text editor of your choice.  "
+                                    "Those marked with 'C*' could not be merged "
+                                    "that way, so you will find .%s and .%s "
+                                    "files instead and should chose one of them "
+                                    "or a combination of both, moving it to the "
+                                    "real filename and deleting the other."
+                                    % (left_distro.upper(), right_distro.upper()))
+                print >>report
+
+                conflicts.sort()
+                for name in conflicts:
+                    if os.path.isfile("%s/%s" % (merged_dir, name)):
+                        print >>report, "  C  %s" % name
+                    else:
+                        print >>report, "  C* %s" % name
+                print >>report
+
+            if merged_version.revision is not None \
+                and Version(left_source["Version"]).upstream != merged_version.upstream:
+                sa_arg = " -sa"
+            else:
+                sa_arg = ""
+
             print >>report
-
-        if merged_version.revision is not None \
-               and Version(left_source["Version"]).upstream != merged_version.upstream:
-            sa_arg = " -sa"
-        else:
-            sa_arg = ""
-
-        print >>report
-        print >>report, fill("Once you have a source package you are happy "
-                             "to upload, you should make sure you include "
-                             "the orig.tar.gz if appropriate and information "
-                             "about all the versions included in the merge.")
-        print >>report
-        print >>report, fill("Use the following command to generate a "
-                             "correct .changes file:")
-        print >>report
-        print >>report, "  $ dpkg-genchanges -S -v%s%s" \
-              % (left_source["Version"], sa_arg)
+            print >>report, fill("Once you have a source package you are happy "
+                                "to upload, you should make sure you include "
+                                "the orig.tar.gz if appropriate and information "
+                                "about all the versions included in the merge.")
+            print >>report
+            print >>report, fill("Use the following command to generate a "
+                                "correct .changes file:")
+            print >>report
+            print >>report, "  $ dpkg-genchanges -S -v%s%s" \
+                % (left_source["Version"], sa_arg)
 
 
 def read_package_list(filename):

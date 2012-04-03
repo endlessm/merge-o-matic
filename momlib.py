@@ -606,6 +606,8 @@ def read_report(output_dir, left_distro, right_distro):
     base_version = None
     left_version = None
     right_version = None
+    merged_is_right = False
+    safe_to_commit = False
 
     with open(filename) as report:
         for line in report:
@@ -615,11 +617,15 @@ def read_report(output_dir, left_distro, right_distro):
                 left_version = Version(line[len(left_distro)+1:].strip())
             elif line.startswith("%s:" % right_distro):
                 right_version = Version(line[len(right_distro)+1:].strip())
+            elif line.startswith("Merged without changes: YES"):
+                merged_is_right = True
+            elif line.startswith("Safe to commit: YES"):
+                safe_to_commit = True
 
     if base_version is None or left_version is None or right_version is None:
         raise AttributeError, "Insufficient detail in report"
 
-    return (base_version, left_version, right_version)
+    return (base_version, left_version, right_version, merged_is_right, safe_to_commit)
 
 # --------------------------------------------------------------------------- #
 # Blacklist and whitelist handling
