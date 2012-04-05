@@ -93,9 +93,8 @@ def main(options, args):
                 for source in get_sources(our_distro, our_dist, our_component):
                     try:
                         output_dir = result_dir(source["Package"])
-                        (base_version, left_version, right_version, merged_is_right, safe_to_commit) \
-                                    = read_report(output_dir,
-                                                    our_distro, src_distro)
+                        report = read_report(output_dir, our_distro, src_distro)
+                        (base_version, left_version, right_version) = (report["base_version"], report["left_version"], report["right_version"])
                     except ValueError:
                         continue
 

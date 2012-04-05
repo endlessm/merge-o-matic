@@ -61,6 +61,9 @@ cp addcomment.py /srv/merge-o-matic/merges
 ./produce-merges.py -X ../merge-blacklist.txt -X ../experimental.txt -I ../unstable.txt -X ../testing-proposed-updates.txt -S unstable
 ./produce-merges.py -X ../merge-blacklist.txt -X ../experimental.txt -X ../unstable.txt -I ../testing-proposed-updates.txt -S testing-proposed-updates
 
+# Commit committable changes to OBS
+./commit-merges.py $QUIET
+
 # Produce pretty reports
 ./stats.py $QUIET
 ./stats-graphs.py $QUIET

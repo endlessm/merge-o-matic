@@ -33,6 +33,7 @@ import gzip
 import errno
 import logging
 import datetime
+import shutil
 import stat
 
 from cgi import escape
@@ -347,7 +348,36 @@ def obs_update_pool(distro):
     with open(uncompressed_sources_file(distro, None, None)) as f:
         with gzip.open(sources_filename, "wb") as gzf:
             gzf.write(f.read())
-    
+
+def obs_commit_files(distro, package, files):
+    """Commit files using osc"""
+    if distro not in OBS_CACHE:
+        obs_package_cache(distro)
+
+    assert obs_is_checked_out(distro)
+
+    print distro
+    print package
+    print files
+    print OBS_CACHE
+
+    d = obs_directory(distro, package)
+    if shell.get(("osc", "-A", DISTROS[distro]["obs"]["url"], "diff"), chdir=d, stderr=sys.stderr):
+        logging.warning("Failed to commit updated %s to %s OBS: our osc checkout os out of date")
+        return False
+
+    for filename in OBS_CACHE[distro][package]["files"]:
+        logging.debug("Removing %s/%s" % (d, filename))
+        os.unlink("%s/%s" % (obs_directory(distro, package), filename))
+    for filepath in files:
+        logging.debug("Adding %s to %s" % (filepath, d))
+        shutil.copy2(filepath, d)
+
+    logging.info("Committing changes to %s" % d)
+    shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    return True
+
 # --------------------------------------------------------------------------- #
 # Sources file handling
 # --------------------------------------------------------------------------- #
@@ -610,29 +640,64 @@ def read_report(output_dir, left_distro, right_distro):
     if not os.path.isfile(filename):
         raise ValueError, "No report exists"
 
-    base_version = None
-    left_version = None
-    right_version = None
-    merged_is_right = False
-    safe_to_commit = False
+    report = {
+        "package": None,
+        "base_version": None,
+        "base_files": [],
+        "left_version": None,
+        "left_files": [],
+        "right_version": None,
+        "right_files": [],
+        "merged_is_right": False,
+        "merged_dir": None,
+        "merged_files": [],
+        "safe_to_commit": False,
+        "committed": False
+    }
 
-    with open(filename) as report:
-        for line in report:
+    with open(filename) as r:
+        report["package"] = next(r).strip()
+        in_list = None
+        for line in r:
+            if line.startswith("    "):
+                if in_list == "base":
+                    report["base_files"].append(line.strip())
+                elif in_list == "left":
+                    report["left_files"].append(line.strip())
+                elif in_list == "right":
+                    report["right_files"].append(line.strip())
+                elif in_list == "merged":
+                    report["merged_files"].append(line.strip())
+            else:
+                in_list = None
+
             if line.startswith("base:"):
-                base_version = Version(line[5:].strip())
+                report["base_version"] = Version(line[5:].strip())
+                in_list = "base"
             elif line.startswith("%s:" % left_distro):
-                left_version = Version(line[len(left_distro)+1:].strip())
+                report["left_version"] = Version(line[len(left_distro)+1:].strip())
+                in_list = "left"
             elif line.startswith("%s:" % right_distro):
-                right_version = Version(line[len(right_distro)+1:].strip())
+                report["right_version"] = Version(line[len(right_distro)+1:].strip())
+                in_list = "right"
+            elif line.startswith("generated:"):
+                in_list = "merged"
             elif line.startswith("Merged without changes: YES"):
-                merged_is_right = True
+                report["merged_is_right"] = True
             elif line.startswith("Safe to commit: YES"):
-                safe_to_commit = True
+                report["safe_to_commit"] = True
+            elif line.startswith("Merge committed: YES"):
+                report["committed"] = True
 
-    if base_version is None or left_version is None or right_version is None:
+    if report["base_version"] is None or report["left_version"] is None or report["right_version"] is None:
         raise AttributeError, "Insufficient detail in report"
 
-    return (base_version, left_version, right_version, merged_is_right, safe_to_commit)
+    if report["merged_is_right"]:
+        report["merged_dir"] = "%s/%s" % (ROOT, pool_directory(right_distro, report["package"]))
+        report["merged_files"] = report["right_files"]
+    else:
+        report["merged_dir"] = output_dir
+    return report
 
 # --------------------------------------------------------------------------- #
 # Blacklist and whitelist handling
