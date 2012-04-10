@@ -230,6 +230,12 @@ def result_dir(package):
     """Return the directory to store the result in."""
     return "%s/merges/%s/%s" % (ROOT, pathhash(package), package)
 
+def component_string(distro=None, component=None):
+    """Return the short name for a given distro/dist/component for printing"""
+    if component:
+        return component
+    return distro
+
 # --------------------------------------------------------------------------- #
 # OBS handling
 # --------------------------------------------------------------------------- #

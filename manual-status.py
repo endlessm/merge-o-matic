@@ -140,10 +140,10 @@ def main(options, args):
                     merges.append((section, priority_idx, package, user, uploader,
                                 our_source, our_version, src_version))
 
-                write_status_page(our_component, merges, our_distro, src_distro)
-                write_status_json(our_component, merges, our_distro, src_distro)
+                write_status_page(component_string(our_component, our_distro), merges, our_distro, src_distro)
+                write_status_json(component_string(our_component, our_distro), merges, our_distro, src_distro)
 
-                status_file = "%s/merges/tomerge-%s-manual" % (ROOT, our_component)
+                status_file = "%s/merges/tomerge-%s-manual" % (ROOT, component_string(our_component, our_distro))
                 remove_old_comments(status_file, merges)
                 write_status_file(status_file, merges)
 
