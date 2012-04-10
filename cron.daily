@@ -68,7 +68,7 @@ cp "$CODE"/addcomment.py "$ROOT"/merges
 # "$CODE"/mail-bugs.py $QUIET
 
 # Run the merge tool
-"$CODE"/produce-merges.py -X merge-blacklist.txt
+"$CODE"/produce-merges.py # -X merge-blacklist.txt
 
 # Commit committable changes to OBS
 "$CODE"/commit-merges.py $QUIET
