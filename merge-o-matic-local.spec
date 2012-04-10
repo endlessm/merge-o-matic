@@ -77,15 +77,15 @@ install -m 0755 \
         update-sources.py \
         %{buildroot}/usr/lib/merge-o-matic
 install -m 0644 \
-        controlfile.py{,c,o} \
-        __init__.py{,c,o} \
-        source.py{,c,o} \
-        version.py{,c,o} \
+        deb/controlfile.py{,c,o} \
+        deb/__init__.py{,c,o} \
+        deb/source.py{,c,o} \
+        deb/version.py{,c,o} \
         %{buildroot}/usr/lib/merge-o-matic/deb
 install -m 0644 \
-        __init__.py{,c,o} \
-        shell.py{,c,o} \
-        tree.py{,c,o} \
+        util/__init__.py{,c,o} \
+        util/shell.py{,c,o} \
+        util/tree.py{,c,o} \
         %{buildroot}/usr/lib/merge-o-matic/util
 
 %pre
@@ -98,8 +98,13 @@ rm -rf %{buildroot}
 %files
 %doc README
 %doc COPYING
+/etc/merge-o-matic
 %config(noreplace) /etc/merge-o-matic/momsettings.py
+%dir /etc/apache2
+%dir /etc/apache2/vhosts.d
 %config(noreplace) /etc/apache2/vhosts.d/mom.conf
+%dir /etc/logrotate.d
 %config(noreplace) /etc/logrotate.d/merge-o-matic
+%dir /srv/obs
 %attr(-,mom,mom) %dir /srv/obs/merge-o-matic
 /usr/lib/merge-o-matic
