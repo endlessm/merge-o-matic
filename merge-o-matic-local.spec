@@ -21,7 +21,7 @@ BuildRequires: python >= 2.7
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
-Requires: logrotage
+Requires: logrotate
 Requires: PyChart
 Requires: python >= 2.7
 
