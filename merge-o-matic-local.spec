@@ -89,8 +89,12 @@ install -m 0644 \
         %{buildroot}/usr/lib/merge-o-matic/util
 
 %pre
-/usr/sbin/groupadd -r mom
-/usr/sbin/useradd -d /srv/obs/merge-o-matic -M -r -c "Merge-o-Matic" -g mom mom
+if ! getent group | grep "^mom:" &> /dev/null; then
+        /usr/sbin/groupadd -r mom
+fi
+if ! getent passwd | grep "^mom:" &> /dev/null; then
+        /usr/sbin/useradd -d /srv/obs/merge-o-matic -M -r -c "Merge-o-Matic" -g mom mom
+fi
 
 %clean
 rm -rf %{buildroot}
