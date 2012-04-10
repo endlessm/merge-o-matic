@@ -25,6 +25,7 @@
 # Or uncommit if you want to use named subdirectories
 #SUBDIR=y
 
+MOM_URL="http://voges:83/"
 
 set -e
 
@@ -52,11 +53,11 @@ if [ "$RSYNC" = "y" ]; then
 	casey.ubuntu.com:/srv/patches.ubuntu.com/merges/$HASH/$MERGE/ .
 else
     rm -rf  *
-    wget -q https://merges.ubuntu.com/$HASH/$MERGE/REPORT
+    wget -q $MOM_URL/$HASH/$MERGE/REPORT
 
     for NAME in $(sed -n -e "/^    /p" REPORT); do
 	echo "Getting $NAME..."
-	[ -f $NAME ] || wget -q https://merges.ubuntu.com/$HASH/$MERGE/$NAME
+	[ -f $NAME ] || wget -q $MOM_URL/$HASH/$MERGE/$NAME
     done
 fi
 echo
