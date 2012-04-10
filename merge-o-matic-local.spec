@@ -53,47 +53,47 @@ mkdir -p %{buildroot}/srv/obs/merge-o-matic
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
 mkdir -p %{buildroot}/usr/lib/merge-o-matic/{deb,util}
 install -m 0644 \
-        addcomment.py \
-        momlib/momlib.py{,c,o} \
-        %{buildroot}/usr/lib/merge-o-matic
+	addcomment.py \
+	momlib/momlib.py{,c,o} \
+	%{buildroot}/usr/lib/merge-o-matic
 install -m 0755 \
-        commit-merges.py \
-        cron.daily \
-        expire-pool.py \
-        generate-diffs.py \
-        generate-dpatches.py \
-        generate-patches.py \
-        grab-merge.sh \
-        mail-bugs.py \
-        manual-status.py \
-        merge-status.py \
-        pack-archive.sh \
-        produce-merges.py \
-        publish-patches.py \
-        stats-graphs.py \
-        stats.py \
-        syndicate.py \
-        update-pool.py \
-        update-sources.py \
-        %{buildroot}/usr/lib/merge-o-matic
+	commit-merges.py \
+	cron.daily \
+	expire-pool.py \
+	generate-diffs.py \
+	generate-dpatches.py \
+	generate-patches.py \
+	grab-merge.sh \
+	mail-bugs.py \
+	manual-status.py \
+	merge-status.py \
+	pack-archive.sh \
+	produce-merges.py \
+	publish-patches.py \
+	stats-graphs.py \
+	stats.py \
+	syndicate.py \
+	update-pool.py \
+	update-sources.py \
+	%{buildroot}/usr/lib/merge-o-matic
 install -m 0644 \
-        deb/controlfile.py{,c,o} \
-        deb/__init__.py{,c,o} \
-        deb/source.py{,c,o} \
-        deb/version.py{,c,o} \
-        %{buildroot}/usr/lib/merge-o-matic/deb
+	deb/controlfile.py{,c,o} \
+	deb/__init__.py{,c,o} \
+	deb/source.py{,c,o} \
+	deb/version.py{,c,o} \
+	%{buildroot}/usr/lib/merge-o-matic/deb
 install -m 0644 \
-        util/__init__.py{,c,o} \
-        util/shell.py{,c,o} \
-        util/tree.py{,c,o} \
-        %{buildroot}/usr/lib/merge-o-matic/util
+	util/__init__.py{,c,o} \
+	util/shell.py{,c,o} \
+	util/tree.py{,c,o} \
+	%{buildroot}/usr/lib/merge-o-matic/util
 
 %pre
 if ! getent group | grep "^mom:" &> /dev/null; then
-        /usr/sbin/groupadd -r mom
+	/usr/sbin/groupadd -r mom
 fi
 if ! getent passwd | grep "^mom:" &> /dev/null; then
-        /usr/sbin/useradd -d /srv/obs/merge-o-matic -M -r -c "Merge-o-Matic" -g mom mom
+	/usr/sbin/useradd -d /srv/obs/merge-o-matic -M -r -c "Merge-o-Matic" -g mom mom
 fi
 
 %clean
