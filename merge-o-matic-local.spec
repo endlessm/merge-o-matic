@@ -15,11 +15,14 @@ License: GPL-3.0
 Group: System/Packages
 Vendor: Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com>
 
+# for /etc/logrotate.d
+BuildRequires: logrotate
 BuildRequires: python >= 2.7
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
-Requires: PyChart, logrotate
+Requires: logrotage
+Requires: PyChart
 Requires: python >= 2.7
 
 %description
@@ -33,29 +36,34 @@ manually if an automatic update is not possible.
 %setup
 
 %build
-# We move momlib.py out of the package's root because e.g. addcomment.py
-# confuse py_ocomp
-mkdir -p momlib
-mv momlib.py momlib/
-%py_comp momlib
-%py_ocomp momlib
-%py_comp deb
-%py_ocomp deb
-%py_comp util
-%py_ocomp util
 
 %install
 mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d}
 install -m 0644 momsettings.py %{buildroot}/etc/merge-o-matic/momsettings.py
 install -m 0644 mom.conf %{buildroot}/etc/apache2/vhosts.d/mom.conf
 install -m 0644 merge-o-matic.logrotate %{buildroot}/etc/logrotate.d/%{name}
+
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
-mkdir -p %{buildroot}/srv/obs/merge-o-matic
+
 mkdir -p %{buildroot}/usr/lib/merge-o-matic/{deb,util}
+install -m 0644 momlib.py %{buildroot}/usr/lib/merge-o-matic
 install -m 0644 \
-	addcomment.py \
-	momlib/momlib.py{,c,o} \
-	%{buildroot}/usr/lib/merge-o-matic
+	deb/controlfile.py \
+	deb/__init__.py \
+	deb/source.py \
+	deb/version.py \
+	%{buildroot}/usr/lib/merge-o-matic/deb
+install -m 0644 \
+	util/__init__.py \
+	util/shell.py \
+	util/tree.py \
+	%{buildroot}/usr/lib/merge-o-matic/util
+
+# We compile at this point because addcomment.py confuses py_comp
+%py_comp %{buildroot}/usr/lib/merge-o-matic
+%py_ocomp %{buildroot}/usr/lib/merge-o-matic
+
+install -m 0644 addcomment.py %{buildroot}/usr/lib/merge-o-matic
 install -m 0755 \
 	commit-merges.py \
 	cron.daily \
@@ -76,17 +84,6 @@ install -m 0755 \
 	update-pool.py \
 	update-sources.py \
 	%{buildroot}/usr/lib/merge-o-matic
-install -m 0644 \
-	deb/controlfile.py{,c,o} \
-	deb/__init__.py{,c,o} \
-	deb/source.py{,c,o} \
-	deb/version.py{,c,o} \
-	%{buildroot}/usr/lib/merge-o-matic/deb
-install -m 0644 \
-	util/__init__.py{,c,o} \
-	util/shell.py{,c,o} \
-	util/tree.py{,c,o} \
-	%{buildroot}/usr/lib/merge-o-matic/util
 
 %pre
 if ! getent group | grep "^mom:" &> /dev/null; then
@@ -107,7 +104,7 @@ rm -rf %{buildroot}
 %dir /etc/apache2
 %dir /etc/apache2/vhosts.d
 %config(noreplace) /etc/apache2/vhosts.d/mom.conf
-%config(noreplace) /etc/logrotate.d/merge-o-matic
+%config(noreplace) /etc/logrotate.d/%{name}
 %dir /srv/obs
 %attr(-,mom,mom) %dir /srv/obs/merge-o-matic
 /usr/lib/merge-o-matic
