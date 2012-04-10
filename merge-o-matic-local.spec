@@ -11,15 +11,15 @@ Name: %{name}
 Version: %{version}
 Release: %{release}
 Source0: %{name}-%{unmangled_version}.tar.bz2
-License: GPL
-Group: System Environment/Daemons
+License: GPL-3.0
+Group: System/Packages
 Vendor: Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com>
 
 BuildRequires: python >= 2.7
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
-Requires: PyChart
+Requires: PyChart, logrotate
 Requires: python >= 2.7
 
 %description
@@ -48,7 +48,7 @@ mv momlib.py momlib/
 mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d}
 install -m 0644 momsettings.py %{buildroot}/etc/merge-o-matic/momsettings.py
 install -m 0644 mom.conf %{buildroot}/etc/apache2/vhosts.d/mom.conf
-install -m 0644 merge-o-matic.logrotate %{buildroot}/etc/logrotate.d/merge-o-matic
+install -m 0644 merge-o-matic.logrotate %{buildroot}/etc/logrotate.d/%{name}
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
 mkdir -p %{buildroot}/usr/lib/merge-o-matic/{deb,util}
@@ -102,13 +102,16 @@ rm -rf %{buildroot}
 %files
 %doc README
 %doc COPYING
-/etc/merge-o-matic
+%dir /etc/merge-o-matic
 %config(noreplace) /etc/merge-o-matic/momsettings.py
 %dir /etc/apache2
 %dir /etc/apache2/vhosts.d
 %config(noreplace) /etc/apache2/vhosts.d/mom.conf
-%dir /etc/logrotate.d
 %config(noreplace) /etc/logrotate.d/merge-o-matic
 %dir /srv/obs
 %attr(-,mom,mom) %dir /srv/obs/merge-o-matic
 /usr/lib/merge-o-matic
+
+%changelog
+* Tue Apr 10 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.04.10-1
+- initial version
