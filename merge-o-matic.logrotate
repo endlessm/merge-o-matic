@@ -2,8 +2,9 @@
   compress
   dateext
   maxage 365
-  weekly
-  rotate 2
+  copy
+  daily
+  rotate 10
   notifempty
   missingok
   create 664 mom mom
