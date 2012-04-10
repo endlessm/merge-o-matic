@@ -3,7 +3,7 @@
 set -e
 umask 002
 
-cd /srv/patches.ubuntu.com
+cd /srv/obs/merge-o-matic
 
 find changes -name "*.changes" -mtime +182 -print0 | xargs -0r bzip2
 find diffs -name "*.patch" -mtime +182 -print0 | xargs -0r bzip2

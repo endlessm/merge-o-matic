@@ -1,5 +1,5 @@
 # Output root
-ROOT = "/obs/merge-o-matic"
+ROOT = "/srv/obs/merge-o-matic"
 
 # Website root
 MOM_URL = "http://SERVER2:83/"
