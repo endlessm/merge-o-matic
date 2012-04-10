@@ -1,0 +1,10 @@
+/var/log/merge-o-matic.log {
+  compress
+  dateext
+  maxage 365
+  weekly
+  rotate 2
+  notifempty
+  missingok
+  create 664 mom mom
+}
