@@ -258,7 +258,7 @@ def write_status_json(component, merges, left_distro, right_distro):
         # not that hard to do it ourselves.
         print >>status, '['
         cur_merge = 0
-        for uploaded, priority, package, user, uploader, source, \
+        for uploaded, priority, package, source, \
                 left_version, right_version in merges:
             print >>status, ' {',
             # source_package, short_description, and link are for
@@ -286,7 +286,7 @@ def write_status_json(component, merges, left_distro, right_distro):
 def write_status_file(status_file, merges):
     """Write out the merge status file."""
     with open(status_file + ".new", "w") as status:
-        for uploaded, priority, package, user, uploader, source, \
+        for uploaded, priority, package, source, \
                 left_version, right_version in merges:
             print >>status, "%s %s %s %s, %s" \
                   % (package, priority,
