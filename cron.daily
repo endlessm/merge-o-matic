@@ -46,7 +46,8 @@ fi
 cd "$ROOT"
 #git pull
 
-cp "$CODE"/addcomment.py "$ROOT"/merges
+mkdir "$ROOT/merges" 2> /dev/null
+cp "$CODE"/addcomment.py "$ROOT"/merges/
 
 # Update the blacklist
 #wget -q -O$ROOT/sync-blacklist.txt http://people.canonical.com/~ubuntu-archive/sync-blacklist.txt
