@@ -237,7 +237,7 @@ def do_table(status, merges, comments, left_distro, right_distro, component):
               "+source/%s\">LP</a></sup>" % package
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \
               "%s\">PTS</a></sup></td>" % package
-        print >>status, "<td rowspan=2>%s</td>" % comments[package]
+        print >>status, "<td rowspan=2>%s</td>" % (comments[package] if package in comments else "")
         print >>status, "</tr>"
         print >>status, "<tr bgcolor=%s>" % COLOURS[priority]
         print >>status, "<td><small>%s</small></td>" % source["Binary"]
