@@ -191,7 +191,10 @@ def write_status_page(component, merges, left_distro, right_distro):
             print >>status, ("<p><a href=\"#%s\">%s %s merges</a></p>"
                              % (section, len(section_merges), section))
 
-        comments = get_comments()
+        try:
+            comments = get_comments()
+        except IOError:
+            comments = {}
 
         for section in SECTIONS:
             section_merges = [ m for m in merges if m[0] == section ]
