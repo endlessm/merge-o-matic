@@ -362,11 +362,6 @@ def obs_commit_files(distro, package, files):
 
     assert obs_is_checked_out(distro)
 
-    print distro
-    print package
-    print files
-    print OBS_CACHE
-
     d = obs_directory(distro, package)
     if shell.get(("osc", "-A", DISTROS[distro]["obs"]["url"], "diff"), chdir=d, stderr=sys.stderr):
         logging.warning("Failed to commit updated %s to %s OBS: our osc checkout os out of date")
