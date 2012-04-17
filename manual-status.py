@@ -30,7 +30,7 @@ from momlib import *
 # Order of priorities
 PRIORITY = [ "unknown", "required", "important", "standard", "optional",
              "extra" ]
-COLOURS =  [ "#ff8080", "#ffb580", "#ffea80", "#dfff80", "#abff80", "#80ff8b" ]
+COLOURS =  [ "#fffd80", "#ffb580", "#ffea80", "#dfff80", "#abff80", "#80ff8b" ]
 
 # Sections
 SECTIONS = [ "new", "committed" ]
