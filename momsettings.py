@@ -2,7 +2,7 @@
 ROOT = "/srv/obs/merge-o-matic"
 
 # Website root
-MOM_URL = "http://SERVER2:83/"
+MOM_URL = "http://SERVER:83/"
 
 # Used for emails
 MOM_NAME = "DISTRO Merge-o-Matic"
