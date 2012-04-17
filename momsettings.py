@@ -26,6 +26,12 @@ DISTROS = {
         "components": [ None ],
         "expire": True,
         },
+    "ubuntu": {
+        "mirror": "http://archive.ubuntu.com/ubuntu",
+        "dists": [ "precise" ],
+        "components": [ "main", "restricted", "universe", "multiverse" ],
+        "expire": True,
+        },
     "DISTRO-SERVER2": {
         "obs": {
             "url": "https://SERVER2:444",
@@ -35,41 +41,11 @@ DISTROS = {
         "components": [ None ],
         "expire": True,
         },
-    "ubuntu": {
-        "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "precise" ],
-        "components": [ "main", "restricted", "universe", "multiverse" ],
-        "expire": True,
-        },
-#    "dapper-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "dapper-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-#    "hardy-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "hardy-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-#    "intrepid-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "intrepid-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
-#    "jaunty-security": {
-#        "mirror": "http://security.ubuntu.com/ubuntu",
-#        "dists": [ "jaunty-security" ],
-#        "components": [ "main", "restricted", "universe", "multiverse" ],
-#        "expire": False,
-#        },
     }
 
 # Destination distributions and releases
-OUR_DISTROS = [ "DISTRO-SERVER2" ]
-OUR_DISTS   = { "DISTRO-SERVER2" : [ None ] }
+OUR_DISTROS = [ "DISTRO-standard" ]
+OUR_DISTS   = { "DISTRO-standard" : [ None ] }
 
 # Default source distribution and release
 SRC_DISTRO = "ubuntu"
