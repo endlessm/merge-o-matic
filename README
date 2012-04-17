@@ -7,5 +7,41 @@ Dependencies
 ------------
 
  * Python 2.7 or higher
- * python-beautifulsoup
+ * osc
+ * dpkg
+ * apt-ftparchive
  * python-pychart
+
+Deployment procedure
+--------------------
+
+Install the rpm.
+
+Edit /etc/merge-o-matic/momsettings.py (the OBS repository URLs in DISTROS
+will almost certainly need to be customized, for example).
+
+Create an OBS account for merge-o-matic, and give it the needed privileges
+for the repository project.
+
+Switch to the mom user (e.g. "su - mom -s /bin/bash") and log in to the OBS
+account using osc (e.g. "osc -A $my_obs_url") in order to generate
+/srv/obs/merge-o-matic/.oscrc
+
+To automatically run merge-o-matic, copy /usr/lib/merge-o-matic/cron.daily
+to /etc/cron.daily/merge-o-matic
+
+Output files
+------------
+
+Under /srv/obs/merge-o-matic:
+merges/$NAME.html (e.g. DISTRO-standard.html) : main report
+post-sync-whitelists.txt : list of packages downloaded from OBS. This is
+assumed to be a subset of the upstream (Ubuntu) distribution, and packages
+not in this list will not be downloaded from Ubuntu repositories.
+
+Config files
+------------
+
+Under /srv/obs/merge-o-matic:
+comments.txt : comments, will be displayed in merges/*.html
+sync-blacklist.txt : packages that will be ignored by mom
