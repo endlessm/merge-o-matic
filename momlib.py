@@ -306,10 +306,10 @@ def obs_checkout_or_update(distro):
     ensure(obs_directory(distro) + "/")
 
     if obs_is_checked_out(distro):
-        shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "update", DISTROS[distro]["obs"]["project"]),
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "update", DISTROS[distro]["obs"]["project"]),
                   chdir=obs_directory(distro), stdout=sys.stdout, stderr=sys.stderr)
     else:
-        shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "checkout", DISTROS[distro]["obs"]["project"]),
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "checkout", DISTROS[distro]["obs"]["project"]),
                   chdir=obs_directory(distro), stdout=sys.stdout, stderr=sys.stderr)
 
 def obs_update_pool(distro):
@@ -363,7 +363,7 @@ def obs_commit_files(distro, package, files):
     assert obs_is_checked_out(distro)
 
     d = obs_directory(distro, package)
-    if shell.get(("osc", "-A", DISTROS[distro]["obs"]["url"], "diff"), chdir=d, stderr=sys.stderr):
+    if shell.get(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "diff"), chdir=d, stderr=sys.stderr):
         logging.warning("Failed to commit updated %s to %s OBS: our osc checkout os out of date")
         return False
 
@@ -375,8 +375,8 @@ def obs_commit_files(distro, package, files):
         shutil.copy2(filepath, d)
 
     logging.info("Committing changes to %s" % d)
-    shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
-    shell.run(("osc", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
     return True
 
 # --------------------------------------------------------------------------- #
