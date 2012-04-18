@@ -23,12 +23,11 @@ ROOT="/srv/obs/merge-o-matic"
 CODE="/usr/lib/merge-o-matic"
 LOG="/var/log/mom.log"
 
-echo >> "$LOG"
+touch "$LOG"
 chown mom:mom "$LOG"
 
 cat <<__EOF__ | sudo -u mom bash &>> "$LOG"
 
-set -e
 umask 002
 
 if [ "$DEBUG" = "y" ]; then
@@ -53,10 +52,10 @@ cp "$CODE"/addcomment.py "$ROOT"/merges/
 #wget -q -O$ROOT/sync-blacklist.txt http://people.canonical.com/~ubuntu-archive/sync-blacklist.txt
 
 # Download new packages
-"$CODE"/update-pool.py $QUIET ubuntu DISTRO-standard
+"$CODE"/update-pool.py $QUIET ubuntu DISTRO-standard || exit 1
 
 # Update the Sources files against new packages that have been downloaded.
-"$CODE"/update-sources.py $QUIET
+"$CODE"/update-sources.py $QUIET || exit 1
 
 # Generate changes, diffs and patches
 "$CODE"/generate-diffs.py $QUIET
