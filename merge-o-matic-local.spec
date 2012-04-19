@@ -1,6 +1,6 @@
 %define name merge-o-matic-local
-%define version 2012.04.18
-%define unmangled_version 2012.04.18
+%define version 2012.04.19
+%define unmangled_version 2012.04.19
 %define release 1
 %define codedir /usr/lib/merge-o-matic
 
@@ -21,7 +21,10 @@ BuildRequires: python >= 2.7
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
+Requires: apt-utils
+Requires: deb
 Requires: logrotate
+Requires: osc
 Requires: PyChart
 Requires: python >= 2.7
 
@@ -38,10 +41,11 @@ manually if an automatic update is not possible.
 %build
 
 %install
-mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d}
+mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d,cron.daily}
 install -m 0644 momsettings.py %{buildroot}/etc/merge-o-matic/momsettings.py
 install -m 0644 mom.conf %{buildroot}/etc/apache2/vhosts.d/mom.conf
 install -m 0644 merge-o-matic.logrotate %{buildroot}/etc/logrotate.d/%{name}
+install -m 0755 cron.daily %{buildroot}/etc/cron.daily/%{name}
 
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
 
@@ -66,7 +70,6 @@ install -m 0644 \
 install -m 0644 addcomment.py %{buildroot}/usr/lib/merge-o-matic
 install -m 0755 \
 	commit-merges.py \
-	cron.daily \
 	expire-pool.py \
 	generate-diffs.py \
 	generate-dpatches.py \
@@ -105,6 +108,7 @@ rm -rf %{buildroot}
 %dir /etc/apache2/vhosts.d
 %config(noreplace) /etc/apache2/vhosts.d/mom.conf
 %config(noreplace) /etc/logrotate.d/%{name}
+%config(noreplace) /etc/cron.daily/%{name}
 %dir /srv/obs
 %attr(-,mom,mom) %dir /srv/obs/merge-o-matic
 /usr/lib/merge-o-matic

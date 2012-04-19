@@ -8,8 +8,8 @@ Dependencies
 
  * Python 2.7 or higher
  * osc
- * dpkg
- * apt-ftparchive
+ * apt-utils (for apt-ftparchive)
+ * deb (for dpkg-source, dpkg-genchanges)
  * python-pychart
 
 Deployment procedure
@@ -24,12 +24,12 @@ Create an OBS account for merge-o-matic, and give it the needed privileges
 for the repository project.
 
 Switch to the mom user (e.g. "su - mom -s /bin/bash") and do a small OBS checkout
-using osc (e.g. "osc -A https://SERVER:444 checkout DISTRO bash") in order to
-generate /srv/obs/merge-o-matic/.oscrc and agree to permanently trust the OBS
-server's SSL certificates.
+using osc (e.g. "cd /tmp; osc -A https://SERVER:444 checkout DISTRO bash") in
+order to generate /srv/obs/merge-o-matic/.oscrc and agree to permanently trust
+the OBS server's SSL certificates.
 
-To automatically run merge-o-matic, copy /usr/lib/merge-o-matic/cron.daily
-to /etc/cron.daily/merge-o-matic
+To automatically run merge-o-matic, comment out the "exit" line at the top of
+/etc/cron.daily/merge-o-matic-local
 
 Output files
 ------------
