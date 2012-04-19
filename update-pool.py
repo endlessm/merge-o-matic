@@ -75,6 +75,8 @@ def main(options, args):
                         update_obs(distro)
                     continue
 
+                if (distro, dist, component) not in updated_sources:
+                    update_sources(distro, dist, component)
                 sources = get_sources(distro, dist, component)
                 for source in sources:
                     if options.package is not None \
