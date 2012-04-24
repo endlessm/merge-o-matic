@@ -71,7 +71,10 @@ def main(options, args):
                                 print >>r
                                 print >>r, "Merge committed: YES"
                     except (ValueError, OSError) as e:
-                        logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, " ".join(e.args)))
+                        eargs = ""
+                        if e.args:
+                            eargs = " ".join(e.args)
+                        logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, eargs))
     
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
