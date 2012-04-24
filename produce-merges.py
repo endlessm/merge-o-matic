@@ -155,13 +155,7 @@ def is_safe_update(left_source, right_source):
        and can be committed automatically."""
     if left_source is None or right_source is None:
         return False
-    for field in ["Binary", "Architecture", "Build-Depends", "Build-Depends-Indep", "Build-Conflicts", "Build-Conflicts-Indep"]:
-        if field in left_source and field not in right_source:
-            return False
-        if field not in left_source and field in right_source:
-            return False
-        if field in left_source and field in right_source and left_source[field] != right_source[field]:
-            return False
+    #TODO MAYBE: parse Build-Depends and do something reasonable with it
 
     return True
 
