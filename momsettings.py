@@ -32,15 +32,6 @@ DISTROS = {
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
-    "DISTRO-SERVER2": {
-        "obs": {
-            "url": "https://SERVER2:444",
-            "project": "DISTRO"
-        },
-        "dists": [ None ],
-        "components": [ None ],
-        "expire": True,
-        },
     }
 
 # Destination distributions and releases
