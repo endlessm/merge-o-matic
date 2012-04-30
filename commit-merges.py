@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# produce-merges.py - produce merged packages
+# commit-merges.py - commit merged packages
 #
 # Copyright © 2012 Collabora Ltd.
 # Author: Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com>.
