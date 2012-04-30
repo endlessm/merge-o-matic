@@ -56,8 +56,14 @@ def options(parser):
                       help="Process only these destination components")
 
 def main(options, args):
-    src_distro = options.source_distro
-    src_dist = options.source_suite
+    if options.source_distro:
+        src_distro = options.source_distro
+    else:
+        src_distro = SRC_DISTRO
+    if options.source_suite:
+        src_dist = options.source_suite
+    else:
+        src_dist = SRC_DIST
 
     if options.dest_distro:
         our_distros = [options.dest_distro]
