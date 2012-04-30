@@ -49,7 +49,7 @@ def main(options, args):
         for our_dist in OUR_DISTS[our_distro]:
             for our_component in DISTROS[our_distro]["components"]:
                 if "obs" in DISTROS[our_distro]:
-                    update_obs(our_distro)
+                    update_obs(our_distro, options.package)
                 else:
                     update_sources(our_distro, our_dist, our_component)
                 updated_sources.add((our_distro, our_dist, our_component))
@@ -86,10 +86,15 @@ def main(options, args):
                         continue
                     update_pool(distro, source)
 
-def update_obs(distro):
+def update_obs(distro, packages=None):
     """Check out (or update) a distro from OBS, symlink it into the pool, and generate Sources files"""
-    obs_checkout_or_update(distro)
-    obs_update_pool(distro)
+    if packages is not None:
+        for package in packages:
+            obs_checkout_or_update(distro, package)
+            obs_update_pool(distro, package)
+    else:
+        obs_checkout_or_update(distro)
+        obs_update_pool(distro)
 
 def sources_url(distro, dist, component):
     """Return a URL for a remote Sources.gz file."""

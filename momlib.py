@@ -297,27 +297,40 @@ def obs_files(distro, package):
     d = obs_dot_osc(distro, package)
     return [ "%s/%s" % (d, f) for f in OBS_CACHE[distro][package]["files"] ]
 
-def obs_is_checked_out(distro):
+def obs_is_checked_out(distro, package=None):
     """Return True if the distro has been checked out via osc"""
-    return os.path.exists(obs_dot_osc(distro) + "/_packages")
+    if not os.path.exists(obs_dot_osc(distro) + "/_packages"):
+        return False
+    if package is not None:
+        try:
+            return os.path.exists("%s/_files" % obs_dot_osc(distro, package))
+        except KeyError:
+            return False
+    return True
 
-def obs_checkout_or_update(distro):
-    """If the distro is not checked out, checkout via osc, else update"""
+def obs_checkout_or_update(distro, package=None):
+    """If the distro and Debian package is not checked out, checkout via osc, else update"""
     ensure(obs_directory(distro) + "/")
 
-    if obs_is_checked_out(distro):
-        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "update", DISTROS[distro]["obs"]["project"]),
-                  chdir=obs_directory(distro), stdout=sys.stdout, stderr=sys.stderr)
-    else:
+    if not obs_is_checked_out(distro):
         shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "checkout", DISTROS[distro]["obs"]["project"]),
                   chdir=obs_directory(distro), stdout=sys.stdout, stderr=sys.stderr)
+        return
 
-def obs_update_pool(distro):
+    d = "%s/%s" % (obs_directory(distro), DISTROS[distro]["obs"]["project"])
+    if package is None or not obs_is_checked_out(distro, package):
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "update"),
+                  chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    else:
+        obs_package = OBS_CACHE[distro][package]["obs-name"]
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "update", obs_package),
+                  chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+
+def obs_update_pool(distro, package=None):
     """Hardlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
-    if distro not in OBS_CACHE:
-        obs_package_cache(distro)
 
-    for package, cache in OBS_CACHE[distro].items():
+    def pool_copy(package):
+        cache = OBS_CACHE[distro][package]
         pooldir = "%s/%s" % (ROOT, pool_directory(distro, package))
         obsdir = obs_dot_osc(distro, cache["name"])
         if not os.path.isdir(pooldir):
@@ -338,7 +351,16 @@ def obs_update_pool(distro):
             fullname = "%s/%s" % (dirname, filename)
             if not os.path.exists(fullname):
                 logging.info("Unlinking stale %s", tree.subdir(ROOT, fullname))
-                os.unlink(fullname)
+                os.unlink(fullname)    
+
+    if distro not in OBS_CACHE:
+        obs_package_cache(distro)
+
+    if package is None:
+        for p in OBS_CACHE[distro]:
+            pool_copy(p)
+    else:
+        pool_copy(package)
 
     os.path.walk("%s/pool/%s" % (ROOT, pool_name(distro)), walker, None)
 

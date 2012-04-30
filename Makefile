@@ -1,25 +1,25 @@
 PACKAGE_NAME = merge-o-matic-local
-VERSION = 2012.04.19
+VERSION = 2012.04.30
 
 main_exe_files = \
-	commit-merges.py \
-	expire-pool.py \
-	generate-diffs.py \
-	generate-dpatches.py \
-	generate-patches.py \
+	commit_merges.py \
+	expire_pool.py \
+	generate_diffs.py \
+	generate_dpatches.py \
+	generate_patches.py \
 	grab-merge.sh \
-	mail-bugs.py \
-	manual-status.py \
-	merge-status.py \
-	momlib.py \
+	mail_bugs.py \
+	manual_status.py \
+	merge_status.py \
+	main.py \
 	pack-archive.sh \
-	produce-merges.py \
-	publish-patches.py \
-	stats-graphs.py \
+	produce_merges.py \
+	publish_patches.py \
+	stats_graphs.py \
 	stats.py \
 	syndicate.py \
-	update-pool.py \
-	update-sources.py
+	update_pool.py \
+	update_sources.py
 
 main_nonexe_files = \
 	addcomment.py \

@@ -51,6 +51,25 @@ mkdir -p %{buildroot}/srv/obs/merge-o-matic
 
 mkdir -p %{buildroot}/usr/lib/merge-o-matic/{deb,util}
 install -m 0644 momlib.py %{buildroot}/usr/lib/merge-o-matic
+install -m 0755 \
+        commit_merges.py \
+        expire_pool.py \
+        generate_diffs.py \
+        generate_dpatches.py \
+        generate_patches.py \
+        grab-merge.sh \
+        mail_bugs.py \
+        manual_status.py \
+        merge_status.py \
+        pack-archive.sh \
+        produce_merges.py \
+        publish_patches.py \
+        stats_graphs.py \
+        stats.py \
+        syndicate.py \
+        update_pool.py \
+        update_sources.py \
+        %{buildroot}/usr/lib/merge-o-matic
 install -m 0644 \
 	deb/controlfile.py \
 	deb/__init__.py \
@@ -68,25 +87,7 @@ install -m 0644 \
 %py_ocomp %{buildroot}/usr/lib/merge-o-matic
 
 install -m 0644 addcomment.py %{buildroot}/usr/lib/merge-o-matic
-install -m 0755 \
-	commit-merges.py \
-	expire-pool.py \
-	generate-diffs.py \
-	generate-dpatches.py \
-	generate-patches.py \
-	grab-merge.sh \
-	mail-bugs.py \
-	manual-status.py \
-	merge-status.py \
-	pack-archive.sh \
-	produce-merges.py \
-	publish-patches.py \
-	stats-graphs.py \
-	stats.py \
-	syndicate.py \
-	update-pool.py \
-	update-sources.py \
-	%{buildroot}/usr/lib/merge-o-matic
+install -m 0755 main.py %{buildroot}/usr/lib/merge-o-matic
 
 %pre
 if ! getent group | grep "^mom:" &> /dev/null; then
