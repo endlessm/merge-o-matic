@@ -108,7 +108,7 @@ def main(options, args):
 
         # ?! untidy
         for entry in os.listdir(unpackeddir):
-            shutil.rmtree("%s/entry" % unpackeddir)
+            shutil.rmtree("%s/%s" % (unpackeddir, entry))
         
     finally:
         try:
