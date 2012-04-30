@@ -484,6 +484,7 @@ def get_nearest_source(our_distro, package, base):
     """Return the base source or nearest to it."""
     try:
         sources = get_pool_sources(SRC_DISTRO, package)
+        sources.extend(get_pool_sources(our_distro, package))
     except IOError:
         sources = []
 
@@ -491,7 +492,7 @@ def get_nearest_source(our_distro, package, base):
     for source in sources:
         if base == source["Version"]:
             return source
-        elif base > source["Version"]:
+        elif Version(base) >= Version(re.sub("build[0-9]+$", "", source["Version"])):
             bases.append(source)
     else:
         try:
