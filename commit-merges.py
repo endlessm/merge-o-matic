@@ -72,6 +72,12 @@ def main(options, args):
                         if e.args:
                             eargs = " ".join(e.args)
                         logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, eargs))
+                        try:
+                            with open("%s/REPORT" % output_dir, "a") as r:
+                                print >>r
+                                print >>r, "Merge committed: NO (failed: %s)" % eargs
+                        except:
+                            pass
     
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
