@@ -107,8 +107,11 @@ def main(options, args):
         expire_pool.main(options, args)
 
         # ?! untidy
-        for entry in os.listdir(unpackeddir):
-            shutil.rmtree("%s/%s" % (unpackeddir, entry))
+        try:
+            for entry in os.listdir(unpackeddir):
+                shutil.rmtree("%s/%s" % (unpackeddir, entry))
+        except:
+            pass
         
     finally:
         try:
