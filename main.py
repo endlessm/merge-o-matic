@@ -51,6 +51,7 @@ def main(options, args):
     options.component = None
     options.distro = None
     options.suite = None
+    options.force = None
     options.exclude = None
     options.include = None
     options.version = None
