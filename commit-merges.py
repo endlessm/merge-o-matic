@@ -57,9 +57,6 @@ def main(options, args):
                     except ValueError:
                         continue
 
-                    if not report["safe_to_commit"]:
-                        continue
-
                     filepaths = ["%s/%s" % (report["merged_dir"], f) for f in report["merged_files"]]
                     if filepaths == []:
                         logging.warning("Empty merged file list in %s/REPORT" % output_dir)

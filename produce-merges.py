@@ -150,14 +150,17 @@ def main(options, args):
                                 src_pool_source, src_distro, src_dist,
                                 force=options.force)
 
-def is_safe_update(left_source, right_source):
-    """Heuristically determine if right_source is a "safe" update for left_source,
-       and can be committed automatically."""
-    if left_source is None or right_source is None:
-        return False
-    #TODO MAYBE: parse Build-Depends and do something reasonable with it
+def is_build_metadata_changed(left_source, right_source):
+    """Return true if the two sources have different build-time metadata."""
+    for field in ["Binary", "Architecture", "Build-Depends", "Build-Depends-Indep", "Build-Conflicts", "Build-Conflicts-Indep"]:
+        if field in left_source and field not in right_source:
+            return True
+        if field not in left_source and field in right_source:
+            return True
+        if field in left_source and field in right_source and left_source[field] != right_source[field]:
+            return True
 
-    return True
+    return False
 
 def produce_merge(left_source, left_distro, left_dist, base_source,
                   right_source, right_distro, right_dist, force=False):
@@ -180,7 +183,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             write_report(left_source, left_distro, None, base_source,
                         right_source, right_distro, None,
                         merged_version, None, None, None,
-                        output_dir, None, True, is_safe_update(left_source, right_source))
+                        output_dir, None, True, is_build_metadata_changed(left_source, right_source))
         return
     elif base_version >= right_version:
         cleanup(output_dir)
@@ -231,7 +234,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             right_patch = copy_in(output_dir, right_source, right_distro)
 
             patch_file = None
-            safe_update = False
+            build_metadata_changed = True
             if len(conflicts):
                 src_file = create_tarball(package, merged_version,
                                           output_dir, merged_dir)
@@ -240,7 +243,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                                          Version(left_source["Version"]),
                                          output_dir, merged_dir)
                 if src_file.endswith(".dsc"):
-                    safe_update = is_safe_update(left_source, ControlFile(src_file))
+                    build_metadata_equal = is_build_metadata_changed(left_source, ControlFile(src_file))
                     patch_file = create_patch(package, merged_version,
                                               output_dir, merged_dir,
                                               right_source, right_dir)
@@ -248,7 +251,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             write_report(left_source, left_distro, left_patch, base_source,
                          right_source, right_distro, right_patch,
                          merged_version, conflicts, src_file, patch_file,
-                         output_dir, merged_dir, False, safe_update)
+                         output_dir, merged_dir, False, build_metadata_equal)
         finally:
             cleanup(merged_dir)
     finally:
@@ -841,7 +844,7 @@ def create_patch(package, version, output_dir, merged_dir,
 def write_report(left_source, left_distro, left_patch, base_source,
                  right_source, right_distro, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
-                 merged_dir, merged_is_right, safe_to_commit):
+                 merged_dir, merged_is_right, build_metadata_changed):
     """Write the merge report."""
     filename = "%s/REPORT" % output_dir
     with open(filename, "w") as report:
@@ -918,8 +921,8 @@ def write_report(left_source, left_distro, left_patch, base_source,
             print >>report
             print >>report, "Merged without changes: YES"
             print >>report
-            if safe_to_commit:
-                print >>report, "Safe to commit: YES"
+            if build_metadata_changed:
+                print >>report, "Build-time metadata changed: NO"
                 print >>report
         else:
             if src_file.endswith(".dsc"):
@@ -950,8 +953,8 @@ def write_report(left_source, left_distro, left_patch, base_source,
                     print >>report, "%s -> generated" % right_distro
                     print >>report, "    %s" % patch_file
                     print >>report
-                if safe_to_commit:
-                    print >>report, "Safe to commit: YES"
+                if build_metadata_changed:
+                    print >>report, "Build-time metadata changed: NO"
                     print >>report
             else:
                 print >>report, fill("Due to conflict or error, it was not "

@@ -652,7 +652,7 @@ def read_report(output_dir, left_distro, right_distro):
         "merged_is_right": False,
         "merged_dir": None,
         "merged_files": [],
-        "safe_to_commit": False,
+        "build_metadata_changed": True,
         "committed": False
     }
 
@@ -685,8 +685,8 @@ def read_report(output_dir, left_distro, right_distro):
                 in_list = "merged"
             elif line.startswith("Merged without changes: YES"):
                 report["merged_is_right"] = True
-            elif line.startswith("Safe to commit: YES"):
-                report["safe_to_commit"] = True
+            elif line.startswith("Build-time metadata changed: NO"):
+                report["build_metadata_changed"] = False
             elif line.startswith("Merge committed: YES"):
                 report["committed"] = True
 
