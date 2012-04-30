@@ -175,13 +175,9 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
     merged_version = Version(right_source["Version"] + "co1")
     output_dir = result_dir(package)
 
-    if re.search(".*build[0-9]+$", left_source["Version"]):
-        cleanup(output_dir)
-        return
-
-    base_version = Version(base_source["Version"])
-    left_version = Version(left_source["Version"])
-    right_version = Version(right_source["Version"])
+    base_version = Version(re.sub("build[0-9]+$", "", base_source["Version"]))
+    left_version = Version(re.sub("build[0-9]+$", "", left_source["Version"]))
+    right_version = Version(re.sub("build[0-9]+$", "", right_source["Version"]))
     if base_version >= left_version:
         cleanup(output_dir)
         if left_version < right_version:
