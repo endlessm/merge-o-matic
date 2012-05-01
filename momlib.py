@@ -35,6 +35,7 @@ import logging
 import datetime
 import shutil
 import stat
+import time
 
 from cgi import escape
 from optparse import OptionParser
@@ -79,7 +80,8 @@ BLACKWHITE_CACHE = {
 
 def run(main_func, options_func=None, usage=None, description=None):
     """Run the given main function after initialising options."""
-    logging.basicConfig()
+    logging.Formatter.converter = time.gmtime
+    logging.basicConfig(format="%(asctime)s  %(message)s", datefmt="%a, %d %b %Y %H:%M:%S +0000") # RFC 2822
     logging.getLogger().setLevel(logging.DEBUG)
 
     parser = OptionParser(usage=usage, description=description)
