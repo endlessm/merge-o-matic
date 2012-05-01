@@ -1,6 +1,6 @@
 %define name merge-o-matic-local
-%define version 2012.04.30
-%define unmangled_version 2012.04.30
+%define version 2012.05.01
+%define unmangled_version 2012.05.01
 %define release 1
 %define codedir /usr/lib/merge-o-matic
 
