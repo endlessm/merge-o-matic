@@ -56,7 +56,7 @@ def main(options, args):
                     for source in get_sources(our_distro, our_dist, component):
                         package = source["Package"]
 
-                        if not check_blackwhitelist(package):
+                        if not PACKAGELISTS.check_our_distro(source["Package"], our_distro):
                             continue
 
                         # Publish slipped patches in preference to true-base ones

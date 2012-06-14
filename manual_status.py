@@ -38,10 +38,10 @@ SECTIONS = [ "new", "committed" ]
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
-                      default=SRC_DISTRO,
+                      default=SRC_DISTROS[OUR_DISTROS[0]],
                       help="Source distribution")
     parser.add_option("-S", "--source-suite", type="string", metavar="SUITE",
-                      default=SRC_DIST,
+                      default=SRC_DISTS[OUR_DISTROS[0]],
                       help="Source suite (aka distrorelease)")
 
     parser.add_option("-d", "--dest-distro", type="string", metavar="DISTRO",
@@ -59,11 +59,11 @@ def main(options, args):
     if options.source_distro:
         src_distro = options.source_distro
     else:
-        src_distro = SRC_DISTRO
+        src_distro = SRC_DISTROS[OUR_DISTROS[0]]
     if options.source_suite:
         src_dist = options.source_suite
     else:
-        src_dist = SRC_DIST
+        src_dist = SRC_DISTS[OUR_DISTROS[0]]
 
     if options.dest_distro:
         our_distros = [options.dest_distro]

@@ -16,32 +16,46 @@ RECIPIENTS = []
 # Distribution definitions
 # For additional subprojects, use additional distro definitions
 DISTROS = {
-    "DISTRO-standard": {
+    #"DISTRO-standard": {
+        #"obs": {
+            #"url": "https://SERVER:444",
+            #"project": "DISTRO"
+        #},
+        #"mirror": "http://SERVER:82/debian/DISTRO/standard/",
+        #"dists": [ None ],
+        #"components": [ None ],
+        #"expire": True,
+        #},
+    "DISTRO-SUITE_A-target": {
         "obs": {
             "url": "https://SERVER:444",
-            "project": "DISTRO"
+            "project": "DISTRO:SUITE_A:target"
         },
-        "mirror": "http://SERVER:82/debian/DISTRO/standard/",
         "dists": [ None ],
         "components": [ None ],
         "expire": True,
         },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "precise" ],
+        "dists": [ "precise-updates", "precise" ],
         "components": [ "main", "restricted", "universe", "multiverse" ],
+        "expire": True,
+        },
+    "debian": {
+        "mirror": "http://ftp.uk.debian.org/debian",
+        "dists": [ "unstable", "testing", "testing-proposed-updates", "experimental" ],
+        "components": [ "main", "contrib", "non-free" ],
         "expire": True,
         },
     }
 
 # Destination distributions and releases
-OUR_DISTROS = [ "DISTRO-standard" ]
-OUR_DISTS   = { "DISTRO-standard" : [ None ] }
+OUR_DISTROS = [ "DISTRO-SUITE_A-target" ]
+OUR_DISTS   = { "DISTRO-SUITE_A-target" : [ None ] }
 
 # Default source distribution and release
-SRC_DISTRO = "ubuntu"
-SRC_DIST   = "precise"
-
+SRC_DISTROS = { "DISTRO-SUITE_A-target" : "ubuntu" }
+SRC_DISTS   = { "DISTRO-SUITE_A-target" : "precise-updates" }
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"

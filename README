@@ -36,13 +36,15 @@ Output files
 
 Under /srv/obs/merge-o-matic:
 merges/$NAME.html (e.g. DISTRO-standard.html) : main report
-post-sync-whitelists.txt : list of packages downloaded from OBS. This is
-assumed to be a subset of the upstream (Ubuntu) distribution, and packages
-not in this list will not be downloaded from Ubuntu repositories.
+$OUR.list.txt : list of packages in $OUR distro downloaded from OBS. This is
+assumed to be a subset of the default upstream (Ubuntu) distribution, and
+packages not in this list will not be downloaded from Ubuntu repositories.
+$OUR-$SRCDISTRO-$SRCDIST.list.txt : list of packages in $OUR distro that
+come from $SRCDISTRO/$SRCDIST
 
 Config files
 ------------
 
 Under /srv/obs/merge-o-matic:
 comments.txt : comments, will be displayed in merges/*.html
-sync-blacklist.txt : packages that will be ignored by mom
+$OUR.ignore.txt : packages in $OUR distro that will be ignored by MoM.

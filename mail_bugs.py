@@ -44,10 +44,10 @@ SEVERITY = [ "unknown", "critical", "grave", "serious", "important", "normal",
 
 def options(parser):
     parser.add_option("-d", "--distro", type="string", metavar="DISTRO",
-                      default=SRC_DISTRO,
+                      default=SRC_DISTROS[OUR_DISTROS[0]],
                       help="Distribution to mail bug closures for")
     parser.add_option("-s", "--suite", type="string", metavar="SUITE",
-                      default=SRC_DIST,
+                      default=SRC_DISTS[OUR_DISTROS[0]],
                       help="Suite (aka distrorelease)")
 
 def main(options, args):

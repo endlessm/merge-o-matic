@@ -80,7 +80,7 @@ def main(options, args):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
-                    if not check_blackwhitelist(source["Package"]):
+                    if not PACKAGELISTS.check_any_distro(source["Package"], distro, dist):
                         continue
 
                     watermark = read_watermark(distro, source)
@@ -168,7 +168,7 @@ def mail_diff(distro, last, this, uploader, subscriptions):
     if not len(recipients):
         return
 
-    if distro == SRC_DISTRO:
+    if distro in SRC_DISTROS.values():
         # Debian uploads always just have a diff
         subject = "Ubuntu %s %s" % (this["Package"], this["Version"])
         intro = MIMEText("""\

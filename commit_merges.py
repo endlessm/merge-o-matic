@@ -48,12 +48,12 @@ def main(options, args):
                     if options.package is not None \
                         and source["Package"] not in options.package:
                         continue
-                    if not check_blackwhitelist(source["Package"]):
+                    if not PACKAGELISTS.check_our_distro(source["Package"], our_distro):
                         continue
 
                     try:
                         output_dir = result_dir(source["Package"])
-                        report = read_report(output_dir, our_distro, SRC_DISTRO)
+                        report = read_report(output_dir, our_distro, SRC_DISTROS[our_distro])
                     except ValueError:
                         continue
 

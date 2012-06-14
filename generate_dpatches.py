@@ -51,7 +51,7 @@ def main(options, args):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
-                    if not check_blackwhitelist(source["Package"]):
+                    if not PACKAGELISTS.check_any_distro(source["Package"], distro, dist):
                         continue
 
                     sources = get_pool_sources(distro, source["Package"])

@@ -62,18 +62,6 @@ SOURCES_CACHE = {}
 # Cache of mappings of Debian package names to OBS package names
 OBS_CACHE = {}
 
-# Blacklist and whitelist cache
-BLACKWHITE_CACHE = {
-    "black": set(),
-    "white": set(),
-    "is_cached": False,
-    "is_white": False,
-    "filename": {
-        "black": "%s/sync-blacklist.txt" % ROOT,
-        "white": "%s/post-sync-whitelist.txt" % ROOT
-    }
-}
-
 # --------------------------------------------------------------------------- #
 # Command-line tool functions
 # --------------------------------------------------------------------------- #
@@ -485,7 +473,7 @@ def get_pool_source(distro, package, version=None):
 def get_nearest_source(our_distro, package, base):
     """Return the base source or nearest to it."""
     try:
-        sources = get_pool_sources(SRC_DISTRO, package)
+        sources = get_pool_sources(SRC_DISTROS[our_distro], package)
         sources.extend(get_pool_sources(our_distro, package))
     except IOError:
         sources = []
@@ -729,18 +717,26 @@ def read_report(output_dir, left_distro, right_distro):
 # Blacklist and whitelist handling
 # --------------------------------------------------------------------------- #
 
-def cache_blackwhitelist():
-    """Build the black/whitelist cache"""
-    BLACKWHITE_CACHE["black"] = set()
-    BLACKWHITE_CACHE["white"] = set()
-    BLACKWHITE_CACHE["is_cached"] = True
-    BLACKWHITE_CACHE["is_white"] = os.path.isfile(BLACKWHITE_CACHE["filename"]["white"])
+class PackageList(object):
+    def __init__(self, filename=None):
+        self.filename = filename
+        self.set = set()
+        self.modified = False
+        self.has_file = False
+        self._lines = ["# Generated automatically by Merge-o-Matic\n"]
+        if self.filename:
+            self.load_file()
 
-    for color in "black", "white":
-        if not os.path.isfile(BLACKWHITE_CACHE["filename"][color]):
-            continue
-        with open(BLACKWHITE_CACHE["filename"][color]) as f:
+    def __contains__(self, package):
+        return package in self.set
+
+    def load_file(self):
+        if not os.path.isfile(self.filename):
+            return
+        with open(self.filename) as f:
+            self._lines = []
             for line in f:
+                self._lines.append(line)
                 try:
                     line = line[:line.index("#")]
                 except ValueError:
@@ -750,31 +746,157 @@ def cache_blackwhitelist():
                 if not line:
                     continue
 
-                BLACKWHITE_CACHE[color].add(line)
+                self.set.add(line)
+        self.has_file = True
 
-def read_blacklist():
-    """Read the blacklist"""
-    if not BLACKWHITE_CACHE["is_cached"]:
-        cache_blackwhitelist()
+    def add(self, package):
+        if package in self.set:
+            return
+        self.set.add(package)
+        self.modified = True
+        self._lines.append("%s\n" % package)
 
-    return list(BLACKWHITE_CACHE["black"])
+    def discard(self, package):
+        if package not in self.set:
+            return
+        self.set.discard(package)
+        self.modified = True
+        new_lines = []
+        for line in self._lines:
+            try:
+                line = line[:line.index("#")]
+            except ValueError:
+                pass
 
-def read_whitelist():
-    """Read the whitelist"""
-    if not BLACKWHITE_CACHE["is_cached"]:
-        cache_blackwhitelist()
+            line = line.strip()
+            if line != package:
+                new_lines.append(line)
+        self._lines = new_lines
 
-    return list(BLACKWHITE_CACHE["white"])
+    def save_if_modified(self):
+        if self.modified:
+            logging.debug("Writing %s", self.filename)
+            with open(self.filename, "w") as f:
+                for line in self._lines:
+                    f.write(line)
 
-def check_blackwhitelist(package):
-    """Check whether the package passes black and white lists"""
-    if not BLACKWHITE_CACHE["is_cached"]:
-        cache_blackwhitelist()
+class PackageLists(object):
+    def __init__(self, manual_includes=[], manual_excludes=[]):
+        """Initialize MoM white/blacklist; manual_includes and manual_excludes are lists of filenames"""
+        self.manual = False
+        if manual_includes or manual_excludes:
+            self.manual = True
+        self.manual_includes = [PackageList(filename) for filename in manual_includes]
+        self.manual_excludes = [PackageList(filename) for filename in manual_excludes]
+        self.include = {}
+        self.exclude = {}
 
-    if BLACKWHITE_CACHE["is_white"]:
-        return package in BLACKWHITE_CACHE["white"] and package not in BLACKWHITE_CACHE["black"]
-    else:
-        return package not in BLACKWHITE_CACHE["black"]
+        for our_distro in OUR_DISTROS:
+            filename_exclude = "%s/%s.ignore.txt" % (ROOT, our_distro)
+            self.exclude[our_distro] = PackageList(filename_exclude)
+            self.include[our_distro] = {}
+
+            for src_distro in DISTROS:
+                if src_distro == our_distro:
+                    continue
+                self.include[our_distro][src_distro] = {}
+                for src_dist in DISTROS[src_distro]["dists"]:
+                    if src_dist is not None:
+                        filename_include = "%s/%s-%s-%s.list.txt" % (ROOT, our_distro, src_distro, src_dist)
+                    else:
+                        filename_include = "%s/%s-%s.list.txt" % (ROOT, our_distro, src_distro)
+                    # Allow short filename form for SRC_DISTROS/SRC_DISTS
+                    if src_distro == SRC_DISTROS[our_distro] and src_dist == SRC_DISTS[our_distro] and not os.path.isfile(filename_include):
+                        filename_include = "%s/%s.list.txt" % (ROOT, our_distro)
+
+                    self.include[our_distro][src_distro][src_dist] = PackageList(filename_include)
+
+        # If no per-distro filenames were available, try the old ones
+        if os.path.isfile("%s/sync-blacklist.txt" % ROOT):
+            self.old_exclude = PackageList("%s/sync-blacklist.txt" % ROOT)
+        if os.path.isfile("%s/post-sync-whitelist.txt" % ROOT):
+            self.old_include = PackageList("%s/post-sync-whitelist.txt" % ROOT)
+
+    def check_our_distro(self, package, our_distro=None, src_distro=None, src_dist=None):
+        if self.manual:
+            return self.check_manual(package)
+        includes = []
+        if src_distro is None:
+            for src_distro_ in self.include[our_distro]:
+                for src_dist_ in self.include[our_distro][src_distro_]:
+                    includes.append(self.include[our_distro][src_distro_][src_dist_])
+        else:
+            includes = [self.include[our_distro][src_distro][src_dist]]
+        found = False
+        findable = False
+        for s in includes:
+            if s.has_file or s.modified:
+                findable = True
+                if package in s:
+                    found = True
+        if findable:
+            return found and package not in self.exclude[our_distro]
+        else:
+            return package not in self.exclude[our_distro]
+
+    def check_any_distro(self, package, distro=None, dist=None):
+        """If distro is a target distro, return self.check(package, distro);
+        if distro is a source distro, return true if self.check(package, t, distro, dist) is true for some t"""
+        if distro in OUR_DISTROS:
+            return self.check_our_distro(package, distro)
+        else:
+            for our_distro in OUR_DISTROS:
+                if self.check_our_distro(package, our_distro, distro, dist):
+                    return True
+        return False
+
+    def add(self, package, our_distro, src_distro=None, src_dist=None):
+        if src_distro is None:
+            src_distro = SRC_DISTROS[our_distro]
+            src_dist = SRC_DISTS[our_distro]
+        return self.include[our_distro][src_distro][src_dist].add(package)
+
+    def add_if_needed(self, package, our_distro, src_distro=None, src_dist=None):
+        if src_distro is None:
+            src_distro = SRC_DISTROS[our_distro]
+            src_dist = SRC_DISTS[our_distro]
+        for src_distro_ in self.include[our_distro]:
+            for src_dist_ in self.include[our_distro][src_distro_]:
+                if package in self.include[our_distro][src_distro_][src_dist_]:
+                    return False
+        return self.add(package, our_distro, src_distro, src_dist)
+
+    def discard(self, package, our_distro, src_distro=None, src_dist=None):
+        if src_distro is None:
+            src_distro = SRC_DISTROS[our_distro]
+            src_dist = SRC_DISTS[our_distro]
+        return self.include[our_distro][src_distro][src_dist].discard(package)
+
+    def save_if_modified(self, our_distro, src_distro=None, src_dist=None):
+        if src_distro is None:
+            src_distro = SRC_DISTROS[our_distro]
+            src_dist = SRC_DISTS[our_distro]
+        return self.include[our_distro][src_distro][src_dist].save_if_modified()
+
+    def check_manual(self, package):
+        if self.manual_includes:
+            found = False
+            for s in self.manual_includes:
+                if package in s:
+                    found = True
+            if not found:
+                return False
+            for s in self.manual_excludes:
+                if package in s:
+                    return False
+        else:
+            for s in self.manual_excludes:
+                if package in s:
+                    return False
+
+        return True
+
+PACKAGELISTS = PackageLists()
 
 # --------------------------------------------------------------------------- #
 # RSS feed handling
