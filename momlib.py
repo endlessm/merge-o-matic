@@ -817,16 +817,19 @@ class PackageLists(object):
         if os.path.isfile("%s/post-sync-whitelist.txt" % ROOT):
             self.old_include = PackageList("%s/post-sync-whitelist.txt" % ROOT)
 
-    def check_our_distro(self, package, our_distro=None, src_distro=None, src_dist=None):
+    def check_our_distro(self, package, our_distro, src_distro=None, src_dist=None):
         if self.manual:
             return self.check_manual(package)
         includes = []
+        src_is_default = True # src_dist/src_distro are default sources for our_distro
         if src_distro is None:
             for src_distro_ in self.include[our_distro]:
                 for src_dist_ in self.include[our_distro][src_distro_]:
                     includes.append(self.include[our_distro][src_distro_][src_dist_])
         else:
             includes = [self.include[our_distro][src_distro][src_dist]]
+            if src_distro != SRC_DISTROS[our_distro] or src_dist != SRC_DISTS[our_distro]:
+                src_is_default = False
         found = False
         findable = False
         for s in includes:
@@ -834,10 +837,11 @@ class PackageLists(object):
                 findable = True
                 if package in s:
                     found = True
+                    break
         if findable:
             return found and package not in self.exclude[our_distro]
         else:
-            return package not in self.exclude[our_distro]
+            return src_is_default and package not in self.exclude[our_distro]
 
     def check_any_distro(self, package, distro=None, dist=None):
         """If distro is a target distro, return self.check(package, distro);
