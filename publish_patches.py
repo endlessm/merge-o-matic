@@ -47,7 +47,7 @@ def main(options, args):
             for source in get_sources(our_distro, our_dist, our_component):
                 package = source["Package"]
 
-                if not PACKAGELISTS.check_target(target, source["Package"]):
+                if not PACKAGELISTS.check_target(target, None, source["Package"]):
                     continue
 
                 # Publish slipped patches in preference to true-base ones

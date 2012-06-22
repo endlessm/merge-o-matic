@@ -92,7 +92,7 @@ def main(options, args):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue
-            if not PACKAGELISTS.check_target(target, source["Package"]):
+            if not PACKAGELISTS.check_target(target, None, source["Package"]):
                 continue
             if len(includes) and our_source["Package"] not in includes:
                 continue
