@@ -23,6 +23,7 @@ import os
 import re
 import time
 import logging
+import shutil
 import tempfile
 
 from stat import *
@@ -775,8 +776,8 @@ def create_source(package, version, since, output_dir, merged_dir):
 
         orig_filename = "%s_%s.orig.tar.gz" % (package, version.upstream)
         if os.path.isfile("%s/%s" % (output_dir, orig_filename)):
-            os.link("%s/%s" % (output_dir, orig_filename),
-                    "%s/%s" % (parent, orig_filename))
+            shutil.copy2("%s/%s" % (output_dir, orig_filename),
+                         "%s/%s" % (parent, orig_filename))
 
         cmd = ("dpkg-source",)
         if version.revision is not None and since.upstream != version.upstream:
@@ -795,7 +796,7 @@ def create_source(package, version, since, output_dir, merged_dir):
                 src = "%s/%s" % (parent, name)
                 dest = "%s/%s" % (output_dir, name)
                 if os.path.isfile(src) and not os.path.isfile(dest):
-                    os.link(src, dest)
+                    shutil.copy2(src, dest)
 
             return os.path.basename(filename)
         else:
