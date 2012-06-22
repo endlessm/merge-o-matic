@@ -175,7 +175,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
 
     if not force:
         try:
-            report = read_report(output_dir, left_distro, right_distro)
+            report = read_report(output_dir)
             (prev_base, prev_left, prev_right) \
                         = (report["base_version"], report["left_version"], report["right_version"])
             if prev_base == base_version \
