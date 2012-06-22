@@ -218,7 +218,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             right_patch = copy_in(output_dir, right_source, right_distro)
 
             patch_file = None
-            build_metadata_changed = True
+            build_metadata_changed = False
             if len(conflicts):
                 src_file = create_tarball(package, merged_version,
                                           output_dir, merged_dir)
@@ -227,7 +227,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                                          Version(left_source["Version"]),
                                          output_dir, merged_dir)
                 if src_file.endswith(".dsc"):
-                    build_metadata_equal = is_build_metadata_changed(left_source, ControlFile(src_file))
+                    build_metadata_changed = is_build_metadata_changed(left_source, ControlFile(src_file))
                     patch_file = create_patch(package, merged_version,
                                               output_dir, merged_dir,
                                               right_source, right_dir)
@@ -235,7 +235,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
             write_report(left_source, left_distro, left_patch, base_source,
                          right_source, right_distro, right_patch,
                          merged_version, conflicts, src_file, patch_file,
-                         output_dir, merged_dir, False, build_metadata_equal)
+                         output_dir, merged_dir, False, build_metadata_changed)
         finally:
             cleanup(merged_dir)
     finally:
