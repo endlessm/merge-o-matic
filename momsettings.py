@@ -48,7 +48,7 @@ DISTROS = {
         },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "precise-updates", "precise" ],
+        "dists": [ "precise-updates", "precise-security", "precise" ],
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
@@ -63,6 +63,7 @@ DISTROS = {
 DISTRO_SOURCES = {
     "precise+updates": [
         { "distro": "ubuntu", "dist": "precise-updates" },
+        { "distro": "ubuntu", "dist": "precise-security" },
         { "distro": "ubuntu", "dist": "precise" } ],
     }
 
