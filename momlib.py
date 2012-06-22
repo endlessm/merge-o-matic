@@ -847,7 +847,7 @@ class PackageLists(object):
             if distro == DISTRO_TARGETS[target]["distro"] and dist == DISTRO_TARGETS[target]["dist"]:
                 return self.check_target(target, package)
         for target in DISTRO_TARGETS:
-            for src in DISTRO_TARGETS[target]:
+            for src in DISTRO_TARGETS[target]["sources"]:
                 for sub_src in DISTRO_SOURCES[src]:
                     if distro == sub_src["distro"] and dist == sub_src["dist"] and self.check_target(target, src, package):
                         return True
