@@ -72,6 +72,16 @@ DISTRO_TARGETS = {
         "dist": None,
         "component": None,
         "sources": [ "precise+updates", ] },
+    "SUITE_A-sdk": {
+        "distro": "SUITE_A-sdk",
+        "dist": None,
+        "component": None,
+        "sources": [ "precise+updates", ] },
+    "SUITE_A-devel": {
+        "distro": "SUITE_A-devel",
+        "dist": None,
+        "component": None,
+        "sources": [ "precise+updates", ] },
     }
 
 # Time format for RSS feeds
