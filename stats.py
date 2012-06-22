@@ -72,7 +72,7 @@ def main(options, args):
 
             stats["total"] += 1
 
-            if not PACKAGELISTS.check_target(target, None, source["Package"]):
+            if not PACKAGELISTS.check_target(target, None, our_source["Package"]):
                 logging.debug("%s: blacklisted or not whitelisted", package)
                 stats["local"] += 1
                 continue
