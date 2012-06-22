@@ -31,7 +31,7 @@ def main(options, args):
 
     # Run through our default distribution and use that for the base
     # package names.  Expire from all distributions.
-    for target in targets:
+    for target in DISTRO_TARGETS.keys():
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
         for source in get_sources(our_distro, our_dist, our_component):
             base = get_base(source)
