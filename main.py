@@ -43,8 +43,7 @@ def options(parser):
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
                       action="append",
                       help="Process only this package")
-    parser.add_option("-t", "--target", type="string", metavar="PACKAGE",
-                      action="append",
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       help="Process only this distribution target")
                       
 def main(options, args):
