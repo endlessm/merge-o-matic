@@ -115,5 +115,12 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Fri Jun 22 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.06.22
+- enable support for source groups (multiple source distros for a package in a target)
+- explicitly and properly define distribution targets
+
+* Tue Jun 19 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.06.19
+- enable support for multiple source distros for each target
+
 * Tue Apr 10 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.04.10-1
 - initial version
