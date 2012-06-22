@@ -227,7 +227,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                                          Version(left_source["Version"]),
                                          output_dir, merged_dir)
                 if src_file.endswith(".dsc"):
-                    build_metadata_changed = is_build_metadata_changed(left_source, ControlFile(src_file))
+                    build_metadata_changed = is_build_metadata_changed(left_source, ControlFile("%s/%s" % (output_dir, src_file)).para)
                     patch_file = create_patch(package, merged_version,
                                               output_dir, merged_dir,
                                               right_source, right_dir)
