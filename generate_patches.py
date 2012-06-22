@@ -59,7 +59,7 @@ def main(options, args):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue
-            if not PACKAGELISTS.check_target(target, None, source["Package"]):
+            if not PACKAGELISTS.check_target(target, None, our_source["Package"]):
                 continue
 
             if search(".*build[0-9]+$", our_source["Version"]):
