@@ -86,7 +86,7 @@ def main(options, args):
 
             try:
                 base = get_base(our_pool_source)
-                base_source = get_nearest_source(our_distro, package, base)
+                base_source = get_nearest_source(our_distro, src_distro, package, base)
                 base_version = Version(base_source["Version"])
                 logging.debug("%s: base is %s (%s wanted)",
                             package, base_version, base)

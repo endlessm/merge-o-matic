@@ -108,7 +108,7 @@ def make_patches(our_distro, our_source, src_distro, src_source, base,
     """Make sets of patches from the given base."""
     package = our_source["Package"]
     try:
-        base_source = get_nearest_source(our_distro, package, base)
+        base_source = get_nearest_source(our_distro, src_distro, package, base)
         base_version = Version(base_source["Version"])
         logging.debug("%s: base is %s (%s wanted)",
                       package, base_version, base)
