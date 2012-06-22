@@ -861,8 +861,8 @@ class PackageLists(object):
                 continue
             best = None
             for sub_src in DISTRO_SOURCES[src]:
-                distro = DISTRO_SOURCES[src]["distro"]
-                dist = DISTRO_SOURCES[src]["dist"]
+                distro = sub_src["distro"]
+                dist = sub_src["dist"]
                 try:
                     source, version, pool_source = get_same_source(distro, dist, package)
                 except IndexError:

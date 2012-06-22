@@ -170,7 +170,7 @@ def main(options, args):
 def distro_is_src(distro):
     for src in DISTRO_SOURCES:
         for sub_src in DISTRO_SOURCES[src]:
-            if distro == DISTRO_SOURCES[src][sub_src]["distro"]:
+            if distro == sub_src["distro"]:
                 return True
     return False
 
