@@ -1,5 +1,5 @@
 PACKAGE_NAME = merge-o-matic-local
-VERSION = 2012.06.19
+VERSION = 2012.06.22
 
 main_exe_files = \
 	commit_merges.py \

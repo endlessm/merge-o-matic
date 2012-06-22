@@ -38,42 +38,21 @@ SECTIONS = [ "outstanding", "new", "committed" ]
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
-                      default=SRC_DISTROS[OUR_DISTROS[0]],
+                      default=None,
                       help="Source distribution")
     parser.add_option("-S", "--source-suite", type="string", metavar="SUITE",
-                      default=SRC_DISTS[OUR_DISTROS[0]],
+                      default=None,
                       help="Source suite (aka distrorelease)")
 
-    parser.add_option("-d", "--dest-distro", type="string", metavar="DISTRO",
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
-                      help="Destination distribution")
-    parser.add_option("-s", "--dest-suite", type="string", metavar="SUITE",
-                      default=None,
-                      help="Destination suite (aka distrorelease)")
-
-    parser.add_option("-c", "--component", type="string", metavar="COMPONENT",
-                      action="append",
-                      help="Process only these destination components")
+                      help="Distribution target to use")
 
 def main(options, args):
-    if options.source_distro:
-        src_distro = options.source_distro
+    if options.target:
+        targets = [options.target]
     else:
-        src_distro = SRC_DISTROS[OUR_DISTROS[0]]
-    if options.source_suite:
-        src_dist = options.source_suite
-    else:
-        src_dist = SRC_DISTS[OUR_DISTROS[0]]
-
-    if options.dest_distro:
-        our_distros = [options.dest_distro]
-    else:
-        our_distros = OUR_DISTROS
-
-    if options.dest_suite:
-        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
-    else:
-        our_dists = OUR_DISTS
+        targets = DISTRO_TARGETS.keys()
 
     outstanding = []
     if os.path.isfile("%s/outstanding-merges.txt" % ROOT):
@@ -88,48 +67,43 @@ def main(options, args):
 
     # For each package in the destination distribution, find out whether
     # there's an open merge, and if so add an entry to the table for it.
-    for our_distro in our_distros:
-        for our_dist in our_dists[our_distro]:
-            for our_component in DISTROS[our_distro]["components"]:
-                if options.component is not None \
-                    and our_component not in options.component:
-                    continue
+    for target in targets:
+        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+        merges = []
 
-                merges = []
+        for source in get_sources(our_distro, our_dist, our_component):
+            try:
+                output_dir = result_dir(source["Package"])
+                report = read_report(output_dir)
+            except ValueError:
+                continue
 
-                for source in get_sources(our_distro, our_dist, our_component):
-                    try:
-                        output_dir = result_dir(source["Package"])
-                        report = read_report(output_dir, our_distro, src_distro)
-                    except ValueError:
-                        continue
+            try:
+                priority_idx = PRIORITY.index(source["Priority"])
+            except KeyError:
+                priority_idx = 0
 
-                    try:
-                        priority_idx = PRIORITY.index(source["Priority"])
-                    except KeyError:
-                        priority_idx = 0
+            if report["committed"]:
+                section = "committed"
+            elif not after_uvf:
+                section = "outstanding"
+            elif source["Package"] in outstanding:
+                section = "outstanding"
+            else:
+                section = "new"
 
-                    if report["committed"]:
-                        section = "committed"
-                    elif not after_uvf:
-                        section = "outstanding"
-                    elif source["Package"] in outstanding:
-                        section = "outstanding"
-                    else:
-                        section = "new"
+            merges.append((section, priority_idx, source["Package"],
+                        source, report["base_version"],
+                        report["left_version"], report["right_version"]))
 
-                    merges.append((section, priority_idx, source["Package"],
-                                source, report["base_version"],
-                                report["left_version"], report["right_version"]))
+        merges.sort()
 
-                merges.sort()
+        write_status_page(target, merges, our_distro, src_distro)
+        write_status_json(target, merges, our_distro, src_distro)
 
-                write_status_page(component_string(our_component, our_distro), merges, our_distro, src_distro)
-                write_status_json(component_string(our_component, our_distro), merges, our_distro, src_distro)
-
-                status_file = "%s/merges/tomerge-%s" % (ROOT, component_string(our_component, our_distro))
-                remove_old_comments(status_file, merges)
-                write_status_file(status_file, merges)
+        status_file = "%s/merges/tomerge-%s" % (ROOT, target)
+        remove_old_comments(status_file, merges)
+        write_status_file(status_file, merges)
 
 
 def get_uploader(distro, source):
@@ -153,9 +127,9 @@ def get_uploader(distro, source):
         return None
 
 
-def write_status_page(component, merges, left_distro, right_distro):
+def write_status_page(target, merges, left_distro, right_distro):
     """Write out the merge status page."""
-    status_file = "%s/merges/%s.html" % (ROOT, component)
+    status_file = "%s/merges/%s.html" % (ROOT, target)
     if not os.path.isdir(os.path.dirname(status_file)):
         os.makedirs(os.path.dirname(status_file))
     with open(status_file + ".new", "w") as status:
@@ -163,7 +137,7 @@ def write_status_page(component, merges, left_distro, right_distro):
         print >>status
         print >>status, "<head>"
         print >>status, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
-        print >>status, "<title>Merge-o-Matic: %s</title>" % component
+        print >>status, "<title>Merge-o-Matic: %s</title>" % target
         print >>status, "<style>"
         print >>status, "h1 {"
         print >>status, "    padding-top: 0.5em;"
@@ -191,7 +165,7 @@ def write_status_page(component, merges, left_distro, right_distro):
         print >>status, "</style>"
         print >>status, "</head>"
         print >>status, "<body>"
-        print >>status, "<h1>Merge-o-Matic: %s</h1>" % component
+        print >>status, "<h1>Merge-o-Matic: %s</h1>" % target
 
         for section in SECTIONS:
             section_merges = [ m for m in merges if m[0] == section ]
@@ -209,19 +183,19 @@ def write_status_page(component, merges, left_distro, right_distro):
             print >>status, ("<h2 id=\"%s\">%s Merges</h2>"
                              % (section, section.title()))
 
-            do_table(status, section_merges, comments, left_distro, right_distro, component)
+            do_table(status, section_merges, comments, left_distro, right_distro, target)
 
         print >>status, "<h2 id=stats>Statistics</h2>"
         print >>status, ("<img src=\"%s-now.png\" title=\"Current stats\">"
-                         % component)
+                         % target)
         print >>status, ("<img src=\"%s-trend.png\" title=\"Six month trend\">"
-                         % component)
+                         % target)
         print >>status, "</body>"
         print >>status, "</html>"
 
     os.rename(status_file + ".new", status_file)
 
-def do_table(status, merges, comments, left_distro, right_distro, component):
+def do_table(status, merges, comments, left_distro, right_distro, target):
     """Output a table."""
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
@@ -256,9 +230,9 @@ def do_table(status, merges, comments, left_distro, right_distro, component):
     print >>status, "</table>"
 
 
-def write_status_json(component, merges, left_distro, right_distro):
+def write_status_json(target, merges, left_distro, right_distro):
     """Write out the merge status JSON dump."""
-    status_file = "%s/merges/%s.json" % (ROOT, component)
+    status_file = "%s/merges/%s.json" % (ROOT, target)
     with open(status_file + ".new", "w") as status:
         # No json module available on merges.ubuntu.com right now, but it's
         # not that hard to do it ourselves.

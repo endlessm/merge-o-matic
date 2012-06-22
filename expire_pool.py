@@ -31,17 +31,16 @@ def main(options, args):
 
     # Run through our default distribution and use that for the base
     # package names.  Expire from all distributions.
-    for our_distro in OUR_DISTROS:
-        for our_dist in OUR_DISTS[our_distro]:
-            for component in DISTROS[our_distro]["components"]:
-                for source in get_sources(our_distro, our_dist, component):
-                    base = get_base(source)
-                    logging.debug("%s %s", source["Package"], source["Version"])
-                    logging.debug("base is %s", base)
+    for target in targets:
+        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+        for source in get_sources(our_distro, our_dist, our_component):
+            base = get_base(source)
+            logging.debug("%s %s", source["Package"], source["Version"])
+            logging.debug("base is %s", base)
 
-                    for distro in distros:
-                        if DISTROS[distro]["expire"]:
-                            expire_pool_sources(distro, source["Package"], base)
+            for distro in distros:
+                if DISTROS[distro]["expire"]:
+                    expire_pool_sources(distro, source["Package"], base)
 
 
 def expire_pool_sources(distro, package, base):

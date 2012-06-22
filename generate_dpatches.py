@@ -28,12 +28,15 @@ def options(parser):
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
                       action="append",
                       help="Process only these packages")
-    parser.add_option("-c", "--component", type="string", metavar="COMPONENT",
-                      action="append",
-                      help="Process only these components")
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
+                      default=None,
+                      help="Process only this distribution target")
 
 def main(options, args):
-    if len(args):
+    if options.target is not None:
+        target_distro, target_dist, target_component = get_target_distro_dist_component(options.target)
+        distros = [target_distro]
+    elif len(args):
         distros = args
     else:
         distros = get_pool_distros()
@@ -41,17 +44,21 @@ def main(options, args):
     # For each package in the given distributions, iterate the pool in order
     # and extract patches from debian/patches
     for distro in distros:
-        for dist in DISTROS[distro]["dists"]:
-            for component in DISTROS[distro]["components"]:
-                if options.component is not None \
-                       and component not in options.component:
-                    continue
-
+        if options.target is None:
+            dists = DISTROS[distro]["dists"]
+        else:
+            dists = [target_dist]
+        for dist in dists:
+            if options.target is None:
+                components = DISTROS[distro]["components"]
+            else:
+                components = [target_component]
+            for component in components:
                 for source in get_sources(distro, dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
-                    if not PACKAGELISTS.check_any_distro(source["Package"], distro, dist):
+                    if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
 
                     sources = get_pool_sources(distro, source["Package"])

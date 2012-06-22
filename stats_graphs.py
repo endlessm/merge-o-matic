@@ -64,15 +64,15 @@ ARC_OFFSETS = {
 
 
 def options(parser):
-    parser.add_option("-d", "--distro", type="string", metavar="DISTRO",
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
-                      help="Distribution to generate stats for")
+                      help="Distribution target to generate stats for")
 
 def main(options, args):
-    if options.distro:
-        our_distros = [options.distro]
+    if options.target:
+        targets = [options.target]
     else:
-        our_distros = OUR_DISTROS
+        targets = DISTRO_TARGETS.keys()
 
     # Read from the stats file
     stats = read_stats()
@@ -86,20 +86,15 @@ def main(options, args):
     start = trend_start(today)
     events = get_events(stats, start)
 
-    # Iterate the components and calculate the peaks over the last six
+    # Iterate the distribution targets and calculate the peaks over the last six
     # months, as well as the current stats
-    for our_distro in our_distros:
-        for component in DISTROS[our_distro]["components"]:
-            if component is None:
-                component_string = our_distro
-            else:
-                component_string = component
-            # Extract current and historical stats for this component
-            current = get_current(stats[component_string])
-            history = get_history(stats[component_string], start)
+    for target in targets:
+        # Extract current and historical stats for this target
+        current = get_current(stats[target])
+        history = get_history(stats[target], start)
 
-            pie_chart(component_string, current)
-            range_chart(component_string, history, start, today, events)
+        pie_chart(target, current)
+        range_chart(target, history, start, today, events)
 
 
 def date_to_datetime(s):
@@ -139,12 +134,12 @@ def read_stats():
     stats_file = "%s/stats.txt" % ROOT
     with open(stats_file, "r") as stf:
         for line in stf:
-            (date, time, component, info) = line.strip().split(" ", 3)
+            (date, time, target, info) = line.strip().split(" ", 3)
 
-            if component not in stats:
-                stats[component] = []
+            if target not in stats:
+                stats[target] = []
 
-            stats[component].append([date, time, info])
+            stats[target].append([date, time, info])
 
     return stats
 
@@ -211,12 +206,12 @@ def sources_intervals(max):
         return (1, None)
 
 
-def pie_chart(component, current):
-    """Output a pie chart for the given component and data."""
+def pie_chart(target, current):
+    """Output a pie chart for the given target and data."""
     data = zip([ LABELS[key] for key in ORDER ],
                info_to_data(None, current))
 
-    filename = "%s/merges/%s-now.png" % (ROOT, component)
+    filename = "%s/merges/%s-now.png" % (ROOT, target)
     ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
         ar = area.T(size=(300,250), legend=None,
@@ -230,8 +225,8 @@ def pie_chart(component, current):
 
         ar.draw(c)
 
-def range_chart(component, history, start, today, events):
-    """Output a range chart for the given component and data."""
+def range_chart(target, history, start, today, events):
+    """Output a range chart for the given target and data."""
     data = chart_data.transform(lambda x: [ date_to_ordinal(x[0]),
                                             sum(x[1:1]),
                                             sum(x[1:2]),
@@ -246,7 +241,7 @@ def range_chart(component, history, start, today, events):
     (y_tic_interval, y_minor_tic_interval) = \
                      sources_intervals(max(d[-1] for d in data))
 
-    filename = "%s/merges/%s-trend.png" % (ROOT, component)
+    filename = "%s/merges/%s-trend.png" % (ROOT, target)
     ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
         ar = area.T(size=(450,225), legend=legend.T(),

@@ -25,23 +25,15 @@ from util import tree
 
 
 def options(parser):
-    parser.add_option("-d", "--distro", type="string", metavar="DISTRO",
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
-                      help="Distribution to publish")
-    parser.add_option("-s", "--suite", type="string", metavar="SUITE",
-                      default=None,
-                      help="Suite (aka distrorelease) to publish")
+                      help="Distribution target to publish patches for")
 
 def main(options, args):
-    if options.distro:
-        our_distros = [options.distro]
+    if options.target:
+        targets = [options.target]
     else:
-        our_distros = OUR_DISTROS
-
-    if options.suite:
-        our_dists = dict(zip(our_distros, [options.suite for d in our_distros]))
-    else:
-        our_dists = OUR_DISTS
+        targets = DISTRO_TARGETS.keys()
 
     # Write to a new list
     list_filename = patch_list_file()
@@ -50,25 +42,24 @@ def main(options, args):
     try:
         # For each package in the distribution, check for a patch for the
         # current version; publish if it exists, clean up if not
-        for our_distro in our_distros:
-            for our_dist in our_dists[our_distro]:
-                for component in DISTROS[our_distro]["components"]:
-                    for source in get_sources(our_distro, our_dist, component):
-                        package = source["Package"]
+        for target in targets:
+            our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+            for source in get_sources(our_distro, our_dist, our_component):
+                package = source["Package"]
 
-                        if not PACKAGELISTS.check_our_distro(source["Package"], our_distro):
-                            continue
+                if not PACKAGELISTS.check_target(target, source["Package"]):
+                    continue
 
-                        # Publish slipped patches in preference to true-base ones
-                        slip_filename = patch_file(our_distro, source, True)
-                        filename = patch_file(our_distro, source, False)
+                # Publish slipped patches in preference to true-base ones
+                slip_filename = patch_file(our_distro, source, True)
+                filename = patch_file(our_distro, source, False)
 
-                        if os.path.isfile(slip_filename):
-                            publish_patch(our_distro, source, slip_filename, list_file)
-                        elif os.path.isfile(filename):
-                            publish_patch(our_distro, source, filename, list_file)
-                        else:
-                            unpublish_patch(our_distro, source)
+                if os.path.isfile(slip_filename):
+                    publish_patch(our_distro, source, slip_filename, list_file)
+                elif os.path.isfile(filename):
+                    publish_patch(our_distro, source, filename, list_file)
+                else:
+                    unpublish_patch(our_distro, source)
     finally:
         list_file.close()
 

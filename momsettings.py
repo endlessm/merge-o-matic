@@ -16,17 +16,7 @@ RECIPIENTS = []
 # Distribution definitions
 # For additional subprojects, use additional distro definitions
 DISTROS = {
-    #"DISTRO-standard": {
-        #"obs": {
-            #"url": "https://SERVER:444",
-            #"project": "DISTRO"
-        #},
-        #"mirror": "http://SERVER:82/debian/DISTRO/standard/",
-        #"dists": [ None ],
-        #"components": [ None ],
-        #"expire": True,
-        #},
-    "DISTRO-SUITE_A-target": {
+    "DISTRO:SUITE_A:target": {
         "obs": {
             "url": "https://SERVER:444",
             "project": "DISTRO:SUITE_A:target"
@@ -49,13 +39,19 @@ DISTROS = {
         },
     }
 
-# Destination distributions and releases
-OUR_DISTROS = [ "DISTRO-SUITE_A-target" ]
-OUR_DISTS   = { "DISTRO-SUITE_A-target" : [ None ] }
+DISTRO_SOURCES = {
+    "precise+updates": [
+        { "distro": "ubuntu", "dist": "precise-updates" },
+        { "distro": "ubuntu", "dist": "precise" } ],
+    }
 
-# Default source distribution and release
-SRC_DISTROS = { "DISTRO-SUITE_A-target" : "ubuntu" }
-SRC_DISTS   = { "DISTRO-SUITE_A-target" : "precise-updates" }
+DISTRO_TARGETS = {
+    "DISTRO-SUITE_A-target": {
+        "distro": "DISTRO:SUITE_A:target",
+        "dist": None,
+        "component": None,
+        "sources": [ "precise+updates", ] },
+    }
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"

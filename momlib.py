@@ -470,10 +470,10 @@ def get_pool_source(distro, package, version=None):
     else:
         raise IndexError
 
-def get_nearest_source(our_distro, package, base):
+def get_nearest_source(our_distro, src_distro, package, base):
     """Return the base source or nearest to it."""
     try:
-        sources = get_pool_sources(SRC_DISTROS[our_distro], package)
+        sources = get_pool_sources(src_distro, package)
         sources.extend(get_pool_sources(our_distro, package))
     except IOError:
         sources = []
@@ -648,7 +648,7 @@ def save_patch_file(filename, last, this):
 # Merge data handling
 # --------------------------------------------------------------------------- #
 
-def read_report(output_dir, left_distro, right_distro):
+def read_report(output_dir):
     """Read the report to determine the versions that went into it."""
     filename = "%s/REPORT" % output_dir
     if not os.path.isfile(filename):
@@ -658,8 +658,10 @@ def read_report(output_dir, left_distro, right_distro):
         "package": None,
         "base_version": None,
         "base_files": [],
+        "left_distro": None,
         "left_version": None,
         "left_files": [],
+        "right_distro": None,
         "right_version": None,
         "right_files": [],
         "merged_is_right": False,
@@ -688,12 +690,18 @@ def read_report(output_dir, left_distro, right_distro):
             if line.startswith("base:"):
                 report["base_version"] = Version(line[5:].strip())
                 in_list = "base"
-            elif line.startswith("%s:" % left_distro):
-                report["left_version"] = Version(line[len(left_distro)+1:].strip())
-                in_list = "left"
-            elif line.startswith("%s:" % right_distro):
-                report["right_version"] = Version(line[len(right_distro)+1:].strip())
-                in_list = "right"
+            elif line.startswith("our distro "):
+                m = re.match("our distro \(([^)]+)\): (.+)", line)
+                if m:
+                    report["left_distro"] = m.group(1)
+                    report["left_version"] = Version(m.group(2).strip())
+                    in_list = "left"
+            elif line.startswith("source distro "):
+                m = re.match("source distro \(([^)]+)\): (.+)", line)
+                if m:
+                    report["right_distro"] = m.group(1)
+                    report["right_version"] = Version(m.group(2).strip())
+                    in_list = "right"
             elif line.startswith("generated:"):
                 in_list = "merged"
             elif line.startswith("Merged without changes: YES"):
@@ -707,7 +715,9 @@ def read_report(output_dir, left_distro, right_distro):
         raise AttributeError, "Insufficient detail in report"
 
     if report["merged_is_right"]:
-        report["merged_dir"] = "%s/%s" % (ROOT, pool_directory(right_distro, report["package"]))
+        if report["right_distro"] is None:
+            raise AttributeError, "Insufficient detail in report (source distro not specified)"
+        report["merged_dir"] = "%s/%s" % (ROOT, pool_directory(report["right_distro"], report["package"]))
         report["merged_files"] = report["right_files"]
     else:
         report["merged_dir"] = output_dir
@@ -791,44 +801,31 @@ class PackageLists(object):
         self.include = {}
         self.exclude = {}
 
-        for our_distro in OUR_DISTROS:
-            filename_exclude = "%s/%s.ignore.txt" % (ROOT, our_distro)
-            self.exclude[our_distro] = PackageList(filename_exclude)
-            self.include[our_distro] = {}
+        for target in DISTRO_TARGETS:
+            filename_exclude = "%s/%s.ignore.txt" % (ROOT, target)
+            self.exclude[target] = PackageList(filename_exclude)
+            self.include[target] = {}
 
-            for src_distro in DISTROS:
-                if src_distro == our_distro:
-                    continue
-                self.include[our_distro][src_distro] = {}
-                for src_dist in DISTROS[src_distro]["dists"]:
-                    if src_dist is not None:
-                        filename_include = "%s/%s-%s-%s.list.txt" % (ROOT, our_distro, src_distro, src_dist)
-                    else:
-                        filename_include = "%s/%s-%s.list.txt" % (ROOT, our_distro, src_distro)
-                    # Allow short filename form for SRC_DISTROS/SRC_DISTS
-                    if src_distro == SRC_DISTROS[our_distro] and src_dist == SRC_DISTS[our_distro] and not os.path.isfile(filename_include):
-                        filename_include = "%s/%s.list.txt" % (ROOT, our_distro)
+            for src in DISTRO_TARGETS[target]["sources"]:
+                self.include[target][src] = {}
+                filename_include = "%s/%s-%s.list.txt" % (ROOT, target, src)
+                # Allow short filename form for default sources
+                if src == DISTRO_TARGETS[target]["sources"][0] and not os.path.isfile(filename_include):
+                    filename_include = "%s/%s.list.txt" % (ROOT, target)
 
-                    self.include[our_distro][src_distro][src_dist] = PackageList(filename_include)
+                self.include[target][src] = PackageList(filename_include)
 
-        # If no per-distro filenames were available, try the old ones
-        if os.path.isfile("%s/sync-blacklist.txt" % ROOT):
-            self.old_exclude = PackageList("%s/sync-blacklist.txt" % ROOT)
-        if os.path.isfile("%s/post-sync-whitelist.txt" % ROOT):
-            self.old_include = PackageList("%s/post-sync-whitelist.txt" % ROOT)
-
-    def check_our_distro(self, package, our_distro, src_distro=None, src_dist=None):
+    def check_target(self, target, src, package):
+        """If src is None, all source groups will be checked"""
         if self.manual:
             return self.check_manual(package)
         includes = []
-        src_is_default = True # src_dist/src_distro are default sources for our_distro
-        if src_distro is None:
-            for src_distro_ in self.include[our_distro]:
-                for src_dist_ in self.include[our_distro][src_distro_]:
-                    includes.append(self.include[our_distro][src_distro_][src_dist_])
+        src_is_default = True # src is the default (first) source for target
+        if src is None:
+            includes = [self.include[target][src_] for src_ in self.include[target]]
         else:
-            includes = [self.include[our_distro][src_distro][src_dist]]
-            if src_distro != SRC_DISTROS[our_distro] or src_dist != SRC_DISTS[our_distro]:
+            includes = [self.include[target][src]]
+            if DISTRO_TARGETS[target]["sources"] and src != DISTRO_TARGETS[target]["sources"][0]:
                 src_is_default = False
         found = False
         findable = False
@@ -839,48 +836,69 @@ class PackageLists(object):
                     found = True
                     break
         if findable:
-            return found and package not in self.exclude[our_distro]
+            return found and package not in self.exclude[target]
         else:
-            return src_is_default and package not in self.exclude[our_distro]
+            return src_is_default and package not in self.exclude[target]
 
-    def check_any_distro(self, package, distro=None, dist=None):
-        """If distro is a target distro, return self.check(package, distro);
-        if distro is a source distro, return true if self.check(package, t, distro, dist) is true for some t"""
-        if distro in OUR_DISTROS:
-            return self.check_our_distro(package, distro)
-        else:
-            for our_distro in OUR_DISTROS:
-                if self.check_our_distro(package, our_distro, distro, dist):
-                    return True
+    def check_any_distro(self, distro, dist, package):
+        """If distro/dist is a target, return self.check(package, distro);
+        if distro/dist is part of a source, return True if self.check(package, target, source) is true for some target"""
+        for target in DISTRO_TARGETS:
+            if distro == DISTRO_TARGETS[target]["distro"] and dist == DISTRO_TARGETS[target]["dist"]:
+                return self.check_target(target, package)
+        for target in DISTRO_TARGETS:
+            for src in DISTRO_TARGETS[target]:
+                for sub_src in DISTRO_SOURCES[src]:
+                    if distro == sub_src["distro"] and dist == sub_src["dist"] and self.check_target(target, src, package):
+                        return True
         return False
 
-    def add(self, package, our_distro, src_distro=None, src_dist=None):
-        if src_distro is None:
-            src_distro = SRC_DISTROS[our_distro]
-            src_dist = SRC_DISTS[our_distro]
-        return self.include[our_distro][src_distro][src_dist].add(package)
+    def find_in_source_distros(self, target, package):
+        """Searches for package in the target's source groups, and returns the found
+        (source, version, pool_source, src_distro, src_dist); ignores the blacklist"""
+        for src in DISTRO_TARGETS[target]["sources"]:
+            if package not in self.include[target][src]:
+                continue
+            best = None
+            for sub_src in DISTRO_SOURCES[src]:
+                distro = DISTRO_SOURCES[src]["distro"]
+                dist = DISTRO_SOURCES[src]["dist"]
+                try:
+                    source, version, pool_source = get_same_source(distro, dist, package)
+                except IndexError:
+                    continue
+                if best is None or version > best[1]:
+                    best = (source, version, pool_source, distro, dist)
+            if best is not None:
+                return best
+        else:
+            raise IndexError, "%s not found in any source groups for %s" % (package, target)
 
-    def add_if_needed(self, package, our_distro, src_distro=None, src_dist=None):
-        if src_distro is None:
-            src_distro = SRC_DISTROS[our_distro]
-            src_dist = SRC_DISTS[our_distro]
-        for src_distro_ in self.include[our_distro]:
-            for src_dist_ in self.include[our_distro][src_distro_]:
-                if package in self.include[our_distro][src_distro_][src_dist_]:
-                    return False
-        return self.add(package, our_distro, src_distro, src_dist)
+    def add(self, target, src, package):
+        """If src is None, the default source group is used"""
+        if src is None:
+            src = DISTRO_TARGETS[target]["sources"][0]
+        return self.include[target][src].add(package)
 
-    def discard(self, package, our_distro, src_distro=None, src_dist=None):
-        if src_distro is None:
-            src_distro = SRC_DISTROS[our_distro]
-            src_dist = SRC_DISTS[our_distro]
-        return self.include[our_distro][src_distro][src_dist].discard(package)
+    def add_if_needed(self, target, src, package):
+        """If src is None, the default source group is used"""
+        if src is None:
+            src = DISTRO_TARGETS[target]["sources"][0]
+        for src_ in self.include[target]:
+            if package in self.include[target][src_]:
+                return False
+        return self.add(target, src, package)
 
-    def save_if_modified(self, our_distro, src_distro=None, src_dist=None):
-        if src_distro is None:
-            src_distro = SRC_DISTROS[our_distro]
-            src_dist = SRC_DISTS[our_distro]
-        return self.include[our_distro][src_distro][src_dist].save_if_modified()
+    def discard(self, target, src, package):
+        """If src is None, the default source group is used"""
+        if src is None:
+            src = DISTRO_TARGETS[target]["sources"][0]
+        return self.include[target][src].discard(package)
+
+    def save_if_modified(self, target, src=None):
+        if src is None:
+            src = DISTRO_TARGETS[target]["sources"][0]
+        return self.include[target][src].save_if_modified()
 
     def check_manual(self, package):
         if self.manual_includes:
@@ -901,6 +919,19 @@ class PackageLists(object):
         return True
 
 PACKAGELISTS = PackageLists()
+
+def get_target_distro_dist_component(target):
+    """Return the distro, dist, and component for a given distribution target"""
+    distro = DISTRO_TARGETS[target]["distro"]
+    try:
+        dist = DISTRO_TARGETS[target]["dist"]
+    except KeyError:
+        dist = None
+    try:
+        component = DISTRO_TARGETS[target]["component"]
+    except KeyError:
+        component = None
+    return (distro, dist, component)
 
 # --------------------------------------------------------------------------- #
 # RSS feed handling

@@ -38,9 +38,14 @@ import merge_status
 import expire_pool
 
 def options(parser):
+    parser.add_option("-f", "--force", action="store_true",
+                      help="Force creation of patches and merges")
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
                       action="append",
                       help="Process only this package")
+    parser.add_option("-t", "--target", type="string", metavar="PACKAGE",
+                      action="append",
+                      help="Process only this distribution target")
                       
 def main(options, args):
     lockdir = "%s/.lock" % ROOT
@@ -48,17 +53,11 @@ def main(options, args):
     unpackeddir = "%s/unpacked" % ROOT
 
     # Default options values referenced in various *.main() functions
-    options.component = None
-    options.distro = None
-    options.suite = None
-    options.force = None
     options.exclude = None
     options.include = None
     options.version = None
     options.source_distro = None
     options.source_suite = None
-    options.dest_distro = None
-    options.dest_suite = None
     try:
         os.umask(002)
         try:

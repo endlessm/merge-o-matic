@@ -30,96 +30,78 @@ def options(parser):
                       help="Force creation of patches")
 
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
-                      default=SRC_DISTROS[OUR_DISTROS[0]],
+                      default=None,
                       help="Source distribution")
     parser.add_option("-S", "--source-suite", type="string", metavar="SUITE",
-                      default=SRC_DISTS[OUR_DISTROS[0]],
+                      default=None,
                       help="Source suite (aka distrorelease)")
 
-    parser.add_option("-d", "--dest-distro", type="string", metavar="DISTRO",
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
-                      help="Destination distribution")
-    parser.add_option("-s", "--dest-suite", type="string", metavar="SUITE",
-                      default=None,
-                      help="Destination suite (aka distrorelease)")
+                      help="Distribution target to use")
 
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
                       action="append",
                       help="Process only these packages")
-    parser.add_option("-c", "--component", type="string", metavar="COMPONENT",
-                      action="append",
-                      help="Process only these destination components")
 
 def main(options, args):
-    if options.source_distro:
-        src_distro = options.source_distro
+    if options.target:
+        targets = [options.target]
     else:
-        src_distro = SRC_DISTROS[OUR_DISTROS[0]]
-    if options.source_suite:
-        src_dist = options.source_suite
-    else:
-        src_dist = SRC_DISTS[OUR_DISTROS[0]]
-
-    if options.dest_distro:
-        our_distros = [options.dest_distro]
-    else:
-        our_distros = OUR_DISTROS
-
-    if options.dest_suite:
-        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
-    else:
-        our_dists = OUR_DISTS
+        targets = DISTRO_TARGETS.keys()
 
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # create patches from that to both
-    for our_distro in our_distros:
-        for our_dist in our_dists[our_distro]:
-            for our_component in DISTROS[our_distro]["components"]:
-                if options.component is not None \
-                    and our_component not in options.component:
-                    continue
+    for target in targets:
+        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+        for our_source in get_sources(our_distro, our_dist, our_component):
+            if options.package is not None \
+                and our_source["Package"] not in options.package:
+                continue
+            if not PACKAGELISTS.check_target(target, None, source["Package"]):
+                continue
 
-                for our_source in get_sources(our_distro, our_dist, our_component):
-                    if options.package is not None \
-                        and our_source["Package"] not in options.package:
-                        continue
-                    if not PACKAGELISTS.check_our_distro(source["Package"], our_distro):
-                        continue
+            if search(".*build[0-9]+$", our_source["Version"]):
+                continue
 
-                    if search(".*build[0-9]+$", our_source["Version"]):
-                        continue
+            try:
+                package = our_source["Package"]
+                our_version = Version(our_source["Version"])
+                our_pool_source = get_pool_source(our_distro, package,
+                                                our_version)
+                logging.debug("%s: %s is %s", package, our_distro, our_version)
+            except IndexError:
+                continue
 
-                    try:
-                        package = our_source["Package"]
-                        our_version = Version(our_source["Version"])
-                        our_pool_source = get_pool_source(our_distro, package,
-                                                        our_version)
-                        logging.debug("%s: %s is %s", package, our_distro, our_version)
-                    except IndexError:
-                        continue
+            try:
+                if options.source_distro is None:
+                    (src_source, src_version, src_pool_source, src_distro, src_dist) \
+                                = PACKAGELISTS.find_in_source_distros(target, package)
+                else:
+                    src_distro = options.source_distro
+                    src_dist = options.source_suite
+                    (src_source, src_version, src_pool_source) \
+                                = get_same_source(src_distro, src_dist, package)
 
-                    try:
-                        (src_source, src_version, src_pool_source) \
-                                    = get_same_source(src_distro, src_dist, package)
-                        logging.debug("%s: %s is %s", package, src_distro, src_version)
-                    except IndexError:
-                        continue
+                logging.debug("%s: %s is %s", package, src_distro, src_version)
+            except IndexError:
+                continue
 
-                    try:
-                        base = get_base(our_source)
-                        make_patches(our_distro, our_pool_source,
-                                    src_distro, src_pool_source, base,
-                                    force=options.force)
+            try:
+                base = get_base(our_source)
+                make_patches(our_distro, our_pool_source,
+                            src_distro, src_pool_source, base,
+                            force=options.force)
 
-                        slip_base = get_base(our_source, slip=True)
-                        if slip_base != base:
-                            make_patches(our_distro, our_pool_source,
-                                        src_distro, src_pool_source, slip_base, True,
-                                        force=options.force)
-                    finally:
-                        cleanup_source(our_pool_source)
-                        cleanup_source(src_pool_source)
+                slip_base = get_base(our_source, slip=True)
+                if slip_base != base:
+                    make_patches(our_distro, our_pool_source,
+                                src_distro, src_pool_source, slip_base, True,
+                                force=options.force)
+            finally:
+                cleanup_source(our_pool_source)
+                cleanup_source(src_pool_source)
 
 def make_patches(our_distro, our_source, src_distro, src_source, base,
                  slipped=False, force=False):

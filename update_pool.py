@@ -41,33 +41,41 @@ def main(options, args):
     else:
         distros = get_pool_distros()
 
-    # Update our sources and calculate the list of packages we are
+    # Update target distribution sources and calculate the list of packages we are
     # interested in (no need to download the entire Ubuntu archive...)
     updated_sources = set()
-    our_packages = set()
-    for our_distro in OUR_DISTROS:
-        for our_dist in OUR_DISTS[our_distro]:
+    for target in DISTRO_TARGETS:
+        our_distro = DISTRO_TARGETS[target]["distro"]
+        our_dist = DISTRO_TARGETS[target]["dist"]
+        if our_distro not in distros:
+            continue
+        if "obs" in DISTROS[our_distro]:
+            update_obs(our_distro, options.package)
+            updated_sources.add((our_distro, None, None))
+            sources = get_sources(our_distro, None, None)
+        else:
+            sources = []
             for our_component in DISTROS[our_distro]["components"]:
-                if "obs" in DISTROS[our_distro]:
-                    update_obs(our_distro, options.package)
-                else:
-                    update_sources(our_distro, our_dist, our_component)
+                update_sources(our_distro, our_dist, our_component)
                 updated_sources.add((our_distro, our_dist, our_component))
-                sources = get_sources(our_distro, our_dist, our_component)
-                for source in sources:
-                    PACKAGELISTS.add_if_needed(source["Package"], our_distro)
-        PACKAGELISTS.save_if_modified(our_distro)
+                sources.extend(get_sources(our_distro, our_dist, our_component))
+        for source in sources:
+            if options.package is not None and source["Package"] not in options.package:
+                continue
+            if "obs" not in DISTROS[our_distro]:
+                update_pool(distro, source)
+            PACKAGELISTS.add_if_needed(target, None, source["Package"])
+        PACKAGELISTS.save_if_modified(target)
 
-    # Download the current sources for the given distributions and download
+    # Download the current sources for the remaining distributions and download
     # any new contents into our pool
     for distro in distros:
+        if "obs" in DISTROS[distro]:
+            if (distro, None, None) not in updated_sources:
+                update_obs(distro)
+                continue
         for dist in DISTROS[distro]["dists"]:
             for component in DISTROS[distro]["components"]:
-                if "obs" in DISTROS[distro]:
-                    if (distro, dist, component) not in updated_sources:
-                        update_obs(distro)
-                    continue
-
                 if (distro, dist, component) not in updated_sources:
                     update_sources(distro, dist, component)
                 sources = get_sources(distro, dist, component)
@@ -75,7 +83,7 @@ def main(options, args):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
-                    if source["Package"] not in our_packages:
+                    if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
                     update_pool(distro, source)
 

@@ -43,22 +43,22 @@ SEVERITY = [ "unknown", "critical", "grave", "serious", "important", "normal",
 
 
 def options(parser):
-    parser.add_option("-d", "--distro", type="string", metavar="DISTRO",
-                      default=SRC_DISTROS[OUR_DISTROS[0]],
-                      help="Distribution to mail bug closures for")
-    parser.add_option("-s", "--suite", type="string", metavar="SUITE",
-                      default=SRC_DISTS[OUR_DISTROS[0]],
-                      help="Suite (aka distrorelease)")
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
+                      default=None,
+                      help="Distribution target to mail bug closures for")
 
 def main(options, args):
-    distro = options.distro
-    dist = options.suite
+    if options.target:
+        targets = [options.target]
+    else:
+        targets = DISTRO_TARGETS.keys()
 
     bugs = []
 
     # For each package in the distribution, iterate the pool and read each
     # changes file to obtain the list of closed bugs.
-    for component in DISTROS[distro]["components"]:
+    for target in targets:
+        distro, dist, component = get_target_distro_dist_component(target)
         for source in get_sources(distro, dist, component):
             package = source["Package"]
 

@@ -39,12 +39,15 @@ def options(parser):
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
                       action="append",
                       help="Process only these packages")
-    parser.add_option("-c", "--component", type="string", metavar="COMPONENT",
-                      action="append",
-                      help="Process only these components")
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
+                      default=None,
+                      help="Process only this distribution target")
 
 def main(options, args):
-    if len(args):
+    if options.target is not None:
+        target_distro, target_dist, target_component = get_target_distro_dist_component(options.target)
+        distros = [target_distro]
+    elif len(args):
         distros = args
     else:
         distros = get_pool_distros()
@@ -70,17 +73,21 @@ def main(options, args):
     # For each package in the given distributions, iterate the pool in order
     # and select various interesting files for syndication
     for distro in distros:
-        for dist in DISTROS[distro]["dists"]:
-            for component in DISTROS[distro]["components"]:
-                if options.component is not None \
-                       and component not in options.component:
-                    continue
-
+        if options.target is None:
+            dists = DISTROS[distro]["dists"]
+        else:
+            dists = [target_dist]
+        for dist in dists:
+            if options.target is None:
+                components = DISTROS[distro]["components"]
+            else:
+                components = [target_component]
+            for component in components:
                 for source in get_sources(distro, dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
-                    if not PACKAGELISTS.check_any_distro(source["Package"], distro, dist):
+                    if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
 
                     watermark = read_watermark(distro, source)
@@ -107,9 +114,9 @@ def main(options, args):
                                              link=(MOM_URL + "by-release/atomic/" +
                                                    tree.subdir("%s/diffs" % ROOT,
                                                                diff_directory(distro, source))),
-                                             description="This feed announces new changes in DISTRO"
-                                             ", each patch filename contains the difference "
-                                             "previous one." % source["Package"])
+                                             description="This feed announces new changes in DISTRO "
+                                             "for %s, each patch filename contains the difference "
+                                             "between the new version and the previous one." % source["Package"])
 
                     last = None
                     for this in sources:
@@ -160,6 +167,18 @@ def main(options, args):
     write_rss(patch_rss_file(), patch_rss)
     write_rss(diff_rss_file(), diff_rss)
 
+def distro_is_src(distro):
+    for src in DISTRO_SOURCES:
+        for sub_src in DISTRO_SOURCES[src]:
+            if distro == DISTRO_SOURCES[src][sub_src]["distro"]:
+                return True
+    return False
+
+def distro_is_target(distro):
+    for target in DISTRO_TARGETS:
+        if distro == DISTRO_TARGETS[target]["distro"]:
+                return True
+    return False
 
 def mail_diff(distro, last, this, uploader, subscriptions):
     """Mail a diff out to the subscribers."""
@@ -168,20 +187,16 @@ def mail_diff(distro, last, this, uploader, subscriptions):
     if not len(recipients):
         return
 
-    if distro in SRC_DISTROS.values():
-        # Debian uploads always just have a diff
-        subject = "Ubuntu %s %s" % (this["Package"], this["Version"])
-        intro = MIMEText("""\
-This e-mail has been sent due to an upload to Ubuntu, and contains the
-difference between the new version and the previous one.""")
-        payload = diff_part(distro, this)
-    elif distro not in OUR_DISTROS:
-        # Other uploads always just have a diff
+    if distro_is_src(distro):
+        # Source distro uploads always just have a diff
         subject = "%s %s %s" % (distro, this["Package"], this["Version"])
         intro = MIMEText("""\
 This e-mail has been sent due to an upload to %s, and contains the
 difference between the new version and the previous one.""" % distro)
         payload = diff_part(distro, this)
+    elif not distro_is_target(distro):
+        # Ignore distros which are neither source nor target
+        return
     elif get_base(this) == this["Version"]:
         # Never e-mail our uploads without local changes
         return

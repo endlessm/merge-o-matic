@@ -38,110 +38,91 @@ SECTIONS = [ "new", "committed" ]
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
-                      default=SRC_DISTROS[OUR_DISTROS[0]],
+                      default=None,
                       help="Source distribution")
     parser.add_option("-S", "--source-suite", type="string", metavar="SUITE",
-                      default=SRC_DISTS[OUR_DISTROS[0]],
+                      default=None,
                       help="Source suite (aka distrorelease)")
 
-    parser.add_option("-d", "--dest-distro", type="string", metavar="DISTRO",
+    parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
-                      help="Destination distribution")
-    parser.add_option("-s", "--dest-suite", type="string", metavar="SUITE",
-                      default=None,
-                      help="Destination suite (aka distrorelease)")
-
-    parser.add_option("-c", "--component", type="string", metavar="COMPONENT",
-                      action="append",
-                      help="Process only these destination components")
+                      help="Distribution target to use")
 
 def main(options, args):
-    if options.source_distro:
-        src_distro = options.source_distro
+    if options.target:
+        targets = [options.target]
     else:
-        src_distro = SRC_DISTROS[OUR_DISTROS[0]]
-    if options.source_suite:
-        src_dist = options.source_suite
-    else:
-        src_dist = SRC_DISTS[OUR_DISTROS[0]]
-
-    if options.dest_distro:
-        our_distros = [options.dest_distro]
-    else:
-        our_distros = OUR_DISTROS
-
-    if options.dest_suite:
-        our_dists = dict(zip(our_distros, [options.dest_suite for d in our_distros]))
-    else:
-        our_dists = OUR_DISTS
+        targets = DISTRO_TARGETS.keys()
 
     # For each package in the destination distribution, find out whether
     # there's an open merge, and if so add an entry to the table for it.
-    for our_distro in our_distros:
-        for our_dist in our_dists[our_distro]:
-            for our_component in DISTROS[our_distro]["components"]:
-                if options.component is not None \
-                    and our_component not in options.component:
-                    continue
+    for target in targets:
+        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+        merges = []
 
-                merges = []
+        for our_source in get_sources(our_distro, our_dist, our_component):
+            try:
+                package = our_source["Package"]
+                our_version = Version(our_source["Version"])
+                our_pool_source = get_pool_source(our_distro, package,
+                                                our_version)
+                logging.debug("%s: %s is %s", package, our_distro, our_version)
+            except IndexError:
+                continue
 
-                for our_source in get_sources(our_distro, our_dist, our_component):
-                    try:
-                        package = our_source["Package"]
-                        our_version = Version(our_source["Version"])
-                        our_pool_source = get_pool_source(our_distro, package,
-                                                        our_version)
-                        logging.debug("%s: %s is %s", package, our_distro, our_version)
-                    except IndexError:
-                        continue
+            try:
+                if options.source_distro is None:
+                    (src_source, src_version, src_pool_source, src_distro, src_dist) \
+                                = PACKAGELISTS.find_in_source_distros(target, package)
+                else:
+                    src_distro = options.source_distro
+                    src_dist = options.source_suite
+                    (src_source, src_version, src_pool_source) \
+                                = get_same_source(src_distro, src_dist, package)
 
-                    try:
-                        (src_source, src_version, src_pool_source) \
-                                    = get_same_source(src_distro, src_dist, package)
-                        logging.debug("%s: %s is %s", package, src_distro, src_version)
-                    except IndexError:
-                        continue
+                logging.debug("%s: %s is %s", package, src_distro, src_version)
+            except IndexError:
+                continue
 
-                    try:
-                        base = get_base(our_pool_source)
-                        base_source = get_nearest_source(our_distro, package, base)
-                        base_version = Version(base_source["Version"])
-                        logging.debug("%s: base is %s (%s wanted)",
-                                    package, base_version, base)
-                        continue
-                    except IndexError:
-                        pass
+            try:
+                base = get_base(our_pool_source)
+                base_source = get_nearest_source(our_distro, package, base)
+                base_version = Version(base_source["Version"])
+                logging.debug("%s: base is %s (%s wanted)",
+                            package, base_version, base)
+                continue
+            except IndexError:
+                pass
 
-                    try:
-                        priority_idx = PRIORITY.index(our_source["Priority"])
-                    except KeyError:
-                        priority_idx = 0
+            try:
+                priority_idx = PRIORITY.index(our_source["Priority"])
+            except KeyError:
+                priority_idx = 0
 
-                    section = "new"
-                    try:
-                        report = read_report(output_dir, our_distro, src_distro)
-                        if report["committed"]:
-                            section = "committed"
-                    except:
-                        pass
+            section = "new"
+            try:
+                report = read_report(output_dir)
+                if report["committed"]:
+                    section = "committed"
+            except:
+                pass
 
-                    merges.append((section, priority_idx, package,
-                                our_source, our_version, src_version))
+            merges.append((section, priority_idx, package,
+                        our_source, our_version, src_version))
 
-                write_status_page(component_string(our_component, our_distro), merges, our_distro, src_distro)
-                write_status_json(component_string(our_component, our_distro), merges, our_distro, src_distro)
+        write_status_page(target, merges, our_distro, src_distro)
+        write_status_json(target, merges, our_distro, src_distro)
 
-                status_file = "%s/merges/tomerge-%s-manual" % (ROOT, component_string(our_component, our_distro))
-                remove_old_comments(status_file, merges)
-                write_status_file(status_file, merges)
+        status_file = "%s/merges/tomerge-%s-manual" % (ROOT, target)
+        remove_old_comments(status_file, merges)
+        write_status_file(status_file, merges)
 
 
-def write_status_page(component, merges, left_distro, right_distro):
+def write_status_page(target, merges, left_distro, right_distro):
     """Write out the manual merge status page."""
     merges.sort()
 
-    status_file = "%s/merges/%s-manual.html" % (ROOT, component)
+    status_file = "%s/merges/%s-manual.html" % (ROOT, target)
     if not os.path.isdir(os.path.dirname(status_file)):
         os.makedirs(os.path.dirname(status_file))
     with open(status_file + ".new", "w") as status:
@@ -150,7 +131,7 @@ def write_status_page(component, merges, left_distro, right_distro):
         print >>status, "<head>"
         print >>status, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
         print >>status, "<title>Merge-o-Matic: %s manual</title>" \
-              % component
+              % target
         print >>status, "<style>"
         print >>status, "h1 {"
         print >>status, "    padding-top: 0.5em;"
@@ -178,7 +159,7 @@ def write_status_page(component, merges, left_distro, right_distro):
         print >>status, "</style>"
         print >>status, "</head>"
         print >>status, "<body>"
-        print >>status, "<h1> Merge-o-Matic: %s manual</h1>" % component
+        print >>status, "<h1> Merge-o-Matic: %s manual</h1>" % target
 
         for section in SECTIONS:
             section_merges = [ m for m in merges if m[0] == section ]
@@ -196,7 +177,7 @@ def write_status_page(component, merges, left_distro, right_distro):
             print >>status, ("<h2 id=\"%s\">%s Merges</h2>"
                              % (section, section.title()))
 
-            do_table(status, section_merges, comments, left_distro, right_distro, component)
+            do_table(status, section_merges, comments, left_distro, right_distro, target)
 
         print >>status, "</body>"
         print >>status, "</html>"
@@ -223,7 +204,7 @@ def get_uploader(distro, source):
     except IndexError:
         return None
 
-def do_table(status, merges, comments, left_distro, right_distro, component):
+def do_table(status, merges, comments, left_distro, right_distro, target):
     """Output a table."""
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
@@ -256,9 +237,9 @@ def do_table(status, merges, comments, left_distro, right_distro, component):
     print >>status, "</table>"
 
 
-def write_status_json(component, merges, left_distro, right_distro):
+def write_status_json(target, merges, left_distro, right_distro):
     """Write out the merge status JSON dump."""
-    status_file = "%s/merges/%s-manual.json" % (ROOT, component)
+    status_file = "%s/merges/%s-manual.json" % (ROOT, target)
     with open(status_file + ".new", "w") as status:
         # No json module available on merges.ubuntu.com right now, but it's
         # not that hard to do it ourselves.
