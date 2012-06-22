@@ -76,7 +76,7 @@ def main(options, args):
                 continue
         for dist in DISTROS[distro]["dists"]:
             for component in DISTROS[distro]["components"]:
-                if (distro, dist, component) not in updated_sources:
+                if (distro, dist, component) not in updated_sources and "obs" not in DISTROS[distro]:
                     update_sources(distro, dist, component)
                 sources = get_sources(distro, dist, component)
                 for source in sources:
