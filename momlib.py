@@ -845,7 +845,7 @@ class PackageLists(object):
         if distro/dist is part of a source, return True if self.check(package, target, source) is true for some target"""
         for target in DISTRO_TARGETS:
             if distro == DISTRO_TARGETS[target]["distro"] and dist == DISTRO_TARGETS[target]["dist"]:
-                return self.check_target(target, package)
+                return self.check_target(target, None, package)
         for target in DISTRO_TARGETS:
             for src in DISTRO_TARGETS[target]["sources"]:
                 for sub_src in DISTRO_SOURCES[src]:
