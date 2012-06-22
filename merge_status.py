@@ -94,12 +94,13 @@ def main(options, args):
 
             merges.append((section, priority_idx, source["Package"],
                         source, report["base_version"],
-                        report["left_version"], report["right_version"]))
+                        report["left_version"], report["right_version"],
+                        report["right_distro"]))
 
         merges.sort()
 
-        write_status_page(target, merges, our_distro, src_distro)
-        write_status_json(target, merges, our_distro, src_distro)
+        write_status_page(target, merges, our_distro)
+        write_status_json(target, merges)
 
         status_file = "%s/merges/tomerge-%s" % (ROOT, target)
         remove_old_comments(status_file, merges)
@@ -127,7 +128,7 @@ def get_uploader(distro, source):
         return None
 
 
-def write_status_page(target, merges, left_distro, right_distro):
+def write_status_page(target, merges, our_distro):
     """Write out the merge status page."""
     status_file = "%s/merges/%s.html" % (ROOT, target)
     if not os.path.isdir(os.path.dirname(status_file)):
@@ -183,7 +184,7 @@ def write_status_page(target, merges, left_distro, right_distro):
             print >>status, ("<h2 id=\"%s\">%s Merges</h2>"
                              % (section, section.title()))
 
-            do_table(status, section_merges, comments, left_distro, right_distro, target)
+            do_table(status, section_merges, comments, our_distro, target)
 
         print >>status, "<h2 id=stats>Statistics</h2>"
         print >>status, ("<img src=\"%s-now.png\" title=\"Current stats\">"
@@ -195,21 +196,22 @@ def write_status_page(target, merges, left_distro, right_distro):
 
     os.rename(status_file + ".new", status_file)
 
-def do_table(status, merges, comments, left_distro, right_distro, target):
+def do_table(status, merges, comments, our_distro, target):
     """Output a table."""
+    default_src_distro =DISTRO_SOURCES[DISTRO_TARGETS[target]["sources"][0]][0]["distro"]
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
     print >>status, "<td rowspan=2><b>Package</b></td>"
     print >>status, "<td rowspan=2><b>Comment</b></td>"
     print >>status, "</tr>"
     print >>status, "<tr bgcolor=#d0d0d0>"
-    print >>status, "<td><b>%s Version</b></td>" % left_distro.title()
-    print >>status, "<td><b>%s Version</b></td>" % right_distro.title()
+    print >>status, "<td><b>%s Version</b></td>" % our_distro.title()
+    print >>status, "<td><b>%s Version</b></td>" % default_src_distro.title()
     print >>status, "<td><b>Base Version</b></td>"
     print >>status, "</tr>"
 
     for uploaded, priority, package, source, \
-            base_version, left_version, right_version in merges:
+            base_version, left_version, right_version, right_distro in merges:
 
         print >>status, "<tr bgcolor=%s class=first>" % COLOURS[priority]
         print >>status, "<td><tt><a href=\"%s/%s/REPORT\">" \
@@ -223,14 +225,17 @@ def do_table(status, merges, comments, left_distro, right_distro, target):
         print >>status, "<tr bgcolor=%s>" % COLOURS[priority]
         print >>status, "<td><small>%s</small></td>" % source["Binary"]
         print >>status, "<td>%s</td>" % left_version
-        print >>status, "<td>%s</td>" % right_version
+        print >>status, "<td>%s" % right_version
+        if right_distro != default_src_distro:
+            print >>status, "<br/>(%s)" % right_distro
+        print >>status, "</td>"
         print >>status, "<td>%s</td>" % base_version
         print >>status, "</tr>"
 
     print >>status, "</table>"
 
 
-def write_status_json(target, merges, left_distro, right_distro):
+def write_status_json(target, merges):
     """Write out the merge status JSON dump."""
     status_file = "%s/merges/%s.json" % (ROOT, target)
     with open(status_file + ".new", "w") as status:
@@ -239,7 +244,7 @@ def write_status_json(target, merges, left_distro, right_distro):
         print >>status, '['
         cur_merge = 0
         for uploaded, priority, package, source, \
-                base_version, left_version, right_version in merges:
+                base_version, left_version, right_version, right_distro in merges:
             print >>status, ' {',
             # source_package, short_description, and link are for
             # Harvest (http://daniel.holba.ch/blog/?p=838).
@@ -268,7 +273,7 @@ def write_status_file(status_file, merges):
     """Write out the merge status file."""
     with open(status_file + ".new", "w") as status:
         for uploaded, priority, package, source, \
-                base_version, left_version, right_version in merges:
+                base_version, left_version, right_version, right_distro in merges:
             print >>status, "%s %s %s %s %s, %s" \
                   % (package, priority, base_version,
                      left_version, right_version, uploaded)
