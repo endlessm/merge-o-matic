@@ -61,7 +61,7 @@ def main(options, args):
             except (ValueError, OSError) as e:
                 eargs = ""
                 if e.args:
-                    eargs = " ".join(e.args)
+                    eargs = " ".join([str(x) for x in e.args])
                 logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, eargs))
                 try:
                     with open("%s/REPORT" % output_dir, "a") as r:
