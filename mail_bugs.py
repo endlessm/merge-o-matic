@@ -55,11 +55,11 @@ def main(options, args):
 
     bugs = []
 
-    # For each package in the distribution, iterate the pool and read each
+    # For latest version of each package in the distribution, iterate the pool and read each
     # changes file to obtain the list of closed bugs.
     for target in targets:
         distro, dist, component = get_target_distro_dist_component(target)
-        for source in get_sources(distro, dist, component):
+        for source in get_newest_sources(distro, dist, component):
             package = source["Package"]
 
             watermark = read_watermark(distro, package)

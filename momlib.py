@@ -406,6 +406,17 @@ def get_sources(distro, dist, component):
 
     return SOURCES_CACHE[filename].paras
 
+def get_newest_sources(distro, dist, component):
+    """Parse a cached Sources file, and return only the newest version of each package."""
+    sources = get_sources(distro, dist, component)
+    newest = {}
+    for source in sources:
+        package = source["Package"]
+        if package not in newest or Version(source["Version"]) > Version(newest[package]["Version"]):
+            newest[package] = source
+
+    return [newest[x] for x in sorted(newest.keys())]
+
 def get_source(distro, dist, component, package):
     """Return the source for a package in a distro."""
     sources = get_sources(distro, dist, component)

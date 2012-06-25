@@ -54,7 +54,7 @@ def main(options, args):
             else:
                 components = [target_component]
             for component in components:
-                for source in get_sources(distro, dist, component):
+                for source in get_newest_sources(distro, dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue

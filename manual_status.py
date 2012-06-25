@@ -54,13 +54,13 @@ def main(options, args):
     else:
         targets = DISTRO_TARGETS.keys()
 
-    # For each package in the destination distribution, find out whether
+    # For latest version of each package in the destination distribution, find out whether
     # there's an open merge, and if so add an entry to the table for it.
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
         merges = []
 
-        for our_source in get_sources(our_distro, our_dist, our_component):
+        for our_source in get_newest_sources(our_distro, our_dist, our_component):
             try:
                 package = our_source["Package"]
                 our_version = Version(our_source["Version"])

@@ -50,12 +50,12 @@ def main(options, args):
     else:
         targets = DISTRO_TARGETS.keys()
 
-    # For each package in the destination distribution, locate the latest in
+    # For latest version of each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # create patches from that to both
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        for our_source in get_sources(our_distro, our_dist, our_component):
+        for our_source in get_newest_sources(our_distro, our_dist, our_component):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue

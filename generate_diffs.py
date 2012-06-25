@@ -41,7 +41,7 @@ def main(options, args):
     else:
         distros = get_pool_distros()
 
-    # For each package in the given distributions, iterate the pool in order
+    # For latest version of each package in the given distributions, iterate the pool in order
     # and generate a diff from the previous version and a changes file
     for distro in distros:
         if options.target is None:
@@ -54,7 +54,7 @@ def main(options, args):
             else:
                 components = [target_component]
             for component in components:
-                for source in get_sources(distro, dist, component):
+                for source in get_newest_sources(distro, dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue

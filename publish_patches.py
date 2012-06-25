@@ -40,11 +40,11 @@ def main(options, args):
     ensure(list_filename)
     list_file = open(list_filename + ".new", "w")
     try:
-        # For each package in the distribution, check for a patch for the
+        # For latest version of each package in the distribution, check for a patch for the
         # current version; publish if it exists, clean up if not
         for target in targets:
             our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-            for source in get_sources(our_distro, our_dist, our_component):
+            for source in get_newest_sources(our_distro, our_dist, our_component):
                 package = source["Package"]
 
                 if not PACKAGELISTS.check_target(target, None, source["Package"]):
