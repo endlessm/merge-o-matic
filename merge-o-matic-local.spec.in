@@ -1,6 +1,6 @@
 %define name merge-o-matic-local
-%define version 2012.06.22
-%define unmangled_version 2012.06.22
+%define version %%VERSION%%
+%define unmangled_version %%VERSION%%
 %define release 1
 %define codedir /usr/lib/merge-o-matic
 
@@ -31,7 +31,7 @@ Requires: python >= 2.7
 %description
 
 Merge-o-Matic is a continuous integration tool, used to automatically update
-our distro's OBS repository from the corresponding Ubuntu release, and to
+the distro's OBS repository from the corresponding Ubuntu release, and to
 provide the necessary information for a developer to perform the update
 manually if an automatic update is not possible.
 
@@ -41,53 +41,14 @@ manually if an automatic update is not possible.
 %build
 
 %install
+make install DESTDIR=%{buildroot}
+
 mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d,cron.daily}
-install -m 0644 momsettings.py %{buildroot}/etc/merge-o-matic/momsettings.py
 install -m 0644 mom.conf %{buildroot}/etc/apache2/vhosts.d/mom.conf
 install -m 0644 merge-o-matic.logrotate %{buildroot}/etc/logrotate.d/%{name}
 install -m 0755 cron.daily %{buildroot}/etc/cron.daily/%{name}
 
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
-
-mkdir -p %{buildroot}/usr/lib/merge-o-matic/{deb,util}
-install -m 0644 momlib.py %{buildroot}/usr/lib/merge-o-matic
-install -m 0755 \
-        commit_merges.py \
-        expire_pool.py \
-        generate_diffs.py \
-        generate_dpatches.py \
-        generate_patches.py \
-        grab-merge.sh \
-        mail_bugs.py \
-        manual_status.py \
-        merge_status.py \
-        pack-archive.sh \
-        produce_merges.py \
-        publish_patches.py \
-        stats_graphs.py \
-        stats.py \
-        syndicate.py \
-        update_pool.py \
-        update_sources.py \
-        %{buildroot}/usr/lib/merge-o-matic
-install -m 0644 \
-	deb/controlfile.py \
-	deb/__init__.py \
-	deb/source.py \
-	deb/version.py \
-	%{buildroot}/usr/lib/merge-o-matic/deb
-install -m 0644 \
-	util/__init__.py \
-	util/shell.py \
-	util/tree.py \
-	%{buildroot}/usr/lib/merge-o-matic/util
-
-# We compile at this point because addcomment.py confuses py_comp
-%py_comp %{buildroot}/usr/lib/merge-o-matic
-%py_ocomp %{buildroot}/usr/lib/merge-o-matic
-
-install -m 0644 addcomment.py %{buildroot}/usr/lib/merge-o-matic
-install -m 0755 main.py %{buildroot}/usr/lib/merge-o-matic
 
 %pre
 if ! getent group | grep "^mom:" &> /dev/null; then

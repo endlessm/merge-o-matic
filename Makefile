@@ -1,5 +1,10 @@
 PACKAGE_NAME = merge-o-matic-local
-VERSION = 2012.06.22
+VERSION = 2012.06.25
+
+PREFIX ?= /usr
+LIBDIR ?= lib
+PYTHON ?= python
+PY_COMPILE ?= yes
 
 main_exe_files = \
 	commit_merges.py \
@@ -45,14 +50,33 @@ all_files = \
 	cron.daily \
 	Makefile \
 	merge-o-matic.logrotate \
-	merge-o-matic-local.spec \
+	merge-o-matic-local.spec.in \
 	mom.conf \
 	momsettings.py \
 	README
 
+all:
+
+# We do not want to compile addcomment.py or main.py
+install: $(all_files)
+	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/{deb,util}
+	install -m 0644 $(main_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
+	install -m 0755 $(main_exe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
+	install -m 0644 $(deb_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/deb
+	install -m 0644 $(util_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/util
+	[[ x"$(PY_COMPILE)" = xyes ]] && \
+		$(PYTHON) -m compileall -q -d "$(PREFIX)/$(LIBDIR)"/merge-o-matic -x 'addcomment.py|main.py' \
+		"$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
+	[[ x"$(PY_COMPILE)" = xyes ]] && \
+		$(PYTHON) -O -m compileall -q -d "$(PREFIX)/$(LIBDIR)"/merge-o-matic -x 'addcomment.py|main.py' \
+		"$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
+	mkdir -p "$(DESTDIR)"/etc/merge-o-matic
+	install -m 0644 momsettings.py "$(DESTDIR)"/etc/merge-o-matic
+
 dist: $(PACKAGE_NAME)-$(VERSION).tar.bz2
 
 $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
+	sed -e 's/%%VERSION%%/$(VERSION)/' merge-o-matic-local.spec.in > merge-o-matic-local.spec
 	-rm -r "$(PACKAGE_NAME)-$(VERSION)"
 	mkdir -p "$(PACKAGE_NAME)-$(VERSION)"/{deb,util}
 	install -m 0644 \
@@ -62,6 +86,7 @@ $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 		Makefile \
 		merge-o-matic.logrotate \
 		merge-o-matic-local.spec \
+		merge-o-matic-local.spec.in \
 		mom.conf \
 		momsettings.py \
 		README \
