@@ -5,7 +5,7 @@ ROOT = "/srv/obs/merge-o-matic"
 MOM_URL = "http://SERVER:83/"
 
 # Used for emails
-MOM_NAME = "DISTRO Merge-o-Matic"
+MOM_NAME = "Merge-o-Matic"
 MOM_EMAIL = "mom@SERVER"
 
 # Who to send bug emails to

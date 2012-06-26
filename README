@@ -1,4 +1,4 @@
-For detailed information on Merge-o-Matic, see:
+For detailed information on the original Ubuntu Merge-o-Matic, see:
 
     https://wiki.ubuntu.com/MergeOMatic
 
@@ -17,11 +17,11 @@ Deployment procedure
 
 Install the rpm.
 
-Edit /etc/merge-o-matic/momsettings.py (the OBS repository URLs in DISTROS
-will almost certainly need to be customized, for example).
+Edit /etc/merge-o-matic/momsettings.py (the OBS DISTRO repository URLs in
+DISTROS will almost certainly need to be customized, for example).
 
 Create an OBS account for merge-o-matic, and give it the needed privileges
-for the repository project.
+for the DISTRO repository projects.
 
 Switch to the mom user (e.g. "su - mom -s /bin/bash") and do a small OBS checkout
 using osc (e.g. "cd /tmp; osc -A https://SERVER:444 checkout DISTRO:SUITE_A:target bash")

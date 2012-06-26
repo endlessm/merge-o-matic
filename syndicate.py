@@ -65,8 +65,8 @@ def main(options, args):
     diff_rss = read_rss(diff_rss_file(),
                         title="DISTRO Merge-o-Matic Uploads",
                         link=MOM_URL + "by-release/atomic/",
-                        description="This feed announces new changes in DISTRO"
-                        ", each patch filename contains the difference "
+                        description="This feed announces new changes in DISTRO, "
+                        "each patch filename contains the difference "
                         "between the new version and the previous one.")
 
 

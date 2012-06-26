@@ -31,7 +31,7 @@ Requires: python >= 2.7
 %description
 
 Merge-o-Matic is a continuous integration tool, used to automatically update
-the distro's OBS repository from the corresponding Ubuntu release, and to
+the OBS repository from the corresponding Ubuntu release, and to
 provide the necessary information for a developer to perform the update
 manually if an automatic update is not possible.
 
