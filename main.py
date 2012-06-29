@@ -25,6 +25,7 @@ import sys
 from momlib import *
 import update_pool
 import update_sources
+import get_missing_bases
 import generate_diffs
 import generate_patches
 import generate_dpatches
@@ -78,6 +79,12 @@ def main(options, args):
 
         # Update the Sources files against new packages that have been downloaded
         update_sources.main(options, args)
+
+        try:
+            # Try to download missing base versions from the source distro pool
+            get_missing_bases.main(options, args)
+        except:
+            sys.excepthook(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2])
 
         # Generate changes, diffs and patches
         generate_diffs.main(options, args)

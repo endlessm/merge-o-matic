@@ -12,6 +12,7 @@ main_exe_files = \
 	generate_diffs.py \
 	generate_dpatches.py \
 	generate_patches.py \
+	get_missing_bases.py \
 	grab-merge.sh \
 	mail_bugs.py \
 	manual_status.py \
