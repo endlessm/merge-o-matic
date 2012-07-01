@@ -132,6 +132,10 @@ def main(options, args):
                 logging.debug("%s: base is %s (%s wanted)",
                             package, base_version, base)
             except IndexError:
+                write_report(package, our_pool_source, our_distro, left_patch=None, base_source=None,
+                    src_pool_source, src_distro, right_patch=None,
+                    merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(package),
+                    merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
                 continue
 
             produce_merge(our_pool_source, our_distro, our_dist, base_source,
@@ -164,7 +168,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
         cleanup(output_dir)
         if left_version < right_version:
             ensure("%s/%s" % (output_dir, "REPORT"))
-            write_report(left_source, left_distro, None, base_source,
+            write_report(package, left_source, left_distro, None, base_source,
                         right_source, right_distro, None,
                         merged_version, None, None, None,
                         output_dir, None, True, is_build_metadata_changed(left_source, right_source))
@@ -232,7 +236,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                                               output_dir, merged_dir,
                                               right_source, right_dir)
 
-            write_report(left_source, left_distro, left_patch, base_source,
+            write_report(package, left_source, left_distro, left_patch, base_source,
                          right_source, right_distro, right_patch,
                          merged_version, conflicts, src_file, patch_file,
                          output_dir, merged_dir, False, build_metadata_changed)
@@ -827,15 +831,13 @@ def create_patch(package, version, output_dir, merged_dir,
         tree.remove(parent)
 
 
-def write_report(left_source, left_distro, left_patch, base_source,
+def write_report(package, left_source, left_distro, left_patch, base_source,
                  right_source, right_distro, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
                  merged_dir, merged_is_right, build_metadata_changed):
     """Write the merge report."""
     filename = "%s/REPORT" % output_dir
     with open(filename, "w") as report:
-        package = base_source["Package"]
-
         # Package and time
         print >>report, "%s" % package
         print >>report, "%s" % time.ctime()
@@ -869,9 +871,12 @@ def write_report(left_source, left_distro, left_patch, base_source,
         print >>report
 
         # Base version and files
-        print >>report, "base: %s" % base_source["Version"]
-        for md5sum, size, name in files(base_source):
-            print >>report, "    %s" % name
+        if base_source is None:
+            print >>report, "missing base: %s" % get_base(left_source)
+        else:
+            print >>report, "base: %s" % base_source["Version"]
+            for md5sum, size, name in files(base_source):
+                print >>report, "    %s" % name
         print >>report
 
         # Left version and files
@@ -899,7 +904,15 @@ def write_report(left_source, left_distro, left_patch, base_source,
         print >>report, "Generated Result"
         print >>report, "================"
         print >>report
-        if merged_is_right:
+        if base_source is None:
+            print >>report, fill("Failed to merge because the base version (%s) "
+                                 "required for a 3-way diff is missing from %s pool. "
+                                 "You will need to either merge manually; or add the "
+                                 "missing base version sources to '%s/%s/' and run "
+                                 "update_sources.py."
+                                 % (get_base(left_source), right_distro), ROOT, pool_directory(right_distro, package))
+            print >>report
+        elif merged_is_right:
             print >>report, fill("The %s version supercedes the %s version "
                                  "and can be added to %s with no changes." %
                                  (right_distro.title(), left_distro.title(),

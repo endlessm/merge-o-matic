@@ -722,7 +722,7 @@ def read_report(output_dir):
             elif line.startswith("Merge committed: YES"):
                 report["committed"] = True
 
-    if report["base_version"] is None or report["left_version"] is None or report["right_version"] is None:
+    if report["left_version"] is None or report["right_version"] is None:
         raise AttributeError, "Insufficient detail in report"
 
     if report["merged_is_right"]:

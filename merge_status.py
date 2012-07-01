@@ -229,7 +229,10 @@ def do_table(status, merges, comments, our_distro, target):
         if right_distro != default_src_distro:
             print >>status, "<br/>(%s)" % right_distro
         print >>status, "</td>"
-        print >>status, "<td>%s</td>" % base_version
+        if base_version is None:
+            print >>status, "<td><em>???</em></td>"
+        else:
+            print >>status, "<td>%s</td>" % base_version
         print >>status, "</tr>"
 
     print >>status, "</table>"
@@ -256,7 +259,10 @@ def write_status_json(target, merges):
             binaries = re.split(', *', source["Binary"].replace('\n', ''))
             print >>status, '"binaries": [ %s ],' % \
                             ', '.join(['"%s"' % b for b in binaries]),
-            print >>status, '"base_version": "%s",' % base_version,
+            if base_version is None:
+                print >>status, '"base_version": "???",'
+            else:
+                print >>status, '"base_version": "%s",' % base_version,
             print >>status, '"left_version": "%s",' % left_version,
             print >>status, '"right_version": "%s"' % right_version,
             cur_merge += 1
@@ -274,6 +280,8 @@ def write_status_file(status_file, merges):
     with open(status_file + ".new", "w") as status:
         for uploaded, priority, package, source, \
                 base_version, left_version, right_version, right_distro in merges:
+            if base_version is None:
+                base_version = "???"
             print >>status, "%s %s %s %s %s, %s" \
                   % (package, priority, base_version,
                      left_version, right_version, uploaded)
