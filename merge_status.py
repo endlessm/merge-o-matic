@@ -230,7 +230,7 @@ def do_table(status, merges, comments, our_distro, target):
             print >>status, "<br/>(%s)" % right_distro
         print >>status, "</td>"
         if base_version is None:
-            print >>status, "<td><em>???</em></td>"
+            print >>status, "<td style='text-align:center'><em>???</em></td>"
         else:
             print >>status, "<td>%s</td>" % base_version
         print >>status, "</tr>"
