@@ -133,7 +133,7 @@ def main(options, args):
                             package, base_version, base)
             except IndexError:
                 write_report(package, our_pool_source, our_distro, left_patch=None, base_source=None,
-                    src_pool_source, src_distro, right_patch=None,
+                    right_source=src_pool_source, right_distro=src_distro, right_patch=None,
                     merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(package),
                     merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
                 continue
@@ -911,7 +911,7 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
                                  "You will need to either merge manually; or add the "
                                  "missing base version sources to '%s/%s/' and run "
                                  "update_sources.py."
-                                 % (get_base(left_source), right_distro), ROOT, pool_directory(right_distro, package))
+                                 % (get_base(left_source), right_distro, ROOT, pool_directory(right_distro, package)))
             print >>report
         elif merged_is_right:
             print >>report, fill("The %s version supercedes the %s version "
