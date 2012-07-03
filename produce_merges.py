@@ -837,6 +837,7 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
                  merged_dir, merged_is_right, build_metadata_changed):
     """Write the merge report."""
     filename = "%s/REPORT" % output_dir
+    ensure(filename)
     with open(filename, "w") as report:
         # Package and time
         print >>report, "%s" % package
