@@ -43,7 +43,7 @@ def main(options, args):
                 continue
 
             try:
-                output_dir = result_dir(source["Package"])
+                output_dir = result_dir(target, source["Package"])
                 report = read_report(output_dir)
             except ValueError:
                 continue

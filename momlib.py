@@ -216,9 +216,9 @@ def work_dir(package, version):
     """Return the directory to produce the merge result."""
     return "%s/work/%s/%s/%s" % (ROOT, pathhash(package), package, version)
 
-def result_dir(package):
+def result_dir(target, package):
     """Return the directory to store the result in."""
-    return "%s/merges/%s/%s" % (ROOT, pathhash(package), package)
+    return "%s/merges/%s/%s/%s" % (ROOT, target, pathhash(package), package)
 
 def component_string(distro=None, component=None):
     """Return the short name for a given distro/dist/component for printing"""

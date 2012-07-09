@@ -134,12 +134,12 @@ def main(options, args):
             except IndexError:
                 write_report(package, our_pool_source, our_distro, left_patch=None, base_source=None,
                     right_source=src_pool_source, right_distro=src_distro, right_patch=None,
-                    merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(package),
+                    merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(target, package),
                     merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
                 continue
 
             produce_merge(our_pool_source, our_distro, our_dist, base_source,
-                        src_pool_source, src_distro, src_dist,
+                        src_pool_source, src_distro, src_dist, result_dir(target, package),
                         force=options.force)
 
 def is_build_metadata_changed(left_source, right_source):
@@ -155,11 +155,10 @@ def is_build_metadata_changed(left_source, right_source):
     return False
 
 def produce_merge(left_source, left_distro, left_dist, base_source,
-                  right_source, right_distro, right_dist, force=False):
+                  right_source, right_distro, right_dist, output_dir, force=False):
     """Produce a merge for the given two packages."""
     package = base_source["Package"]
     merged_version = Version(right_source["Version"] + "co1")
-    output_dir = result_dir(package)
 
     base_version = Version(re.sub("build[0-9]+$", "", base_source["Version"]))
     left_version = Version(re.sub("build[0-9]+$", "", left_source["Version"]))

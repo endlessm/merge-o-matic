@@ -73,7 +73,7 @@ def main(options, args):
 
         for source in get_sources(our_distro, our_dist, our_component):
             try:
-                output_dir = result_dir(source["Package"])
+                output_dir = result_dir(target, source["Package"])
                 report = read_report(output_dir)
             except ValueError:
                 continue
