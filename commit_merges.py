@@ -35,6 +35,10 @@ def main(options, args):
 
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+        if "obs" not in DISTROS[our_distro]:
+            continue
+        if "commit" in DISTROS[our_distro]["obs"] and not DISTROS[our_distro]["obs"]["commit"]:
+            continue
         for source in get_newest_sources(our_distro, our_dist, our_component):
             if options.package is not None \
                 and source["Package"] not in options.package:

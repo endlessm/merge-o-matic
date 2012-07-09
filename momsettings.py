@@ -19,7 +19,8 @@ DISTROS = {
     "SUITE_A-target": {
         "obs": {
             "url": "https://SERVER:444",
-            "project": "DISTRO:SUITE_A:target"
+            "project": "DISTRO:SUITE_A:target",
+            "commit": False,
         },
         "mirror": "http://SERVER:82/debian/DISTRO:/SUITE_A:/target/",
         "dists": [ None ],
@@ -29,7 +30,8 @@ DISTROS = {
     "SUITE_A-sdk": {
         "obs": {
             "url": "https://SERVER:444",
-            "project": "DISTRO:SUITE_A:sdk"
+            "project": "DISTRO:SUITE_A:sdk",
+            "commit": False,
         },
         "mirror": "http://SERVER:82/debian/DISTRO:/SUITE_A:/sdk/",
         "dists": [ None ],
@@ -39,7 +41,8 @@ DISTROS = {
     "SUITE_A-devel": {
         "obs": {
             "url": "https://SERVER:444",
-            "project": "DISTRO:SUITE_A:development"
+            "project": "DISTRO:SUITE_A:development",
+            "commit": False,
         },
         "mirror": "http://SERVER:82/debian/DISTRO:/SUITE_A:/development/",
         "dists": [ None ],
