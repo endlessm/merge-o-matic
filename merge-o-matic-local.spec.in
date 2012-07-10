@@ -76,6 +76,11 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Mon Jul 10 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.07.10
+- Use per-target merge output directories.
+- Allow MoM to skip committing merges to some osc projects by setting
+  DISTROS[distro]["obs"]["commit"] = False in momsettings.py
+
 * Mon Jul 02 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.07.02
 - deal better with missing base versions: try to download them, and if that
   does not help, log the failed merge in the "outstanding" section of the
