@@ -95,7 +95,7 @@ def main(options, args):
             merges.append((section, priority_idx, source["Package"],
                         source, report["base_version"],
                         report["left_version"], report["right_version"],
-                        report["right_distro"]))
+                        report["right_distro"], output_dir))
 
         merges.sort()
 
@@ -211,11 +211,11 @@ def do_table(status, merges, comments, our_distro, target):
     print >>status, "</tr>"
 
     for uploaded, priority, package, source, \
-            base_version, left_version, right_version, right_distro in merges:
+            base_version, left_version, right_version, right_distro, output_dir in merges:
 
         print >>status, "<tr bgcolor=%s class=first>" % COLOURS[priority]
-        print >>status, "<td><tt><a href=\"%s/%s/REPORT\">" \
-              "%s</a></tt>" % (pathhash(package), package, package)
+        print >>status, "<td><tt><a href=\"%s/REPORT\">" \
+              "%s</a></tt>" % (re.sub('^' + re.escape(ROOT), MOM_URL, output_dir, 1), package)
         print >>status, " <sup><a href=\"https://launchpad.net/ubuntu/" \
               "+source/%s\">LP</a></sup>" % package
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \
@@ -247,13 +247,13 @@ def write_status_json(target, merges):
         print >>status, '['
         cur_merge = 0
         for uploaded, priority, package, source, \
-                base_version, left_version, right_version, right_distro in merges:
+                base_version, left_version, right_version, right_distro, output_dir in merges:
             print >>status, ' {',
             # source_package, short_description, and link are for
             # Harvest (http://daniel.holba.ch/blog/?p=838).
             print >>status, '"source_package": "%s",' % package,
             print >>status, '"short_description": "merge %s",' % right_version,
-            print >>status, '"link": "%s/%s/%s/",' % (MOM_URL, pathhash(package), package),
+            print >>status, '"link": "%s/%s/",' % (MOM_URL, output_dir),
             print >>status, '"uploaded": "%s",' % uploaded,
             print >>status, '"priority": "%s",' % priority,
             binaries = re.split(', *', source["Binary"].replace('\n', ''))
@@ -279,7 +279,7 @@ def write_status_file(status_file, merges):
     """Write out the merge status file."""
     with open(status_file + ".new", "w") as status:
         for uploaded, priority, package, source, \
-                base_version, left_version, right_version, right_distro in merges:
+                base_version, left_version, right_version, right_distro, output_dir in merges:
             if base_version is None:
                 base_version = "???"
             print >>status, "%s %s %s %s %s, %s" \
