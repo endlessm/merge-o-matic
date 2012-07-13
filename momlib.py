@@ -255,22 +255,29 @@ def obs_package_cache(distro):
             "files": files
         }
 
-def obs_directory(distro, package=None, obs_package=None):
+def obs_directory(distro, package=None, obs_package=None, homeBranch=False):
     """Return the directory where the *Debian* package is checked out"""
+    if homeBranch:
+        projectName="home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
+    else:
+ 	projectName = DISTROS[distro]["obs"]["project"]
     d = "%s/osc/%s" % (ROOT, distro)
     if package is None and obs_package is None:
         return d
     obs_package_cache(distro)
     if obs_package is None:
         obs_package = OBS_CACHE[distro][package]["obs-name"]
-    return "%s/%s/%s" % (d, DISTROS[distro]["obs"]["project"], obs_package)
+    return "%s/%s/%s" % (d, projectName, obs_package)
 
-def obs_dot_osc(distro, package=None, obs_package=None):
+def obs_dot_osc(distro, package=None, obs_package=None, homeBranch=False):
     """Return the .osc directory path"""
     if package or obs_package:
         return "%s/.osc" %  obs_directory(distro, package, obs_package)
     else:
-        return "%s/%s/.osc" % (obs_directory(distro), DISTROS[distro]["obs"]["project"])
+	if homeBranch:
+            return "%s/%s/.osc" % (obs_directory(distro), "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"])
+	else:
+            return "%s/%s/.osc" % (obs_directory(distro), DISTROS[distro]["obs"]["project"])
 
 def obs_packages(distro):
     """Return the list of *Debian* package names in an osc checkout"""
@@ -287,28 +294,37 @@ def obs_files(distro, package):
     d = obs_dot_osc(distro, package)
     return [ "%s/%s" % (d, f) for f in OBS_CACHE[distro][package]["files"] ]
 
-def obs_is_checked_out(distro, package=None):
+def obs_is_checked_out(distro, package=None, homeBranch=False):
     """Return True if the distro has been checked out via osc"""
-    if not os.path.exists(obs_dot_osc(distro) + "/_packages"):
+    if not os.path.exists(obs_dot_osc(distro, homeBranch=homeBranch) + "/_packages"):
         return False
     if package is not None:
         try:
-            return os.path.exists("%s/_files" % obs_dot_osc(distro, package))
+            return os.path.exists("%s/_files" % obs_dot_osc(distro, package, homeBranch=homeBranch))
         except KeyError:
             return False
     return True
 
-def obs_checkout_or_update(distro, package=None):
+def obs_checkout_or_update(distro, package=None, homeBranch=False):
     """If the distro and Debian package is not checked out, checkout via osc, else update"""
-    ensure(obs_directory(distro) + "/")
+    ensure(obs_directory(distro, homeBranch=homeBranch) + "/")
 
-    if not obs_is_checked_out(distro):
-        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "checkout", DISTROS[distro]["obs"]["project"]),
-                  chdir=obs_directory(distro), stdout=sys.stdout, stderr=sys.stderr)
+    if not obs_is_checked_out(distro, homeBranch=homeBranch):
+	if homeBranch:
+	    distroName = "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
+	else:
+	    distroName = DISTROS[distro]["obs"]["project"]
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "checkout", distroName),
+                  chdir=obs_directory(distro, homeBranch=homeBranch), stdout=sys.stdout, stderr=sys.stderr)
         return
 
-    d = "%s/%s" % (obs_directory(distro), DISTROS[distro]["obs"]["project"])
-    if package is None or not obs_is_checked_out(distro, package):
+    if homeBranch:
+	projectName = "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
+    else:
+	projectName = DISTROS[distro]["obs"]["project"]
+
+    d = "%s/%s" % (obs_directory(distro, homeBranch=homeBranch), projectName)
+    if package is None or not obs_is_checked_out(distro, package, homeBranch=homeBranch):
         shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "update"),
                   chdir=d, stdout=sys.stdout, stderr=sys.stderr)
     else:
@@ -379,16 +395,40 @@ def obs_commit_files(distro, package, files):
         logging.warning("Failed to commit updated %s to %s OBS: our osc checkout os out of date")
         return False
 
-    for filename in OBS_CACHE[distro][package]["files"]:
-        logging.debug("Removing %s/%s" % (d, filename))
-        os.unlink("%s/%s" % (obs_directory(distro, package), filename))
-    for filepath in files:
-        logging.debug("Adding %s to %s" % (filepath, d))
-        shutil.copy2(filepath, d)
 
     logging.info("Committing changes to %s" % d)
-    shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
-    shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    if DISTROS[distro]["obs"]["commit"]:
+        for filename in OBS_CACHE[distro][package]["files"]:
+            logging.debug("Removing %s/%s" % (d, filename))
+            os.unlink("%s/%s" % (obs_directory(distro, package), filename))
+        for filepath in files:
+            logging.debug("Adding %s to %s" % (filepath, d))
+            shutil.copy2(filepath, d)
+	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+    else:
+        logging.info("Comitting disabled, branching and submitting request")
+	branchDir = obs_directory(distro, package, homeBranch=True)
+	try:
+            shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "branch"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+	except:
+	    logging.info("A branch already exists. Reusing.")
+        obs_checkout_or_update(distro, package, True)
+	print "updated"
+        for filename in OBS_CACHE[distro][package]["files"]:
+            logging.debug("Removing %s/%s" % (branchDir, filename))
+	    try:
+                os.unlink("%s/%s" % (obs_directory(distro, package, homeBranch=True), filename))
+ 	    except:
+                logging.info("Could not remove file, probably already branched and worked on?")
+	        return False
+        for filepath in files:
+            logging.debug("Adding %s to %s" % (filepath, branchDir))
+            shutil.copy2(filepath, branchDir)
+	print branchDir
+	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
+	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
+	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "submitreq", "--yes", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
     return True
 
 # --------------------------------------------------------------------------- #
