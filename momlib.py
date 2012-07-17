@@ -36,6 +36,8 @@ import datetime
 import shutil
 import stat
 import time
+import osc.core
+import osc.conf
 
 from cgi import escape
 from optparse import OptionParser
@@ -310,18 +312,18 @@ def obs_checkout_or_update(distro, package=None, homeBranch=False):
     ensure(obs_directory(distro, homeBranch=homeBranch) + "/")
 
     if not obs_is_checked_out(distro, homeBranch=homeBranch):
-	if homeBranch:
-	    distroName = "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
-	else:
-	    distroName = DISTROS[distro]["obs"]["project"]
-        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "checkout", distroName),
-                  chdir=obs_directory(distro, homeBranch=homeBranch), stdout=sys.stdout, stderr=sys.stderr)
-        return
+        if homeBranch:
+            distroName = "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
+        else:
+            distroName = DISTROS[distro]["obs"]["project"]
+            shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "checkout", distroName),
+                      chdir=obs_directory(distro, homeBranch=homeBranch), stdout=sys.stdout, stderr=sys.stderr)
+            return
 
     if homeBranch:
-	projectName = "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
+        projectName = "home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
     else:
-	projectName = DISTROS[distro]["obs"]["project"]
+        projectName = DISTROS[distro]["obs"]["project"]
 
     d = "%s/%s" % (obs_directory(distro, homeBranch=homeBranch), projectName)
     if package is None or not obs_is_checked_out(distro, package, homeBranch=homeBranch):
@@ -404,31 +406,31 @@ def obs_commit_files(distro, package, files):
         for filepath in files:
             logging.debug("Adding %s to %s" % (filepath, d))
             shutil.copy2(filepath, d)
-	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
-	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
     else:
         logging.info("Comitting disabled, branching and submitting request")
-	branchDir = obs_directory(distro, package, homeBranch=True)
-	try:
+        branchDir = obs_directory(distro, package, homeBranch=True)
+        try:
             shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "branch"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
-	except:
-	    logging.info("A branch already exists. Reusing.")
+        except:
+            logging.info("A branch already exists. Reusing.")
         obs_checkout_or_update(distro, package, True)
-	print "updated"
+        print "updated"
         for filename in OBS_CACHE[distro][package]["files"]:
             logging.debug("Removing %s/%s" % (branchDir, filename))
-	    try:
+            try:
                 os.unlink("%s/%s" % (obs_directory(distro, package, homeBranch=True), filename))
- 	    except:
+            except:
                 logging.info("Could not remove file, probably already branched and worked on?")
-	        return False
+                return False
         for filepath in files:
             logging.debug("Adding %s to %s" % (filepath, branchDir))
             shutil.copy2(filepath, branchDir)
-	print branchDir
-	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
-	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
-	shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "submitreq", "--yes", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
+        print branchDir
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
+        shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "submitreq", "--yes", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
     return True
 
 # --------------------------------------------------------------------------- #
