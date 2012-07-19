@@ -8,6 +8,7 @@ PY_COMPILE ?= yes
 
 main_exe_files = \
 	commit_merges.py \
+	config.py \
 	expire_pool.py \
 	generate_diffs.py \
 	generate_dpatches.py \
