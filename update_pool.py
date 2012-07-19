@@ -63,6 +63,7 @@ def main(options, args):
             distname = source["dist"]
             sourceDistro = Distro.get(source["distro"])
             for component in sourceDistro.components():
+              sourceDistro.updateSources(distname, component)
               totalPackages = len(d.packages(our_dist, our_component))
               upstreamPackages = len(sourceDistro.packages(distname, component))
               packageSavings = len(sourceDistro.packages(distname, component)) - len(d.packages(our_dist, our_component))
