@@ -21,6 +21,7 @@
 import sys
 import urllib
 from momlib import *
+from config import *
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -44,7 +45,8 @@ def main(options, args):
 
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        for source in get_newest_sources(our_distro, our_dist, our_component):
+        distro = Distro.get(our_distro)
+        for source in distro.newestSources(our_dist, our_component):
             package = source["Package"]
 
             if options.package is not None and package not in options.package:
