@@ -16,37 +16,14 @@ RECIPIENTS = ['trever.fischer@collabora.co.uk']
 # Distribution definitions
 # For additional subprojects, use additional distro definitions
 DISTROS = {
-    "SUITE_A-target": {
+    "DISTRO": {
         "obs": {
             "url": "https://SERVER:444",
-            "project": "DISTRO:SUITE_A:target",
-            "commit": False,
+            "project": "DISTRO",
         },
-        "mirror": "http://SERVER:82/debian/DISTRO:/SUITE_A:/target/",
-        "dists": [ None ],
-        "components": [ None ],
-        "expire": True,
-        },
-    "SUITE_A-sdk": {
-        "obs": {
-            "url": "https://SERVER:444",
-            "project": "DISTRO:SUITE_A:sdk",
-            "commit": False,
-        },
-        "mirror": "http://SERVER:82/debian/DISTRO:/SUITE_A:/sdk/",
-        "dists": [ None ],
-        "components": [ None ],
-        "expire": True,
-        },
-    "SUITE_A-devel": {
-        "obs": {
-            "url": "https://SERVER:444",
-            "project": "DISTRO:SUITE_A:development",
-            "commit": False,
-        },
-        "mirror": "http://SERVER:82/debian/DISTRO:/SUITE_A:/development/",
-        "dists": [ None ],
-        "components": [ None ],
+        "mirror": "http://SERVER:82/debian/",
+        "dists": [ "SUITE_A", "SUITE_B" ],
+        "components": [ "target", "sdk", "development", "qa", "tools" ],
         "expire": True,
         },
     "ubuntu": {
@@ -72,20 +49,22 @@ DISTRO_SOURCES = {
 
 DISTRO_TARGETS = {
     "SUITE_A-target": {
-        "distro": "SUITE_A-target",
-        "dist": None,
-        "component": None,
+        "distro": "DISTRO",
+        "dist": "SUITE_A",
+        "component": "target",
         "sources": [ "precise+updates", ] },
+        "commit": False
     "SUITE_A-sdk": {
-        "distro": "SUITE_A-sdk",
-        "dist": None,
-        "component": None,
+        "distro": "DISTRO",
+        "dist": "SUITE_A",
+        "component": "sdk",
         "sources": [ "precise+updates", ] },
-    "SUITE_A-devel": {
-        "distro": "SUITE_A-devel",
-        "dist": None,
-        "component": None,
-        "sources": [ "precise+updates", ] },
+        "commit": False
+    "SUITE_B-target": {
+        "distro": "DISTRO",
+        "dist": "SUITE_B",
+        "component": "target",
+        "sources": ["precise+updates", ] },
     }
 
 # Time format for RSS feeds
