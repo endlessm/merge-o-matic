@@ -52,14 +52,16 @@ DISTRO_TARGETS = {
         "distro": "DISTRO",
         "dist": "SUITE_A",
         "component": "target",
-        "sources": [ "precise+updates", ] },
+        "sources": [ "precise+updates", ],
         "commit": False
+    },
     "SUITE_A-sdk": {
         "distro": "DISTRO",
         "dist": "SUITE_A",
         "component": "sdk",
-        "sources": [ "precise+updates", ] },
+        "sources": [ "precise+updates", ],
         "commit": False
+    },
     "SUITE_B-target": {
         "distro": "DISTRO",
         "dist": "SUITE_B",
