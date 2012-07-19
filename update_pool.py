@@ -54,8 +54,8 @@ def main(options, args):
         d = Distro.get(our_distro)
         sources = []
         logging.info("Updating %s/%s/%s", d.name, our_dist, our_component)
-        d.updatePool(our_dist, our_component)
         d.updateSources(our_dist, our_component)
+        d.updatePool(our_dist, our_component)
         updated_sources.add((our_distro, our_dist, our_component))
         sources.extend(d.getSources(our_dist, our_component))
         for sourceName in DISTRO_TARGETS[target]['sources']:
