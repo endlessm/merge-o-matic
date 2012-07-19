@@ -310,6 +310,7 @@ class OBSDistro(Distro):
                 else:
                   break
               source = ControlFile(tmpName, multi_para=False, signed=True)
+              os.unlink(tmpName)
           if source is None:
             logging.error("%s/%s did not have a .dsc file.", self.obsProject(dist, component), package)
           else:
