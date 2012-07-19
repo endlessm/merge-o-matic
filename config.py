@@ -436,7 +436,13 @@ class Package(object):
 
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, data):
-    super(OBSPackage, self).__init__(distro, dist, component, data['name'])
+    sources = distro.getSources(dist, component)
+    source = None
+    for s in sources:
+      if s["Package"] == data['name']:
+        source = s
+        break
+    super(OBSPackage, self).__init__(distro, dist, component, data['name'], source)
     self.files = data['files']
     self.name = data['name']
     self.obsName = data['obs-name']
