@@ -174,7 +174,12 @@ class DebianDistro(Distro):
     return map(lambda x:self.package(dist, component, x["Package"]), sources)
 
   def package(self, dist, component, name):
-    return Package(self, dist, component, nem)
+    source = None
+    for s in self.getSources(dist, component):
+      if s['Package'] == name:
+        source = s
+        break
+    return Package(self, dist, component, name, source)
 
   def updatePool(self, dist, component, package=None):
     mirror = self.config("mirror")
