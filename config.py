@@ -235,9 +235,9 @@ class OBSDistro(Distro):
       packages = self.packages(dist, component)
     for package in packages:
       logging.info("Updating %s", package)
-      pkgDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.name))
+      pkgDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName))
       if not path.isdir('/'.join((pkgDir, '.osc'))):
-        osccore.checkout_package(self.config("obs", "url"), self.obsProject(dist, component), package.name, prj_dir='/'.join((self.oscDirectory(), self.obsProject(dist, component))))
+        osccore.checkout_package(self.config("obs", "url"), self.obsProject(dist, component), package.obsName, prj_dir='/'.join((self.oscDirectory(), self.obsProject(dist, component))))
       else:
         try:
           p = osccore.Package(pkgDir)
