@@ -260,7 +260,7 @@ class OBSDistro(Distro):
     except:
       self.update(dist, component)
 
-  def updateOBSCache(self):
+  def updateOBSCache(self, dist, component):
     if len(self._obsCache) > 0:
       return
     ensure(os.path.expanduser("~/.mom-cache/"))
@@ -270,57 +270,53 @@ class OBSDistro(Distro):
       logging.debug("Reusing json cache")
       cache = json.load(open(cacheFile, 'r'))
       self._obsCache = cache['data']
-      if cache['complete']:
-        return
     finished = False
     logging.info("Updating cache")
-    for dist in self.dists():
-      if not dist in self._obsCache:
-        self._obsCache[dist] = {}
-      for component in self.components():
-        if not component in self._obsCache[dist]:
-          self._obsCache[dist][component] = {}
-        obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
-        for package in obsPackageList:
-          if package in self._obsCache[dist][component]:
-            logging.debug("Re-using metadata for %s/%s", self.obsProject(dist, component), package)
-            continue          
-          logging.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), package)
-          source = None
-          files = []
-          filelist = []
+    if not dist in self._obsCache:
+      self._obsCache[dist] = {}
+    if not component in self._obsCache[dist]:
+      self._obsCache[dist][component] = {}
+    obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
+    for package in obsPackageList:
+      if package in self._obsCache[dist][component]:
+        logging.debug("Re-using metadata for %s/%s", self.obsProject(dist, component), package)
+        continue          
+      logging.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), package)
+      source = None
+      files = []
+      filelist = []
+      while True:
+        try:
+          filelist = osccore.meta_get_filelist(self.config("obs", "url"), self.obsProject(dist, component), package)
+          break
+        except KeyboardInterrupt, e:
+          raise e
+        except:
+          continue
+      for filename in filelist:
+        files.append(filename)
+        if filename[-4:] == ".dsc":
+          tmpHandle, tmpName = tempfile.mkstemp()
+          os.close(tmpHandle)
+          logging.debug("Downloading %s to %s", filename, tmpName)
           while True:
-            try:
-              filelist = osccore.meta_get_filelist(self.config("obs", "url"), self.obsProject(dist, component), package)
+            osccore.get_source_file(self.config("obs", "url"), self.obsProject(dist, component), package, filename, targetfilename=tmpName)
+            if os.stat(tmpName).st_size == 0:
+              logging.warn("Couldn't download %s. Retrying.", filename)
+            else:
               break
-            except KeyboardInterrupt, e:
-              raise e
-            except:
-              continue
-          for filename in filelist:
-            files.append(filename)
-            if filename[-4:] == ".dsc":
-              tmpHandle, tmpName = tempfile.mkstemp()
-              os.close(tmpHandle)
-              logging.debug("Downloading %s to %s", filename, tmpName)
-              while True:
-                osccore.get_source_file(self.config("obs", "url"), self.obsProject(dist, component), package, filename, targetfilename=tmpName)
-                if os.stat(tmpName).st_size == 0:
-                  logging.warn("Couldn't download %s. Retrying.", filename)
-                else:
-                  break
-              source = ControlFile(tmpName, multi_para=False, signed=True)
-              os.unlink(tmpName)
-          if source is None:
-            logging.error("%s/%s did not have a .dsc file.", self.obsProject(dist, component), package)
-          else:
-            logging.debug("%s -> %s", package, source.para["Source"])
-            self._obsCache[dist][component][source.para["Source"]] = {
-              "name": source.para["Source"],
-              "obs-name": package,
-              "files": files
-            }
-            self._saveCache()
+          source = ControlFile(tmpName, multi_para=False, signed=True)
+          os.unlink(tmpName)
+      if source is None:
+        logging.error("%s/%s did not have a .dsc file.", self.obsProject(dist, component), package)
+      else:
+        logging.debug("%s -> %s", package, source.para["Source"])
+        self._obsCache[dist][component][source.para["Source"]] = {
+          "name": source.para["Source"],
+          "obs-name": package,
+          "files": files
+        }
+        self._saveCache()
     self._saveCache(True)
 
   def _saveCache(self, finished=False):
@@ -333,7 +329,7 @@ class OBSDistro(Distro):
     
 
   def package(self, dist, component, name):
-    self.updateOBSCache()
+    self.updateOBSCache(dist, component)
     return OBSPackage(self, dist, component, self._obsCache[dist][component][name])
 
   def updatePool(self, dist, component, package=None):
@@ -393,7 +389,7 @@ class OBSDistro(Distro):
     return OBSDistro(name, self)
 
   def packages(self, dist, component):
-    self.updateOBSCache()
+    self.updateOBSCache(dist, component)
     return map(lambda x:self.package(dist, component, x), self._obsCache[dist][component].iterkeys())
 
   def sourcesURL(self, dist, component):
