@@ -379,7 +379,7 @@ class OBSDistro(Distro):
 
     # For some reason, if we try to write directly to the gzipped stream,
     # it gets corrupted at the end
-    with open(self.sourcesFile(dist, component), "w") as f:
+    with open(self.sourcesFile(dist, component, False), "w") as f:
         shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, pool_name(self.name))), chdir=ROOT, stdout=f)
     with open(self.sourcesFile(dist, component)) as f:
         with gzip.open(sources_filename, "wb") as gzf:
