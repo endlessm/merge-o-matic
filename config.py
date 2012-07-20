@@ -234,6 +234,25 @@ class OBSDistro(Distro):
       logging.info("Checking out %s", package)
       if not path.isdir('/'.join((self.oscDirectory(), package, '.osc'))):
         osccore.checkout_package(self.config("obs", "url"), self.obsProject(), package, prj_dir='/'.join((self.oscDirectory(), self.obsProject())))
+        self._validateCheckout(package)
+
+  def _validateCheckout(self, package):
+    oscDir = '/'.join((self.oscDirectory(dist, component), self.obsProject(dist, component), package, '.osc'))
+    files = osccore.meta_get_filelist(self.config('obs', 'url'), self.obsProject(dist, component), package)
+    while True:
+      needsRebuild = False
+      for f in files:
+        size = os.stat(oscDir+'/'+f).st_size
+        if size == 0:
+          os.unlink(oscDir+'/'+f)
+          os.unlink(oscDir+'../'+f)
+          needsRebuild = True
+      if needsRebuild:
+        logging.warn("%s wasn't checked out properly. Attempting to rebuild.", package)
+        pkg = osccore.Package(oscDir+'/../', wc_check=False)
+        pkg.wc_repair(self.config('obs', 'url')
+      else:
+        break
 
   def update(self, dist, component, packages=[]):
     if len(packages) == 0:
@@ -258,6 +277,7 @@ class OBSDistro(Distro):
           raise e
         except:
           logging.exception("Couldn't update %s.", package)
+      self._validateCheckout(package)
 
   def sync(self, dist, component):
     try:
