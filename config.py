@@ -234,9 +234,9 @@ class OBSDistro(Distro):
       logging.info("Checking out %s", package)
       if not path.isdir('/'.join((self.oscDirectory(), package, '.osc'))):
         osccore.checkout_package(self.config("obs", "url"), self.obsProject(), package, prj_dir='/'.join((self.oscDirectory(), self.obsProject())))
-        self._validateCheckout(package)
+        self._validateCheckout(dist, component, package)
 
-  def _validateCheckout(self, package):
+  def _validateCheckout(self, dist, component, package):
     oscDir = '/'.join((self.oscDirectory(dist, component), self.obsProject(dist, component), package, '.osc'))
     files = osccore.meta_get_filelist(self.config('obs', 'url'), self.obsProject(dist, component), package)
     while True:
@@ -277,7 +277,7 @@ class OBSDistro(Distro):
           raise e
         except:
           logging.exception("Couldn't update %s.", package)
-      self._validateCheckout(package)
+      self._validateCheckout(dist, component, package)
 
   def sync(self, dist, component):
     try:
