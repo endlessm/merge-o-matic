@@ -636,6 +636,8 @@ def unpack_source(source):
     else:
         raise ValueError, "Missing dsc file"
 
+    logging.info("Unpacking %s/%s", srcdir, dsc_file)
+
     ensure(destdir)
     try:
         # output directory for "dpkg-source -x" must not exist
