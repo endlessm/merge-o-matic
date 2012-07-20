@@ -23,7 +23,7 @@ DISTROS = {
         },
         "mirror": "http://SERVER:82/debian/",
         "dists": [ "SUITE_A", "SUITE_B" ],
-        "components": [ "target", "sdk", "development", "qa", "tools" ],
+        "components": [ "target", "sdk", "development" ],
         "expire": True,
         },
     "ubuntu": {
@@ -62,12 +62,32 @@ DISTRO_TARGETS = {
         "sources": [ "precise+updates", ],
         "commit": False
     },
+    "SUITE_A-development": {
+        "distro": "DISTRO",
+        "dist": "SUITE_A",
+        "component": "development",
+        "sources": [ "precise+updates", ],
+        "commit": False
+    },
     "SUITE_B-target": {
         "distro": "DISTRO",
         "dist": "SUITE_B",
         "component": "target",
-        "sources": ["precise+updates", ] },
-    }
+        "sources": ["precise+updates", ]
+    },
+    "SUITE_B-sdk": {
+        "distro": "DISTRO",
+        "dist": "SUITE_B",
+        "component": "sdk",
+        "sources": ["precise+updates", ]
+    },
+    "SUITE_B-development": {
+        "distro": "DISTRO",
+        "dist": "SUITE_B",
+        "component": "development",
+        "sources": ["precise+updates", ]
+    },
+}
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
