@@ -250,7 +250,7 @@ class OBSDistro(Distro):
       if needsRebuild:
         logging.warn("%s wasn't checked out properly. Attempting to rebuild.", package)
         pkg = osccore.Package(oscDir+'/../', wc_check=False)
-        pkg.wc_repair(self.config('obs', 'url')
+        pkg.wc_repair(self.config('obs', 'url'))
       else:
         break
 
