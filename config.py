@@ -220,25 +220,25 @@ class OBSDistro(Distro):
   def branchPackage(self, packageName):
     assert(not(self.parent is None))
     exists, targetprj, targetpkg, srcprj, srcpkg = \
-      osccore.branch_pkg(self.config("obs", "url"), self.parent.obsProject(), \
-        packageName, target_project=self.obsProject())
+      osccore.branch_pkg(self.config("obs", "url"), self.parent.obsProject(dist, component), \
+        packageName, target_project=self.obsProject(dist, component))
 
   def checkout(self, dist, component, packages=[]):
     if path.isdir('/'.join((self.oscDirectory(), '.osc'))):
       return
-    osccore.Project.init_project(self.config("obs", "url"), self.oscDirectory(), self.obsProject())
+    osccore.Project.init_project(self.config("obs", "url"), self.oscDirectory(), self.obsProject(dist, component))
     if len(packages) == 0:
       packages = self.packages(dist, component)
 
     for package in packages:
       logging.info("Checking out %s", package)
       if not path.isdir('/'.join((self.oscDirectory(), package, '.osc'))):
-        osccore.checkout_package(self.config("obs", "url"), self.obsProject(), package, prj_dir='/'.join((self.oscDirectory(), self.obsProject())))
+        osccore.checkout_package(self.config("obs", "url"), self.obsProject(dist, component), package, prj_dir='/'.join((self.oscDirectory(), self.obsProject(dist, component))))
         self._validateCheckout(dist, component, package)
 
   def _validateCheckout(self, dist, component, package):
-    oscDir = '/'.join((self.oscDirectory(dist, component), self.obsProject(dist, component), package, '.osc'))
-    files = osccore.meta_get_filelist(self.config('obs', 'url'), self.obsProject(dist, component), package)
+    oscDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName, '.osc'))
+    files = osccore.meta_get_filelist(self.config('obs', 'url'), self.obsProject(dist, component), package.obsName)
     while True:
       needsRebuild = False
       for f in files:
