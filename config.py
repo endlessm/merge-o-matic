@@ -281,9 +281,12 @@ class OBSDistro(Distro):
 
   def sync(self, dist, component):
     try:
+      logging.debug("Attempting checkout of %s", self)
       self.checkout(dist, component)
     except:
-      self.update(dist, component)
+      pass
+    logging.debug("Attempting update of %s", self)
+    self.update(dist, component)
 
   def updateOBSCache(self, dist, component):
     if len(self._obsCache) > 0:
