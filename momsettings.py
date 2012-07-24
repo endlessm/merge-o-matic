@@ -32,12 +32,12 @@ DISTROS = {
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
-    "debian": {
-        "mirror": "http://ftp.uk.debian.org/debian",
-        "dists": [ "unstable", "testing", "testing-proposed-updates", "experimental" ],
-        "components": [ "main", "contrib", "non-free" ],
-        "expire": True,
-        },
+#    "debian": {
+#        "mirror": "http://ftp.uk.debian.org/debian",
+#        "dists": [ "unstable", "testing", "testing-proposed-updates", "experimental" ],
+#        "components": [ "main", "contrib", "non-free" ],
+#        "expire": True,
+#        },
     }
 
 DISTRO_SOURCES = {

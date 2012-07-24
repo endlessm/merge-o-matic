@@ -306,7 +306,7 @@ class OBSDistro(Distro):
       self._obsCache[dist][component] = {}
     obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
     for package in obsPackageList:
-      if package in map(lambda x:x['obs-name'], self._obsCache[dist][component]):
+      if package in map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues()):
         continue          
       logging.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), package)
       source = None
