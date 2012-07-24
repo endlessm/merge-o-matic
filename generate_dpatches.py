@@ -22,6 +22,7 @@ import logging
 
 from momlib import *
 from util import tree
+from config import Distro
 
 
 def options(parser):
@@ -48,20 +49,22 @@ def main(options, args):
             dists = DISTROS[distro]["dists"]
         else:
             dists = [target_dist]
+        d = Distro.get(distro)
         for dist in dists:
             if options.target is None:
                 components = DISTROS[distro]["components"]
             else:
                 components = [target_component]
             for component in components:
-                for source in get_newest_sources(distro, dist, component):
+                for source in d.newestSources(dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
                     if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
 
-                    sources = get_pool_sources(distro, source["Package"])
+                    pkg = d.package(dist, component, source['Package'])
+                    sources = pkg.getSources()
                     version_sort(sources)
 
                     for source in sources:
