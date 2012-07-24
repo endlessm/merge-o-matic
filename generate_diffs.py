@@ -22,6 +22,7 @@ import logging
 
 from momlib import *
 from util import tree
+from config import Distro
 
 
 def options(parser):
@@ -44,24 +45,26 @@ def main(options, args):
     # For latest version of each package in the given distributions, iterate the pool in order
     # and generate a diff from the previous version and a changes file
     for distro in distros:
+        d = Distro.get(distro)
         if options.target is None:
-            dists = DISTROS[distro]["dists"]
+            dists = d.config("dists")
         else:
             dists = [target_dist]
         for dist in dists:
             if options.target is None:
-                components = DISTROS[distro]["components"]
+                components = d.config('components')
             else:
                 components = [target_component]
             for component in components:
-                for source in get_newest_sources(distro, dist, component):
+                for source in d.newestSources(dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue
                     if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
 
-                    sources = get_pool_sources(distro, source["Package"])
+                    pkg = d.package(dist, component, source['Package'])
+                    sources = pkg.getSources()
                     version_sort(sources)
 
                     last = None

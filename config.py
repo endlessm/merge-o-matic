@@ -452,6 +452,14 @@ class Package(object):
   def version(self):
     return Version(self.source["Version"])
 
+  def sourcesFile(self):
+    return '%s/%s/Sources'%(get('ROOT'), self.poolDirectory())
+
+  def getSources(self):
+    filename = self.sourcesFile()
+    sources = ControlFile(filename, multi_para=True, signed=False)
+    return sources.paras
+
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):
     mergedVersion = Version(upstream.version()+"co1")
