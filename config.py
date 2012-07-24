@@ -291,12 +291,10 @@ class OBSDistro(Distro):
     self.update(dist, component)
 
   def updateOBSCache(self, dist, component):
-    if len(self._obsCache) > 0:
-      return
     ensure(os.path.expanduser("~/.mom-cache/"))
     cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
     expireTime = time.time()-3600
-    if os.path.isfile(cacheFile) and os.stat(cacheFile).st_mtime > expireTime:
+    if os.path.isfile(cacheFile) and os.stat(cacheFile).st_mtime > expireTime and len(self._obsCache) == 0:
       logging.debug("Reusing json cache")
       cache = json.load(open(cacheFile, 'r'))
       self._obsCache = cache['data']
