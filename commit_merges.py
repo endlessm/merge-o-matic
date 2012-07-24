@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from momlib import *
+from config import Distro, OBSDistro
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -35,9 +36,10 @@ def main(options, args):
 
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        if "obs" not in DISTROS[our_distro]:
+        d = Distro.get(our_distro)
+        if not isinstance(d, OBSDistro):
             continue
-        for source in get_newest_sources(our_distro, our_dist, our_component):
+        for source in d.newestSources(our_dist, our_component):
             if options.package is not None \
                 and source["Package"] not in options.package:
                 continue
@@ -55,31 +57,47 @@ def main(options, args):
                 logging.warning("Empty merged file list in %s/REPORT" % output_dir)
                 continue
 
-            if "commit" in DISTROS[our_distro]["obs"] and not DISTROS[our_distro]["obs"]["commit"]:
-                try:
-                    with open("%s/REPORT" % output_dir, "a") as r:
-                        print >>r
-                        print >>r, "Merge committed: NO (by momsettings configuration)"
-                except:
-                    pass
-                continue
+            package = d.package(our_dist, our_component, report['package'])
+            if config.get("DISTRO_TARGETS", target, "commit", default=False):
+              logging.info("Committing changes to %s", package)
+              package.commit('Automatic update by Merge-O-Matic')
+            else:
+              branch = d.branch("merge-o-matic")
+              branch.updatePool()
+              branchPkg = branch.package(our_dist, our_component, report['package'])
+              logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
+              for f in branchPkg.files():
+                os.unlink('%s/%s'%(branchPkg.obsDir(), f))
+              for f in filepaths:
+                shutil.copy2(f, branchPkg.obsDir())
+              #branchPkg.commit('Automatic update by Merge-O-Matic')
+              #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
 
-            try:
-                if obs_commit_files(our_distro, report["package"], filepaths):
-                    with open("%s/REPORT" % output_dir, "a") as r:
-                        print >>r
-                        print >>r, "Merge committed: YES"
-            except (ValueError, OSError) as e:
-                eargs = ""
-                if e.args:
-                    eargs = " ".join([str(x) for x in e.args])
-                logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, eargs))
-                try:
-                    with open("%s/REPORT" % output_dir, "a") as r:
-                        print >>r
-                        print >>r, "Merge committed: NO (failed: %s)" % eargs
-                except:
-                    pass
+#            if "commit" in DISTROS[our_distro]["obs"] and not DISTROS[our_distro]["obs"]["commit"]:
+#                try:
+#                    with open("%s/REPORT" % output_dir, "a") as r:
+#                        print >>r
+#                        print >>r, "Merge committed: NO (by momsettings configuration)"
+#                except:
+#                    pass
+#                continue
+#
+#            try:
+#                if obs_commit_files(our_distro, report["package"], filepaths):
+#                    with open("%s/REPORT" % output_dir, "a") as r:
+#                        print >>r
+#                        print >>r, "Merge committed: YES"
+#            except (ValueError, OSError) as e:
+#                eargs = ""
+#                if e.args:
+#                    eargs = " ".join([str(x) for x in e.args])
+#                logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, eargs))
+#                try:
+#                    with open("%s/REPORT" % output_dir, "a") as r:
+#                        print >>r
+#                        print >>r, "Merge committed: NO (failed: %s)" % eargs
+#                except:
+#                    pass
     
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",

@@ -480,5 +480,22 @@ class OBSPackage(Package):
   def obsDir(self):
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))
 
-  def commitMerge(self):
-    pass
+  def commit(self):
+    pkg = osccore.Package(self.obsDir())
+    pkg.todo = list(set(pkg.filenamelist + pkg.filenamelist_unvers + pkg.to_be_added))
+    for filename in pkg.todo:
+      if os.path.isdir(filename):
+          continue
+      # ignore foo.rXX, foo.mine for files which are in 'C' state
+      if os.path.splitext(filename)[0] in pkg.in_conflict:
+          continue
+      state = pkg.status(filename)
+      if state == '?':
+          # TODO: should ignore typical backup files suffix ~ or .orig
+          pkg.addfile(filename)
+      elif state == '!':
+          pkg.delete_file(filename)
+          logging.info('D: %s', getTransActPath(os.path.join(pkg.dir, filename)))
+
+  def submitMergeRequest(self, upstreamDistro, msg):
+    osccore.create_submit_request(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist, self.component), self.obsName, upstreamDistro, self.obsName, msg)
