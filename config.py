@@ -290,7 +290,7 @@ class OBSDistro(Distro):
     logging.debug("Attempting update of %s", self)
     self.update(dist, component)
 
-  def updateOBSCache(self, dist, component):
+  def updateOBSCache(self, dist, component, package=None):
     ensure(os.path.expanduser("~/.mom-cache/"))
     cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
     expireTime = time.time()-3600
@@ -299,14 +299,17 @@ class OBSDistro(Distro):
       cache = json.load(open(cacheFile, 'r'))
       self._obsCache = cache['data']
     finished = False
-    logging.info("Updating cache")
     if not dist in self._obsCache:
       self._obsCache[dist] = {}
     if not component in self._obsCache[dist]:
       self._obsCache[dist][component] = {}
+    foundPackages = map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues())
+    if package in foundPackages:
+      return
+    logging.info("Updating cache")
     obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
     for package in obsPackageList:
-      if package in map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues()):
+      if package in foundPackages:
         continue          
       logging.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), package)
       source = None
@@ -356,7 +359,7 @@ class OBSDistro(Distro):
     
 
   def package(self, dist, component, name):
-    self.updateOBSCache(dist, component)
+    self.updateOBSCache(dist, component, name)
     return OBSPackage(self, dist, component, self._obsCache[dist][component][name])
 
   def updatePool(self, dist, component, package=None):
