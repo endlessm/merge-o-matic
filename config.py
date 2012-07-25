@@ -237,9 +237,7 @@ class OBSDistro(Distro):
         self._validateCheckout(dist, component, package)
 
   def _validateCheckout(self, dist, component, package):
-    return True
     oscDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName, '.osc'))
-    #FIXME: Why does this crash?!
     files = osccore.meta_get_filelist(self.config('obs', 'url'), self.obsProject(dist, component), package.obsName)
     while True:
       needsRebuild = False
