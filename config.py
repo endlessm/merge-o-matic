@@ -512,4 +512,4 @@ class OBSPackage(Package):
     branch = self.distro.branch(projectBranch)
     shell.run(("osc", "--traceback", "-A", self.distro.config('obs', 'url'), "branch", self.distro.obsProject(self.dist, self.component), self.obsName, branch.obsProject(self.dist, self.component)), stdout=sys.stdout, stderr=sys.stderr)
     #osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component))
-    return branch.package(self.name)
+    return branch.package(self.dist, self.component, self.name)
