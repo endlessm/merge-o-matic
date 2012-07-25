@@ -63,9 +63,9 @@ def main(options, args):
               logging.info("Committing changes to %s", package)
               #package.commit('Automatic update by Merge-O-Matic')
             else:
-              branch = d.branch("merge-o-matic")
+              branchPkg = package.branch("home:momtest:branches")
+              branch = branchPkg.distro
               branch.updatePool(our_dist, our_component)
-              branchPkg = branch.package(our_dist, our_component, report['package'])
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
               for f in branchPkg.files():
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))

@@ -507,3 +507,8 @@ class OBSPackage(Package):
 
   def submitMergeRequest(self, upstreamDistro, msg):
     osccore.create_submit_request(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist, self.component), self.obsName, upstreamDistro, self.obsName, msg)
+
+  def branch(self, projectBranch):
+    branch = self.distro.branch(projectBranch)
+    osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component))
+    return branch.package(self.name)
