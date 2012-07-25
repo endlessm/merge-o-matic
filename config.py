@@ -515,4 +515,6 @@ class OBSPackage(Package):
     except:
       pass
     #osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component))
+    branch.updatePool(self.dist, self.component)
+    branch.updateSources(self.dist, self.component)
     return branch.package(self.dist, self.component, self.name)

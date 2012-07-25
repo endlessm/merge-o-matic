@@ -66,8 +66,6 @@ def main(options, args):
               logging.debug("Branching %s", package)
               branchPkg = package.branch("home:momtest:branches")
               branch = branchPkg.distro
-              branch.updatePool(our_dist, our_component)
-              branch.updateSources(our_dist, our_component)
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
               for f in branchPkg.files():
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
