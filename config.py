@@ -474,14 +474,22 @@ class Package(object):
 
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, data):
-    sources = distro.getSources(dist, component)
-    source = None
-    for s in sources:
-      if s["Package"] == data['name']:
-        source = s
-        break
+    self.files = osccore.meta_get_filelist(distro.config('obs', 'url'), distro.obsProject(dist, component), data['obs-name'])
+    for filename in self.files:
+      if filename[-4:] == ".dsc":
+        tmpHandle, tmpName = tempfile.mkstemp()
+        os.close(tmpHandle)
+        logging.debug("Downloading %s to %s", filename, tmpName)
+        while True:
+          osccore.get_source_file(distro.config("obs", "url"), distro.obsProject(dist, component), data['obs-name'], filename, targetfilename=tmpName)
+          if os.stat(tmpName).st_size == 0:
+            logging.warn("Couldn't download %s. Retrying.", filename)
+          else:
+            break
+        source = ControlFile(tmpName, multi_para=False, signed=True)
+        os.unlink(tmpName)
+
     super(OBSPackage, self).__init__(distro, dist, component, data['name'], source)
-    self.files = data['files']
     self.name = data['name']
     self.obsName = data['obs-name']
   
