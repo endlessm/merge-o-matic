@@ -63,6 +63,7 @@ def main(options, args):
               logging.info("Committing changes to %s", package)
               #package.commit('Automatic update by Merge-O-Matic')
             else:
+              logging.debug("Branching %s", package)
               branchPkg = package.branch("home:momtest:branches")
               branch = branchPkg.distro
               branch.updatePool(our_dist, our_component)
