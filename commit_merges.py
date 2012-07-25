@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from momlib import *
+import config
 from config import Distro, OBSDistro
 
 def options(parser):
@@ -60,10 +61,10 @@ def main(options, args):
             package = d.package(our_dist, our_component, report['package'])
             if config.get("DISTRO_TARGETS", target, "commit", default=False):
               logging.info("Committing changes to %s", package)
-              package.commit('Automatic update by Merge-O-Matic')
+              #package.commit('Automatic update by Merge-O-Matic')
             else:
               branch = d.branch("merge-o-matic")
-              branch.updatePool()
+              branch.updatePool(our_dist, our_component)
               branchPkg = branch.package(our_dist, our_component, report['package'])
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
               for f in branchPkg.files():
