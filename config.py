@@ -238,14 +238,15 @@ class OBSDistro(Distro):
 
   def _validateCheckout(self, dist, component, package):
     oscDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName, '.osc'))
-    files = osccore.meta_get_filelist(self.config('obs', 'url'), self.obsProject(dist, component), package.obsName)
+    pkg = osccore.Package(oscDir+'/../')
+    files = pkg.filelist
     while True:
       needsRebuild = False
       for f in files:
-        size = os.stat(oscDir+'/'+f).st_size
+        size = os.stat(oscDir+'/'+f.name).st_size
         if size == 0:
-          os.unlink(oscDir+'/'+f)
-          os.unlink(oscDir+'../'+f)
+          os.unlink(oscDir+'/'+f.name)
+          os.unlink(oscDir+'../'+f.name)
           needsRebuild = True
       if needsRebuild:
         logging.warn("%s wasn't checked out properly. Attempting to rebuild.", package)
