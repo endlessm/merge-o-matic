@@ -480,7 +480,7 @@ class OBSPackage(Package):
         os.close(tmpHandle)
         logging.debug("Downloading %s to %s", filename, tmpName)
         while True:
-          osccore.get_source_file(distro.config("obs", "url"), distro.obsProject(dist, component), data['obs-name'], filename, targetfilename=tmpName)
+          osccore.get_source_file(distro.config("obs", "url"), distro.obsProject(dist, component), str(data['obs-name']), filename, targetfilename=tmpName)
           if os.stat(tmpName).st_size == 0:
             logging.warn("Couldn't download %s. Retrying.", filename)
           else:
@@ -490,7 +490,7 @@ class OBSPackage(Package):
 
     super(OBSPackage, self).__init__(distro, dist, component, data['name'], source)
     self.name = data['name']
-    self.obsName = data['obs-name']
+    self.obsName = str(data['obs-name'])
   
   def obsDir(self):
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))
