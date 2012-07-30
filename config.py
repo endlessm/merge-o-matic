@@ -23,7 +23,6 @@ import tempfile
 import json
 import time
 import urllib
-from util import shell, tree
 from os import path
 import osc.conf
 osc.conf.get_config()
@@ -518,11 +517,7 @@ class OBSPackage(Package):
 
   def branch(self, projectBranch):
     branch = self.distro.branch(projectBranch)
-    try:
-      shell.run(("osc", "--traceback", "-A", self.distro.config('obs', 'url'), "branch", self.distro.obsProject(self.dist, self.component), self.obsName, branch.obsProject(self.dist, self.component)), stdout=sys.stdout, stderr=sys.stderr)
-    except:
-      pass
-    #osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component))
+    osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component))
     branch.updatePool(self.dist, self.component)
     branch.updateSources(self.dist, self.component)
     return branch.package(self.dist, self.component, self.name)
