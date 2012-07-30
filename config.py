@@ -399,7 +399,7 @@ class OBSDistro(Distro):
 
     os.path.walk("%s/pool/%s" % (ROOT, self.poolName()), walker, None)
 
-    sources_filename = self.sourcesFile(None, None)
+    sources_filename = self.sourcesFile(dist, component)
     logging.info("Updating %s", tree.subdir(ROOT, sources_filename))
     if not os.path.isdir(os.path.dirname(sources_filename)):
         os.makedirs(os.path.dirname(sources_filename))
@@ -408,7 +408,7 @@ class OBSDistro(Distro):
     # it gets corrupted at the end
     with open(self.sourcesFile(dist, component, False), "w") as f:
         shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, self.poolName())), chdir=ROOT, stdout=f)
-    with open(self.sourcesFile(dist, component)) as f:
+    with open(self.sourcesFile(dist, component, False)) as f:
         with gzip.open(sources_filename, "wb") as gzf:
             gzf.write(f.read())
 
