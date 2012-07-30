@@ -67,7 +67,7 @@ def main(options, args):
               branchPkg = package.branch("home:momtest:branches:%s"%(d.name))
               branch = branchPkg.distro
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
-              for f in branchPkg.files():
+              for f in branchPkg.files:
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
               for f in filepaths:
                 shutil.copy2(f, branchPkg.obsDir())
