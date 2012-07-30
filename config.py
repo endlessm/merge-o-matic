@@ -498,7 +498,7 @@ class OBSPackage(Package):
   def obsDir(self):
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))
 
-  def commit(self):
+  def commit(self, message):
     pkg = osccore.Package(self.obsDir())
     pkg.todo = list(set(pkg.filenamelist + pkg.filenamelist_unvers + pkg.to_be_added))
     for filename in pkg.todo:
@@ -514,6 +514,7 @@ class OBSPackage(Package):
       elif state == '!':
           pkg.delete_file(filename)
           logging.info('D: %s', getTransActPath(os.path.join(pkg.dir, filename)))
+    pkg.commit(message)
 
   def submitMergeRequest(self, upstreamDistro, msg):
     osccore.create_submit_request(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist, self.component), self.obsName, upstreamDistro, self.obsName, msg)
