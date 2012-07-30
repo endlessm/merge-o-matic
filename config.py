@@ -165,6 +165,9 @@ class Distro(object):
     logging.info("Saved %s", tree.subdir(ROOT, filename))
     return filename
 
+  def poolName(self):
+    return self.config('pool', default=self.name)
+
 class DebianDistro(Distro):
   def __init__(self, name, parent=None):
     super(DebianDistro, self).__init__(name, parent)
@@ -394,7 +397,7 @@ class OBSDistro(Distro):
         p = self.package(dist, component, package)
         pool_copy(p)
 
-    os.path.walk("%s/pool/%s" % (ROOT, pool_name(self.name)), walker, None)
+    os.path.walk("%s/pool/%s" % (ROOT, self.poolName()), walker, None)
 
     sources_filename = self.sourcesFile(None, None)
     logging.info("Updating %s", tree.subdir(ROOT, sources_filename))
@@ -404,7 +407,7 @@ class OBSDistro(Distro):
     # For some reason, if we try to write directly to the gzipped stream,
     # it gets corrupted at the end
     with open(self.sourcesFile(dist, component, False), "w") as f:
-        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, pool_name(self.name))), chdir=ROOT, stdout=f)
+        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, self.poolName())), chdir=ROOT, stdout=f)
     with open(self.sourcesFile(dist, component)) as f:
         with gzip.open(sources_filename, "wb") as gzf:
             gzf.write(f.read())
@@ -443,7 +446,7 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
-    return "pool/%s/%s/%s" % (pool_name(self.distro.name), pathhash(self.name), self.name)
+    return "pool/%s/%s/%s" % (self.distro.poolName(), pathhash(self.name), self.name)
 
   def commitMerge(self):
     pass
