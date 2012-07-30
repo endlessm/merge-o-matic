@@ -474,7 +474,7 @@ class Package(object):
 
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, data):
-    self.files = osccore.meta_get_filelist(distro.config('obs', 'url'), distro.obsProject(dist, component), data['obs-name'])
+    self.files = osccore.meta_get_filelist(distro.config('obs', 'url'), distro.obsProject(dist, component), str(data['obs-name']))
     for filename in self.files:
       if filename[-4:] == ".dsc":
         tmpHandle, tmpName = tempfile.mkstemp()
