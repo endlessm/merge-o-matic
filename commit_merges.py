@@ -71,7 +71,7 @@ def main(options, args):
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
               for f in filepaths:
                 shutil.copy2(f, branchPkg.obsDir())
-              #branchPkg.commit('Automatic update by Merge-O-Matic')
+              branchPkg.commit('Automatic update by Merge-O-Matic')
               #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
 
 #            if "commit" in DISTROS[our_distro]["obs"] and not DISTROS[our_distro]["obs"]["commit"]:
