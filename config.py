@@ -503,7 +503,7 @@ class OBSPackage(Package):
           pkg.addfile(filename)
       elif state == '!':
           pkg.delete_file(filename)
-          logging.info('D: %s', getTransActPath(os.path.join(pkg.dir, filename)))
+          logging.info('D: %s', os.path.join(pkg.dir, filename))
     pkg.commit(message)
 
   def submitMergeRequest(self, upstreamDistro, msg):
