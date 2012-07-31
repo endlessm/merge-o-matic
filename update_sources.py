@@ -20,6 +20,7 @@
 import sys
 import os
 
+from config import Distro
 from momlib import *
 
 
@@ -31,14 +32,11 @@ def main(options, args):
 
     # Iterate the pool directory of the given distributions
     for distro in distros:
-        try:
-            hparts = os.listdir("%s/pool/%s" % (ROOT, distro))
-        except OSError, e:
-            print >>sys.stderr, e, "(continuing)"
-            continue
-        for hpart in hparts:
-            for package in os.listdir("%s/pool/%s/%s" % (ROOT, distro, hpart)):
-                update_pool_sources(distro, package)
+        d = Distro.get(distro)
+        for component in d.components():
+          for dist in d.dists():
+            for p in d.packages(dist, component):
+              p.updatePoolSource()
 
 
 if __name__ == "__main__":

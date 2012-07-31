@@ -477,6 +477,15 @@ class Package(object):
       if left_version < right_version:
         ensure("%s/%s" % (output_dir, "REPORT"))
 
+  def updatePoolSource(self):
+    pooldir = self.poolDirectory()
+    filename = self.sourcesFile()
+
+    logging.info("Updating %s", filename)
+    with open(filename, "w") as sources:
+        shell.run(("apt-ftparchive", "sources", pooldir), chdir=get('ROOT'),
+                  stdout=sources)
+
 
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, data):
