@@ -163,7 +163,9 @@ class Distro(object):
         raise
 
     logging.info("Saved %s", tree.subdir(ROOT, filename))
-    return filename
+    with gzip.open(self.sourcesFile(dist, component)) as gzf:
+        with open(self.sourcesFile(dist, component, False), "wb") as f:
+            f.write(gzf.read())
 
   def poolName(self):
     return self.config('pool', default=self.name)
