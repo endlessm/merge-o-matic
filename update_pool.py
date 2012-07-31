@@ -64,15 +64,7 @@ def main(options, args):
             sourceDistro = Distro.get(source["distro"])
             for component in sourceDistro.components():
               sourceDistro.updateSources(distname, component)
-              totalPackages = len(d.packages(our_dist, our_component))
-              upstreamPackages = len(sourceDistro.packages(distname, component))
-              packageSavings = len(sourceDistro.packages(distname, component)) - len(d.packages(our_dist, our_component))
-              logging.info("Downloading %d/%d packages", totalPackages, upstreamPackages)
-              finishedPackages = 0
-              for pkg in d.packages(our_dist, our_component):
-                logging.info("%d/%d: Updating %s in upstream %s pool", finishedPackages, totalPackages, pkg.name, sourceDistro)
-                finishedPackages += 1
-                sourceDistro.updatePool(distname, component, pkg.name)
+              sourceDistro.updatePool(distname, component)
 
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
