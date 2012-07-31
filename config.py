@@ -346,7 +346,8 @@ class OBSDistro(Distro):
         self._obsCache[dist][component][source.para["Source"]] = {
           "name": source.para["Source"],
           "obs-name": package,
-          "files": files
+          "files": files,
+          "version": source.para['Version']
         }
         self._saveCache()
     self._saveCache(True)
@@ -430,14 +431,14 @@ class OBSDistro(Distro):
     return url
 
 class Package(object):
-  def __init__(self, distro, dist, component, name, source):
+  def __init__(self, distro, dist, component, name, version):
     super(Package, self).__init__()
     self.distro = distro
     self.name = name
     self.dist = dist
     self.component = component
     self.files = []
-    self.source = source
+    self.version = version
 
   def __unicode__(self):
     return '/'.join((str(self.distro), self.dist, self.component, self.name))
@@ -452,6 +453,7 @@ class Package(object):
     pass
 
   def version(self):
+    return self.version
     return Version(self.source["Version"])
 
   def sourcesFile(self):
@@ -476,31 +478,8 @@ class Package(object):
 
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, data):
-    self.files = None
-    while True:
-      try:
-        self.files = osccore.meta_get_filelist(distro.config('obs', 'url'), distro.obsProject(dist, component), str(data['obs-name']))
-      except:
-        pass
-      if self.files is None:
-        continue
-      else:
-        break
-    for filename in self.files:
-      if filename[-4:] == ".dsc":
-        tmpHandle, tmpName = tempfile.mkstemp()
-        os.close(tmpHandle)
-        logging.debug("Downloading %s to %s", filename, tmpName)
-        while True:
-          osccore.get_source_file(distro.config("obs", "url"), distro.obsProject(dist, component), str(data['obs-name']), filename, targetfilename=tmpName)
-          if os.stat(tmpName).st_size == 0:
-            logging.warn("Couldn't download %s. Retrying.", filename)
-          else:
-            break
-        source = ControlFile(tmpName, multi_para=False, signed=True)
-        os.unlink(tmpName)
-
-    super(OBSPackage, self).__init__(distro, dist, component, data['name'], source)
+    super(OBSPackage, self).__init__(distro, dist, component, data['name'], data['version'])
+    self.files = data['files']
     self.name = data['name']
     self.obsName = str(data['obs-name'])
   
