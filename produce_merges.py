@@ -109,7 +109,7 @@ def main(options, args):
                     our_version = pkg.version
                 our_pool_source = pkg.getSources()[0]
                 logging.debug("%s: %s is %s", pkg, our_distro, our_version)
-            except IndexError:
+            except KeyError:
                 continue
 
             try:

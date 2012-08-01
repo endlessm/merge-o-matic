@@ -777,7 +777,7 @@ def read_report(output_dir):
     if report["merged_is_right"]:
         if report["right_distro"] is None:
             raise AttributeError, "Insufficient detail in report (source distro not specified)"
-        report["merged_dir"] = "%s/%s" % (ROOT, pool_directory(report["right_distro"], report["package"]))
+        report["merged_dir"] = ""
         report["merged_files"] = report["right_files"]
     else:
         report["merged_dir"] = output_dir

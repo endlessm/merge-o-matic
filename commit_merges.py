@@ -19,7 +19,7 @@
 
 from momlib import *
 import config
-from config import Distro, OBSDistro
+from config import Distro, OBSDistro, get
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -53,12 +53,12 @@ def main(options, args):
             except ValueError:
                 continue
 
-            filepaths = ["%s/%s" % (report["merged_dir"], f) for f in report["merged_files"]]
+            package = d.package(our_dist, our_component, report['package'])
+            filepaths = report['merged_files']
             if filepaths == []:
                 logging.warning("Empty merged file list in %s/REPORT" % output_dir)
                 continue
 
-            package = d.package(our_dist, our_component, report['package'])
             if config.get("DISTRO_TARGETS", target, "commit", default=False):
               logging.info("Committing changes to %s", package)
               #package.commit('Automatic update by Merge-O-Matic')
@@ -71,7 +71,7 @@ def main(options, args):
               for f in branchPkg.files:
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
               for f in filepaths:
-                shutil.copy2(f, branchPkg.obsDir())
+                shutil.copy2("%s/%s"%(result_dir(target, package.name), f), branchPkg.obsDir())
               branchPkg.commit('Automatic update by Merge-O-Matic')
               #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
 
