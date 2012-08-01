@@ -140,13 +140,13 @@ def uncompressed_sources_file(distro, dist, component):
 def sources_file(distro, dist, component):
     return uncompressed_sources_file(distro, dist, component) + ".gz"
 
-def pool_directory(distro, package):
+def pool_directory(distro, component, package):
     """Return the pool directory for a source"""
-    return "pool/%s/%s/%s" % (pool_name(distro), pathhash(package), package)
+    return "pool/%s/%s/%s/%s" % (pool_name(distro), component, pathhash(package), package)
 
-def pool_sources_file(distro, package):
+def pool_sources_file(distro, component, package):
     """Return the location of a pool Sources file for a source."""
-    pooldir = pool_directory(distro, package)
+    pooldir = pool_directory(distro, component, package)
     return "%s/%s/Sources" % (ROOT, pooldir)
 
 def unpack_directory(source):
@@ -506,11 +506,16 @@ def update_pool_sources(distro, package):
 
 def get_pool_sources(distro, package):
     """Parse the Sources file for a package in the pool."""
-    filename = pool_sources_file(distro, package)
-    sources = ControlFile(filename, multi_para=True, signed=False)
-    return sources.paras
+    for component in DISTROS[distro]['components']:
+      try:
+        filename = pool_sources_file(distro, component, package)
+        sources = ControlFile(filename, multi_para=True, signed=False)
+        return sources.paras
+      except:
+        pass
+    return []
 
-def get_pool_source(distro, package, version=None):
+def get_pool_source(distro, component,package, version=None):
     """Return the source for a particular version of a package."""
     sources = get_pool_sources(distro, package)
     if version is None:
@@ -550,7 +555,7 @@ def get_same_source(distro, dist, package):
         try:
             source = get_source(distro, dist, component, package)
             version = Version(source["Version"])
-            pool_source = get_pool_source(distro, package, version)
+            pool_source = get_pool_source(distro, component, package, version)
 
             return (source, version, pool_source)
         except IndexError:

@@ -32,6 +32,7 @@ from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
 from util import tree, shell
+from config import Distro
 
 
 # Regular expression for top of debian/changelog
@@ -88,7 +89,8 @@ def main(options, args):
     # produce a merge combining both sets of changes
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        for our_source in get_newest_sources(our_distro, our_dist, our_component):
+        d = Distro.get(our_distro)
+        for our_source in d.newestSources(our_dist, our_component):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue
@@ -100,46 +102,45 @@ def main(options, args):
                 continue
 
             try:
-                package = our_source["Package"]
+                pkg = d.package(our_dist, our_component, our_source['Package'])
                 if options.version:
                     our_version = Version(options.version)
                 else:
-                    our_version = Version(our_source["Version"])
-                our_pool_source = get_pool_source(our_distro, package,
-                                                our_version)
-                logging.debug("%s: %s is %s", package, our_distro, our_version)
+                    our_version = pkg.version
+                our_pool_source = pkg.getSources()[0]
+                logging.debug("%s: %s is %s", pkg, our_distro, our_version)
             except IndexError:
                 continue
 
             try:
                 if options.source_distro is None:
                     (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                                = PACKAGELISTS.find_in_source_distros(target, package)
+                                = PACKAGELISTS.find_in_source_distros(target, pkg.name)
                 else:
                     src_distro = options.source_distro
                     src_dist = options.source_suite
                     (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, package)
+                                = get_same_source(src_distro, src_dist, pkg.name)
 
-                logging.debug("%s: %s is %s", package, src_distro, src_version)
+                logging.debug("%s: %s is %s", pkg.name, src_distro, src_version)
             except IndexError:
                 continue
 
             try:
                 base = get_base(our_pool_source)
-                base_source = get_nearest_source(our_distro, src_distro, package, base)
+                base_source = get_nearest_source(our_distro, src_distro, pkg.name, base)
                 base_version = Version(base_source["Version"])
                 logging.debug("%s: base is %s (%s wanted)",
-                            package, base_version, base)
+                            pkg.name, base_version, base)
             except IndexError:
-                write_report(package, our_pool_source, our_distro, left_patch=None, base_source=None,
+                write_report(pkg.name, our_pool_source, our_distro, left_patch=None, base_source=None,
                     right_source=src_pool_source, right_distro=src_distro, right_patch=None,
-                    merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(target, package),
+                    merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(target, pkg.name),
                     merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
                 continue
 
             produce_merge(our_pool_source, our_distro, our_dist, base_source,
-                        src_pool_source, src_distro, src_dist, result_dir(target, package),
+                        src_pool_source, src_distro, src_dist, result_dir(target, pkg.name),
                         force=options.force)
 
 def is_build_metadata_changed(left_source, right_source):
