@@ -909,9 +909,9 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
             print >>report, fill("Failed to merge because the base version (%s) "
                                  "required for a 3-way diff is missing from %s pool. "
                                  "You will need to either merge manually; or add the "
-                                 "missing base version sources to '%s/%s/' and run "
+                                 "missing base version sources to '%s/%s/*/%s/' and run "
                                  "update_sources.py."
-                                 % (get_base(left_source), right_distro, ROOT, pool_directory(right_distro, package)))
+                                 % (get_base(left_source), right_distro, ROOT, right_distro, package))
             print >>report
         elif merged_is_right:
             print >>report, fill("The %s version supercedes the %s version "
