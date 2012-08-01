@@ -113,7 +113,7 @@ def copyfile(srcpath, dstpath, link=False, dereference=False):
     dstpath = as_file(dstpath)
     if exists(dstpath):
         if os.path.isdir(dstpath) and not os.path.islink(dstpath):
-            os.rmdir(dstpath)
+            shutil.rmtree(dstpath)
         else:
             os.unlink(dstpath)
 
