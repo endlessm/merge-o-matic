@@ -53,6 +53,10 @@ def main(options, args):
             except ValueError:
                 continue
 
+            
+            if report['merged_is_right']:
+              continue
+
             package = d.package(our_dist, our_component, report['package'])
             filepaths = report['merged_files']
             if filepaths == []:
