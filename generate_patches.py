@@ -23,6 +23,7 @@ from momlib import *
 from deb.version import Version
 from util import tree
 from re import search
+from config import Distro
 
 
 def options(parser):
@@ -55,7 +56,8 @@ def main(options, args):
     # create patches from that to both
     for target in targets:
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        for our_source in get_newest_sources(our_distro, our_dist, our_component):
+        d = Distro.get(our_distro)
+        for our_source in d.newestSources(our_dist, our_component):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue
@@ -66,12 +68,11 @@ def main(options, args):
                 continue
 
             try:
-                package = our_source["Package"]
-                our_version = Version(our_source["Version"])
-                our_pool_source = get_pool_source(our_distro, package,
-                                                our_version)
+                package = d.package(our_dist, our_component, our_source['Package'])
+                our_version = package.version
+                our_pool_source = package.getSources()
                 logging.debug("%s: %s is %s", package, our_distro, our_version)
-            except IndexError:
+            except KeyError:
                 continue
 
             try:
