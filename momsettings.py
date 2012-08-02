@@ -45,6 +45,10 @@ DISTRO_SOURCES = {
         { "distro": "ubuntu", "dist": "precise-updates" },
         { "distro": "ubuntu", "dist": "precise-security" },
         { "distro": "ubuntu", "dist": "precise" } ],
+    'quantal+updates': [
+        { "distro": "ubuntu", "dist": "quantal-updates" },
+        { "distro": "ubuntu", "dist": "quantal-security" },
+        { "distro": "ubuntu", "dist": "quantal" } ],
     }
 
 DISTRO_TARGETS = {}
@@ -61,7 +65,7 @@ def defineDist(name, upstream, commitable):
 
 defineDist('SUITE_A', 'precise+updates', False)
 defineDist('SUITE_B', 'precise+updates', False)
-defineDist('SUITE_C', 'precise+updates', False)
+defineDist('SUITE_C', 'quantal+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
