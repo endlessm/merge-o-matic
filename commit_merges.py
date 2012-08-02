@@ -69,13 +69,14 @@ def main(options, args):
               branch.updatePool(our_dist, our_component, report['package'])
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
               for f in branchPkg.files:
+                if f == "_link":
+                  continue
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
               if report['merged_is_right']:
                 srcDistro = Distro.get(report['right_distro'])
                 for upstream in DISTRO_TARGETS[target]['sources']:
                   for src in DISTRO_SOURCES[upstream]:
                     srcDistro = Distro.get(src['distro'])
-                    print srcDistro.components()
                     for component in srcDistro.components():
                       try:
                         pkg = srcDistro.package(src['dist'], component, package.name)
@@ -86,6 +87,8 @@ def main(options, args):
               else:
                 pfx = result_dir(target, package.name)
               for f in filepaths:
+                if f == "_link":
+                  continue
                 shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
               branchPkg.commit('Automatic update by Merge-O-Matic')
               #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
