@@ -53,10 +53,6 @@ def main(options, args):
             except ValueError:
                 continue
 
-            
-            if report['merged_is_right']:
-              continue
-
             package = d.package(our_dist, our_component, report['package'])
             filepaths = report['merged_files']
             if filepaths == []:
@@ -74,8 +70,23 @@ def main(options, args):
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
               for f in branchPkg.files:
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
+              if report['merged_is_right']:
+                srcDistro = Distro.get(report['right_distro'])
+                for upstream in DISTRO_TARGETS[target]['sources']:
+                  for src in DISTRO_SOURCES[upstream]:
+                    srcDistro = Distro.get(src['distro'])
+                    print srcDistro.components()
+                    for component in srcDistro.components():
+                      try:
+                        pkg = srcDistro.package(src['dist'], component, package.name)
+                        pfx = pkg.poolDirectory()
+                        break
+                      except:
+                        pass
+              else:
+                pfx = result_dir(target, package.name)
               for f in filepaths:
-                shutil.copy2("%s/%s"%(result_dir(target, package.name), f), branchPkg.obsDir())
+                shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
               branchPkg.commit('Automatic update by Merge-O-Matic')
               #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
 
