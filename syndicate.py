@@ -90,7 +90,7 @@ def main(options, args):
                     if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
 
-                    watermark = read_watermark(distro, source)
+                    watermark = read_watermark(distro, component, source)
                     sources = get_pool_sources(distro, source["Package"])
                     version_sort(sources)
 
@@ -162,7 +162,7 @@ def main(options, args):
 
                     write_rss(patch_rss_file(distro, source), this_patch_rss)
                     write_rss(diff_rss_file(distro, source), this_diff_rss)
-                    save_watermark(distro, source, this["Version"])
+                    save_watermark(distro, component, source, this["Version"])
 
     write_rss(patch_rss_file(), patch_rss)
     write_rss(diff_rss_file(), diff_rss)
@@ -411,20 +411,20 @@ def read_subscriptions():
 
     return subscriptions
 
-def read_watermark(distro, source):
+def read_watermark(distro, component, source):
     """Read the watermark for a given source."""
     mark_file = "%s/%s/watermark" \
-                % (ROOT, pool_directory(distro, source["Package"]))
+                % (ROOT, pool_directory(distro, component, source["Package"]))
     if not os.path.isfile(mark_file):
         return Version("0")
 
     with open(mark_file) as mark:
         return Version(mark.read().strip())
 
-def save_watermark(distro, source, version):
+def save_watermark(distro, component, source, version):
     """Save the watermark for a given source."""
     mark_file = "%s/%s/watermark" \
-                % (ROOT, pool_directory(distro, source["Package"]))
+                % (ROOT, pool_directory(distro, component, source["Package"]))
     with open(mark_file, "w") as mark:
         print >>mark, "%s" % version
 
