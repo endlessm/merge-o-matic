@@ -22,7 +22,7 @@ DISTROS = {
             "project": "DISTRO",
         },
         "mirror": "http://SERVER:82/debian/",
-        "dists": [ "SUITE_A", "SUITE_B" ],
+        "dists": [ "SUITE_A", "SUITE_B", "SUITE_C" ],
         "components": [ "target", "sdk", "development" ],
         "expire": True,
         },
@@ -47,47 +47,21 @@ DISTRO_SOURCES = {
         { "distro": "ubuntu", "dist": "precise" } ],
     }
 
-DISTRO_TARGETS = {
-    "SUITE_A-target": {
-        "distro": "DISTRO",
-        "dist": "SUITE_A",
-        "component": "target",
-        "sources": [ "precise+updates", ],
-        "commit": False
-    },
-    "SUITE_A-sdk": {
-        "distro": "DISTRO",
-        "dist": "SUITE_A",
-        "component": "sdk",
-        "sources": [ "precise+updates", ],
-        "commit": False
-    },
-    "SUITE_A-development": {
-        "distro": "DISTRO",
-        "dist": "SUITE_A",
-        "component": "development",
-        "sources": [ "precise+updates", ],
-        "commit": False
-    },
-    "SUITE_B-target": {
-        "distro": "DISTRO",
-        "dist": "SUITE_B",
-        "component": "target",
-        "sources": ["precise+updates", ]
-    },
-    "SUITE_B-sdk": {
-        "distro": "DISTRO",
-        "dist": "SUITE_B",
-        "component": "sdk",
-        "sources": ["precise+updates", ]
-    },
-    "SUITE_B-development": {
-        "distro": "DISTRO",
-        "dist": "SUITE_B",
-        "component": "development",
-        "sources": ["precise+updates", ]
-    },
-}
+DISTRO_TARGETS = {}
+
+def defineDist(name, upstream, commitable):
+  for component in DISTROS['DISTRO']['components']:
+    DISTRO_TARGETS["%s-%s"%(name, component)] = {
+      'distro': 'DISTRO',
+      'dist': name,
+      'component': component,
+      'sources': [ upstream, ],
+      'commit': commitable
+    }
+
+defineDist('SUITE_A', 'precise+updates', False)
+defineDist('SUITE_B', 'precise+updates', False)
+defineDist('SUITE_C', 'precise+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
