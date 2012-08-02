@@ -516,6 +516,7 @@ class OBSPackage(Package):
           pkg.delete_file(filename)
           logging.info('D: %s', os.path.join(pkg.dir, filename))
     pkg.commit(message)
+    del self.distro._obsCache[self.dist][self.component][self.name]
 
   def submitMergeRequest(self, upstreamDistro, msg):
     osccore.create_submit_request(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist, self.component), self.obsName, upstreamDistro, self.obsName, msg)
