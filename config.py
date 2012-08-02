@@ -376,6 +376,8 @@ class OBSDistro(Distro):
         if not os.path.isdir(pooldir):
             os.makedirs(pooldir)
         for f in package.files:
+            if f == '_link':
+              continue
             target = "%s/%s" % (pooldir, f)
             if os.path.lexists(target):
                 os.unlink(target)
