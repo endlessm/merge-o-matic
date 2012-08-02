@@ -251,7 +251,7 @@ class OBSDistro(Distro):
         size = os.stat(oscDir+'/'+f.name).st_size
         if size == 0:
           os.unlink(oscDir+'/'+f.name)
-          os.unlink(oscDir+'../'+f.name)
+          os.unlink(oscDir+'/../'+f.name)
           needsRebuild = True
       if needsRebuild:
         logging.warn("%s wasn't checked out properly. Attempting to rebuild.", package)
