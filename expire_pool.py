@@ -21,6 +21,7 @@ import logging
 
 from momlib import *
 from util import tree
+from config import Distro
 
 
 def main(options, args):
@@ -40,16 +41,17 @@ def main(options, args):
 
             for distro in distros:
                 if DISTROS[distro]["expire"]:
-                    expire_pool_sources(distro, source["Package"], base)
+                    for component in DISTROS[distro]['components']:
+                      expire_pool_sources(distro, component, source["Package"], base)
 
 
-def expire_pool_sources(distro, package, base):
+def expire_pool_sources(distro, component, package, base):
     """Remove sources older than the given base.
 
     If the base doesn't exist, then the newest source that is older is also
     kept.
     """
-    pooldir = pool_directory(distro, package)
+    pooldir = pool_directory(distro, component, package)
     try:
         sources = get_pool_sources(distro, package)
     except IOError:
@@ -102,9 +104,6 @@ def expire_pool_sources(distro, package, base):
             tree.remove("%s/%s/%s" % (ROOT, pooldir, name))
             logging.debug("Removed %s/%s", pooldir, name)
             need_update = True
-
-    if need_update:
-        update_pool_sources(distro, package)
 
 
 if __name__ == "__main__":
