@@ -93,32 +93,6 @@ def main(options, args):
               branchPkg.commit('Automatic update by Merge-O-Matic')
               #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
 
-#            if "commit" in DISTROS[our_distro]["obs"] and not DISTROS[our_distro]["obs"]["commit"]:
-#                try:
-#                    with open("%s/REPORT" % output_dir, "a") as r:
-#                        print >>r
-#                        print >>r, "Merge committed: NO (by momsettings configuration)"
-#                except:
-#                    pass
-#                continue
-#
-#            try:
-#                if obs_commit_files(our_distro, report["package"], filepaths):
-#                    with open("%s/REPORT" % output_dir, "a") as r:
-#                        print >>r
-#                        print >>r, "Merge committed: YES"
-#            except (ValueError, OSError) as e:
-#                eargs = ""
-#                if e.args:
-#                    eargs = " ".join([str(x) for x in e.args])
-#                logging.error("OBS commit for %s in %s failed: %s" % (report["package"], our_distro, eargs))
-#                try:
-#                    with open("%s/REPORT" % output_dir, "a") as r:
-#                        print >>r
-#                        print >>r, "Merge committed: NO (failed: %s)" % eargs
-#                except:
-#                    pass
-    
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
         description="commit merged packages to our repository")
