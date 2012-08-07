@@ -5,6 +5,7 @@ import os
 from os import path
 import urllib
 import error
+from deb.version import Version
 
 class DebianDistro(Distro):
   def __init__(self, name, parent=None):
@@ -18,7 +19,7 @@ class DebianDistro(Distro):
     source = None
     for s in self.getSources(dist, component):
       if s['Package'] == name:
-        return Package(self, dist, component, name, s)
+        return Package(self, dist, component, name, Version(s['Version']))
     raise error.PackageNotFound(dist, component, name)
 
   def updatePool(self, dist, component, package=None):

@@ -146,6 +146,8 @@ class Distro(object):
 class Package(object):
   def __init__(self, distro, dist, component, name, version):
     super(Package, self).__init__()
+    assert(isinstance(version, Version))
+    assert(isinstance(distro, Distro))
     self.distro = distro
     self.name = name
     self.dist = dist

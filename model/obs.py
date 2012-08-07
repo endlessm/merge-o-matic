@@ -242,7 +242,7 @@ class OBSDistro(Distro):
 
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, data):
-    super(OBSPackage, self).__init__(distro, dist, component, data['name'], data['version'])
+    super(OBSPackage, self).__init__(distro, dist, component, data['name'], Version(data['version']))
     self.files = data['files']
     self.name = data['name']
     self.obsName = str(data['obs-name'])
