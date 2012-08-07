@@ -118,9 +118,11 @@ def main(options, args):
                                 = PACKAGELISTS.find_in_source_distros(target, pkg.name)
                 else:
                     src_distro = options.source_distro
+                    src_d = Distro.get(src_distro)
+                    pkg = src_d.package(pkg.name)
                     src_dist = options.source_suite
                     (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, pkg.name)
+                                = pkg.getSource()
 
                 logging.debug("%s: %s is %s", pkg.name, src_distro, src_version)
             except IndexError:

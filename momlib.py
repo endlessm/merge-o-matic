@@ -56,10 +56,6 @@ MOM_CONFIG_PATH = "/etc/merge-o-matic"
 sys.path.insert(1, MOM_CONFIG_PATH)
 from momsettings import *
 sys.path.remove(MOM_CONFIG_PATH)
-    
-
-# Cache of parsed sources files
-SOURCES_CACHE = {}
 
 # Cache of mappings of Debian package names to OBS package names
 OBS_CACHE = {}
@@ -420,45 +416,6 @@ def obs_commit_files(distro, package, files):
         shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "submitreq", "--yes", "-m", "Automatic update by Merge-o-Matic"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
     return True
 
-# --------------------------------------------------------------------------- #
-# Sources file handling
-# --------------------------------------------------------------------------- #
-
-def get_sources(distro, dist, component):
-    """Parse a cached Sources file."""
-    global SOURCES_CACHE
-
-    filename = sources_file(distro, dist, component)
-    if filename not in SOURCES_CACHE:
-        SOURCES_CACHE[filename] = ControlFile(filename, multi_para=True,
-                                              signed=False)
-
-    return SOURCES_CACHE[filename].paras
-
-def get_newest_sources(distro, dist, component):
-    """Parse a cached Sources file, and return only the newest version of each package."""
-    sources = get_sources(distro, dist, component)
-    newest = {}
-    for source in sources:
-        package = source["Package"]
-        if package not in newest or Version(source["Version"]) > Version(newest[package]["Version"]):
-            newest[package] = source
-
-    return [newest[x] for x in sorted(newest.keys())]
-
-def get_source(distro, dist, component, package):
-    """Return the source for a package in a distro."""
-    sources = get_sources(distro, dist, component)
-    matches = []
-    for source in sources:
-        if source["Package"] == package:
-            matches.append(source)
-    if matches:
-        version_sort(matches)
-        return matches.pop()
-    else:
-        raise IndexError
-
 
 # --------------------------------------------------------------------------- #
 # Pool handling
@@ -535,21 +492,6 @@ def get_nearest_source(our_distro, src_distro, package, base):
         except (IOError, IndexError):
             version_sort(bases)
             return bases.pop()
-
-def get_same_source(distro, dist, package):
-    """Find the same source in another distribution."""
-    for component in DISTROS[distro]["components"]:
-        try:
-            source = get_source(distro, dist, component, package)
-            version = Version(source["Version"])
-            pool_source = get_pool_source(distro, component, package, version)
-
-            return (source, version, pool_source)
-        except IndexError:
-            pass
-    else:
-        raise IndexError, "%s not found in %s %s" % (package, distro, dist)
-
 
 # --------------------------------------------------------------------------- #
 # Source meta-data handling

@@ -22,6 +22,7 @@ import logging
 
 from momlib import *
 from util import tree
+from model import Distro
 
 
 def options(parser):
@@ -44,7 +45,8 @@ def main(options, args):
         # current version; publish if it exists, clean up if not
         for target in targets:
             our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-            for source in get_newest_sources(our_distro, our_dist, our_component):
+            d = Distro.get(our_distro)
+            for source in d.newestSources(our_dist, our_component):
                 package = source["Package"]
 
                 if not PACKAGELISTS.check_target(target, None, source["Package"]):

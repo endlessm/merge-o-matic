@@ -33,6 +33,7 @@ from smtplib import SMTP, SMTPSenderRefused, SMTPDataError
 from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
+from model import Distro
 
 
 def options(parser):
@@ -83,7 +84,8 @@ def main(options, args):
             else:
                 components = [target_component]
             for component in components:
-                for source in get_newest_sources(distro, dist, component):
+                d = Distro.get(distro)
+                for source in d.newestSources(dist, component):
                     if options.package is not None \
                            and source["Package"] not in options.package:
                         continue

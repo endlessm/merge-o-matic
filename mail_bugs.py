@@ -34,6 +34,7 @@ from smtplib import SMTP
 from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
+from model import Distro
 
 
 # Order of severities
@@ -59,7 +60,8 @@ def main(options, args):
     # changes file to obtain the list of closed bugs.
     for target in targets:
         distro, dist, component = get_target_distro_dist_component(target)
-        for source in get_newest_sources(distro, dist, component):
+        d = Distro.get(distro)
+        for source in d.newestSources(dist, component):
             package = source["Package"]
 
             watermark = read_watermark(distro, package)

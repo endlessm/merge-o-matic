@@ -24,6 +24,7 @@ import logging
 
 from momlib import *
 from deb.version import Version
+from model import Distro
 
 
 def options(parser):
@@ -61,7 +62,8 @@ def main(options, args):
         stats["repackaged"] = 0
         stats["modified"] = 0
 
-        for our_source in get_newest_sources(our_distro, our_dist, our_component):
+        d = Distro.get(our_distro)
+        for our_source in d.newestSources(our_dist, our_component):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue

@@ -25,6 +25,7 @@ import re
 
 from rfc822 import parseaddr
 from momlib import *
+from model import Distro
 
 
 # Order of priorities
@@ -60,7 +61,8 @@ def main(options, args):
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
         merges = []
 
-        for our_source in get_newest_sources(our_distro, our_dist, our_component):
+        d = Distro.get(our_distro)
+        for our_source in d.newestSources(our_dist, our_component)
             try:
                 package = our_source["Package"]
                 our_version = Version(our_source["Version"])

@@ -47,7 +47,8 @@ model_nonexe_files = \
 	model/__init__.py \
 	model/obs.py \
 	model/debian.py \
-	model/base.py
+	model/base.py \
+	model/error.py
 
 all_files = \
 	$(main_exe_files) \

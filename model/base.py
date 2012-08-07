@@ -168,7 +168,7 @@ class Package(object):
     sources = self.distro.getSources(self.dist, self.component)
     matches = []
     for source in sources:
-      if source['Package'] == self.name
+      if source['Package'] == self.name:
         matches.append(source)
     if matches:
       if version is None:
