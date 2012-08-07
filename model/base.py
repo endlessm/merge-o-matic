@@ -4,6 +4,8 @@ import os
 from os import path
 import logging
 import urllib
+from deb.controlfile import ControlFile
+from deb.version import Version
 
 class Distro(object):
   SOURCES_CACHE = {}

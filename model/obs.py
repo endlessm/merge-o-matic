@@ -14,6 +14,9 @@ from os import path
 import logging
 import error
 
+from deb.controlfile import ControlFile
+from deb.version import Version
+
 class OBSDistro(Distro):
   def __init__(self, name, parent=None):
     super(OBSDistro, self).__init__(name, parent)
