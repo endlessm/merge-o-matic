@@ -1,5 +1,5 @@
 import config
-from util import tree, pathhash
+from util import tree, pathhash, shell
 import os
 from os import path
 import logging
