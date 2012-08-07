@@ -968,8 +968,8 @@ def read_rss(filename, title, link, description):
 def write_rss(filename, rss):
     """Write out an RSS feed."""
     tree.ensure(filename)
-    tree = ElementTree.ElementTree(rss)
-    tree.write(filename + ".new")
+    etree = ElementTree.ElementTree(rss)
+    etree.write(filename + ".new")
     os.rename(filename + ".new", filename)
 
 def append_rss(rss, title, link, author=None, filename=None):
