@@ -47,6 +47,7 @@ from deb.version import Version
 from util import shell, tree, pathhash
 
 from model import Distro
+import model.error
 
 try:
     from xml.etree import ElementTree
@@ -860,14 +861,14 @@ class PackageLists(object):
                     source = pkg.getSources()
                     pool_source = pkg.getPoolSource()
                     version = pkg.version
-                except IndexError:
+                except model.error.PackageNotFound:
                     continue
                 if best is None or version > best[1]:
                     best = (source, version, pool_source, distro, dist)
             if best is not None:
                 return best
         else:
-            raise IndexError, "%s not found in any source groups for %s" % (package, target)
+            raise model.error.PackageNotFound, "%s not found in any source groups for %s" % (package, target)
 
     def add(self, target, src, package):
         """If src is None, the default source group is used"""

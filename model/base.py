@@ -7,6 +7,8 @@ import urllib
 from deb.controlfile import ControlFile
 from deb.version import Version
 
+import error
+
 class Distro(object):
   SOURCES_CACHE = {}
 
@@ -59,11 +61,11 @@ class Distro(object):
     raise NotImplementedError
 
   def findPackage(self, name, dist=None, component=None):
-    if dist is none:
+    if dist is None:
       dists = self.dists()
     else:
       dists = [dist,]
-    if component is none:
+    if component is None:
       components = self.components()
     else:
       components = [component,]
@@ -71,8 +73,9 @@ class Distro(object):
       for component in components:
         try:
           return self.package(dist, component, name)
-        except PackageNotFound:
+        except error.PackageNotFound:
           continue
+    raise error.PackageNotFound(name, dist, component)
 
   def package(self, dist, component, name):
     raise NotImplementedError
@@ -182,7 +185,7 @@ class Package(object):
         matches.append(source)
     if matches:
       if version is None:
-        version_sort(matches)
+        matches.sort(key=lambda x:Version(x['Version']))
         return matches.pop()
       else:
         for p in matches:
