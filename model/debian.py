@@ -1,5 +1,9 @@
 from model.base import Distro, Package
 from util import tree
+import logging
+import os
+from os import path
+import urllib
 
 class DebianDistro(Distro):
   def __init__(self, name, parent=None):

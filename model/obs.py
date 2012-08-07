@@ -5,6 +5,13 @@ from osc import oscerr
 
 from model.base import Distro, Package
 from util import tree
+import os
+import tempfile
+import json
+import time
+import urllib
+from os import path
+import logging
 
 class OBSDistro(Distro):
   def __init__(self, name, parent=None):
