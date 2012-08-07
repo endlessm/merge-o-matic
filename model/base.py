@@ -6,6 +6,8 @@ import logging
 import urllib
 
 class Distro(object):
+  SOURCES_CACHE = {}
+
   @staticmethod
   def all():
     ret = []
@@ -54,7 +56,15 @@ class Distro(object):
   def updatePool(self, dist, component, package=None):
     raise NotImplementedError
 
-  def package(self, name):
+  def findPackage(self, name):
+    for dist in self.dists():
+      for component in self.components():
+        try:
+          pkg = self.package(dist, component, name)
+        except PackageNotFound:
+          continue
+
+  def package(self, dist, component, name):
     raise NotImplementedError
 
   def branch(self, name):
@@ -88,14 +98,13 @@ class Distro(object):
 
   def getSources(self, dist, component):
     """Parse a cached Sources file."""
-    global SOURCES_CACHE
 
     filename = self.sourcesFile(dist, component)
-    if filename not in SOURCES_CACHE:
-        SOURCES_CACHE[filename] = ControlFile(filename, multi_para=True,
+    if filename not in Distro.SOURCES_CACHE:
+        Distro.SOURCES_CACHE[filename] = ControlFile(filename, multi_para=True,
                                               signed=False)
 
-    return SOURCES_CACHE[filename].paras
+    return Distro.SOURCES_CACHE[filename].paras
 
   def updateSources(self, dist, component):
     """Update a Sources file."""
@@ -119,6 +128,7 @@ class Distro(object):
 
   def poolName(self, component):
     return "%s/%s"%(self.config('pool', default=self.name), component)
+
 
 class Package(object):
   def __init__(self, distro, dist, component, name, version):
@@ -153,6 +163,25 @@ class Package(object):
     filename = self.sourcesFile()
     sources = ControlFile(filename, multi_para=True, signed=False)
     return sources.paras
+
+  def getPoolSource(self, version=None):
+    sources = self.distro.getSources(self.dist, self.component)
+    matches = []
+    for source in sources:
+      if source['Package'] == self.name
+        matches.append(source)
+    if matches:
+      if version is None:
+        version_sort(matches)
+        return matches.pop()
+      else:
+        for p in matches:
+          if version == p['Version']:
+            return p
+        else:
+          raise IndexError
+    else:
+      raise IndexError
 
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):

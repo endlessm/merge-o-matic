@@ -12,6 +12,7 @@ import time
 import urllib
 from os import path
 import logging
+import error
 
 class OBSDistro(Distro):
   def __init__(self, name, parent=None):
@@ -164,7 +165,10 @@ class OBSDistro(Distro):
 
   def package(self, dist, component, name):
     self.updateOBSCache(dist, component, name)
-    return OBSPackage(self, dist, component, self._obsCache[dist][component][name])
+    try:
+      return OBSPackage(self, dist, component, self._obsCache[dist][component][name])
+    except KeyError:
+      raise error.PackageNotFound(name, dist, component)
 
   def updatePool(self, dist, component, package=None):
     """Hardlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""

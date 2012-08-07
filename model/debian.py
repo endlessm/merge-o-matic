@@ -4,6 +4,7 @@ import logging
 import os
 from os import path
 import urllib
+import error
 
 class DebianDistro(Distro):
   def __init__(self, name, parent=None):
@@ -17,9 +18,8 @@ class DebianDistro(Distro):
     source = None
     for s in self.getSources(dist, component):
       if s['Package'] == name:
-        source = s
-        break
-    return Package(self, dist, component, name, source)
+        return Package(self, dist, component, name, s)
+    raise error.PackageNotFound(dist, component, name)
 
   def updatePool(self, dist, component, package=None):
     mirror = self.config("mirror")
