@@ -23,6 +23,7 @@ import logging
 from momlib import *
 from util import tree
 from model import Distro
+import model.error
 
 
 def options(parser):
@@ -63,7 +64,11 @@ def main(options, args):
                     if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
                         continue
 
-                    pkg = d.package(dist, component, source['Package'])
+                    try:
+                      pkg = d.package(dist, component, source['Package'])
+                    except model.error.PackageNotFound, e:
+                      logging.exception("FIXME: Spooky stuff going on with %s.", d)
+                      continue
                     sources = pkg.getSources()
                     version_sort(sources)
 

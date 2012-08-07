@@ -73,7 +73,8 @@ def main(options, args):
                 our_version = package.version
                 our_pool_source = package.getSources()
                 logging.debug("%s: %s is %s", package, our_distro, our_version)
-            except model.errors.PackageNotFound:
+            except model.error.PackageNotFound:
+                logging.exception("FIXME: Spooky stuff going on with %s.", d)
                 continue
 
             try:

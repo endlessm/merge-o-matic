@@ -35,6 +35,7 @@ def main(options, args):
         d = Distro.get(distro)
         for component in d.components():
           for dist in d.dists():
+            d.updateSources(dist, component)
             for p in d.packages(dist, component):
               p.updatePoolSource()
 
