@@ -58,11 +58,19 @@ class Distro(object):
   def updatePool(self, dist, component, package=None):
     raise NotImplementedError
 
-  def findPackage(self, name):
-    for dist in self.dists():
-      for component in self.components():
+  def findPackage(self, name, dist=None, component=None):
+    if dist is none:
+      dists = self.dists()
+    else:
+      dists = [dist,]
+    if component is none:
+      components = self.components()
+    else:
+      components = [component,]
+    for dist in dists:
+      for component in components:
         try:
-          pkg = self.package(dist, component, name)
+          return self.package(dist, component, name)
         except PackageNotFound:
           continue
 
