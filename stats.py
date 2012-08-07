@@ -26,6 +26,8 @@ from momlib import *
 from deb.version import Version
 from model import Distro
 
+import model.error
+
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
@@ -90,7 +92,7 @@ def main(options, args):
                                 = get_same_source(src_distro, src_dist, package)
 
                 logging.debug("%s: %s is %s", package, src_distro, src_version)
-            except IndexError:
+            except model.error.PackageNotFound:
                 logging.debug("%s: locally packaged", package)
                 stats["local"] += 1
                 continue
