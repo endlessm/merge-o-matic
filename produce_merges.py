@@ -167,7 +167,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
     if base_version >= left_version:
         cleanup(output_dir)
         if left_version < right_version:
-            ensure("%s/%s" % (output_dir, "REPORT"))
+            tree.ensure("%s/%s" % (output_dir, "REPORT"))
             write_report(package, left_source, left_distro, None, base_source,
                         right_source, right_distro, None,
                         merged_version, None, None, None,
@@ -538,7 +538,7 @@ def merge_po(left_dir, right_dir, merged_dir, filename):
 
     logging.debug("Merging PO file %s", filename)
     try:
-        ensure(merged_po)
+        tree.ensure(merged_po)
         shell.run(("msgmerge", "--force-po", "-o", merged_po,
                    "-C", left_po, right_po, closest_pot))
     except (ValueError, OSError):
@@ -556,7 +556,7 @@ def merge_pot(left_dir, right_dir, merged_dir, filename):
 
     logging.debug("Merging POT file %s", filename)
     try:
-        ensure(merged_pot)
+        tree.ensure(merged_pot)
         shell.run(("msgcat", "--force-po", "--use-first", "-o", merged_pot,
                    right_pot, left_pot))
     except (ValueError, OSError):
@@ -579,7 +579,7 @@ def merge_file(left_dir, left_name, left_distro, base_dir,
                right_dir, right_name, right_distro, merged_dir, filename):
     """Merge a file using diff3."""
     dest = "%s/%s" % (merged_dir, filename)
-    ensure(dest)
+    tree.ensure(dest)
 
     with open(dest, "w") as output:
         status = shell.run(("diff3", "-E", "-m",
@@ -753,7 +753,7 @@ def create_tarball(package, version, output_dir, merged_dir):
                                         version.without_epoch)
     contained = "%s-%s" % (package, version.without_epoch)
 
-    ensure("%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % ROOT)
     parent = tempfile.mkdtemp(dir="%s/tmp/" % ROOT)
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
@@ -774,7 +774,7 @@ def create_source(package, version, since, output_dir, merged_dir):
     contained = "%s-%s" % (package, version.upstream)
     filename = "%s_%s.dsc" % (package, version.without_epoch)
 
-    ensure("%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % ROOT)
     parent = tempfile.mkdtemp(dir="%s/tmp/" % ROOT)
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
@@ -837,7 +837,7 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
                  merged_dir, merged_is_right, build_metadata_changed):
     """Write the merge report."""
     filename = "%s/REPORT" % output_dir
-    ensure(filename)
+    tree.ensure(filename)
     with open(filename, "w") as report:
         # Package and time
         print >>report, "%s" % package

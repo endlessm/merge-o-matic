@@ -1,4 +1,5 @@
 import config
+from util import tree
 
 class Distro(object):
   @staticmethod
@@ -158,7 +159,7 @@ class Package(object):
     if base_version >= left_version:
       cleanup(output_dir)
       if left_version < right_version:
-        ensure("%s/%s" % (output_dir, "REPORT"))
+        tree.ensure("%s/%s" % (output_dir, "REPORT"))
 
   def updatePoolSource(self):
     pooldir = self.poolDirectory()

@@ -4,6 +4,7 @@ from osc import core as osccore
 from osc import oscerr
 
 from model.base import Distro, Package
+from util import tree
 
 class OBSDistro(Distro):
   def __init__(self, name, parent=None):
@@ -86,7 +87,7 @@ class OBSDistro(Distro):
     self.update(dist, component)
 
   def updateOBSCache(self, dist, component, package=None):
-    ensure(os.path.expanduser("~/.mom-cache/"))
+    tree.ensure(os.path.expanduser("~/.mom-cache/"))
     cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
     expireTime = time.time()-3600
     if os.path.isfile(cacheFile) and os.stat(cacheFile).st_mtime > expireTime and len(self._obsCache) == 0:
@@ -146,7 +147,7 @@ class OBSDistro(Distro):
     self._saveCache(True)
 
   def _saveCache(self, finished=False):
-    ensure(os.path.expanduser("~/.mom-cache/"))
+    tree.ensure(os.path.expanduser("~/.mom-cache/"))
     cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
     fh = open(cacheFile, 'w')
     json.dump({'complete': finished, 'data': self._obsCache}, fh)

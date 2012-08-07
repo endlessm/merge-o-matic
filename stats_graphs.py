@@ -212,7 +212,7 @@ def pie_chart(target, current):
                info_to_data(None, current))
 
     filename = "%s/merges/%s-now.png" % (ROOT, target)
-    ensure(filename)
+    tree.ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
         ar = area.T(size=(300,250), legend=None,
                     x_grid_style=None, y_grid_style=None)
@@ -242,7 +242,7 @@ def range_chart(target, history, start, today, events):
                      sources_intervals(max(d[-1] for d in data))
 
     filename = "%s/merges/%s-trend.png" % (ROOT, target)
-    ensure(filename)
+    tree.ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
         ar = area.T(size=(450,225), legend=legend.T(),
                     x_axis=axis.X(label="Date", format=ordinal_to_label,

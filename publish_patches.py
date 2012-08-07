@@ -37,7 +37,7 @@ def main(options, args):
 
     # Write to a new list
     list_filename = patch_list_file()
-    ensure(list_filename)
+    tree.ensure(list_filename)
     list_file = open(list_filename + ".new", "w")
     try:
         # For latest version of each package in the distribution, check for a patch for the
@@ -71,7 +71,7 @@ def publish_patch(distro, source, filename, list_file):
     """Publish the latest version of the patch for all to see."""
     publish_filename = published_file(distro, source)
 
-    ensure(publish_filename)
+    tree.ensure(publish_filename)
     if os.path.isfile(publish_filename):
         os.unlink(publish_filename)
     os.link(filename, publish_filename)
@@ -103,7 +103,7 @@ def publish_patch(distro, source, filename, list_file):
             dest_filename = "%s/%s" % (output, dpatch)
 
             logging.info("Published %s", tree.subdir(ROOT, dest_filename))
-            ensure(dest_filename)
+            tree.ensure(dest_filename)
             tree.copyfile(src_filename, dest_filename)
 
 def unpublish_patch(distro, source):

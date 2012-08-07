@@ -91,12 +91,6 @@ def quiet_callback(opt, value, parser, *args, **kwds):
 # Utility functions
 # --------------------------------------------------------------------------- #
 
-def ensure(path):
-    """Ensure that the parent directories for path exist."""
-    dirname = os.path.dirname(path)
-    if not os.path.isdir(dirname):
-        os.makedirs(dirname)
-
 def pathhash(path):
     """Return the path hash component for path."""
     if path.startswith("lib"):
@@ -309,7 +303,7 @@ def obs_is_checked_out(distro, package=None, homeBranch=False):
 
 def obs_checkout_or_update(distro, package=None, homeBranch=False):
     """If the distro and Debian package is not checked out, checkout via osc, else update"""
-    ensure(obs_directory(distro, homeBranch=homeBranch) + "/")
+    tree.ensure(obs_directory(distro, homeBranch=homeBranch) + "/")
 
     if not obs_is_checked_out(distro, homeBranch=homeBranch):
         if homeBranch:
@@ -643,7 +637,7 @@ def unpack_source(source):
 
     logging.info("Unpacking %s/%s", srcdir, dsc_file)
 
-    ensure(destdir)
+    tree.ensure(destdir)
     try:
         # output directory for "dpkg-source -x" must not exist
         if (os.path.isdir(destdir)):
@@ -673,7 +667,7 @@ def save_changes_file(filename, source, previous=None):
 
     filesdir = "%s/%s" % (ROOT, source["Directory"])
 
-    ensure(filename)
+    tree.ensure(filename)
     with open(filename, "w") as changes:
         cmd = ("dpkg-genchanges", "-S", "-u%s" % filesdir)
         orig_cmd = cmd
@@ -698,7 +692,7 @@ def save_patch_file(filename, last, this):
     lastdir = tree.subdir(diffdir, lastdir)
     thisdir = tree.subdir(diffdir, thisdir)
 
-    ensure(filename)
+    tree.ensure(filename)
     with open(filename, "w") as diff:
         shell.run(("diff", "-pruN", lastdir, thisdir),
                   chdir=diffdir, stdout=diff, okstatus=(0, 1, 2))
@@ -1038,7 +1032,7 @@ def read_rss(filename, title, link, description):
 
 def write_rss(filename, rss):
     """Write out an RSS feed."""
-    ensure(filename)
+    tree.ensure(filename)
     tree = ElementTree.ElementTree(rss)
     tree.write(filename + ".new")
     os.rename(filename + ".new", filename)

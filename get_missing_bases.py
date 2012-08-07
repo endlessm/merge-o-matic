@@ -23,6 +23,7 @@ import urllib
 from momlib import *
 from config import *
 from model import Distro
+from util import tree
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -106,7 +107,7 @@ def get_file(url, filename, size=None):
             return
 
     logging.debug("Downloading %s", url)
-    ensure(filename)
+    tree.ensure(filename)
     try:
         urllib.URLopener().retrieve(url, filename)
     except IOError as e:

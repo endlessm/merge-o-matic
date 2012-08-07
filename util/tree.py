@@ -200,3 +200,9 @@ def exists(path):
         return True
     else:
         return False
+
+def ensure(path):
+    """Ensure that the parent directories for path exist."""
+    dirname = os.path.dirname(path)
+    if not os.path.isdir(dirname):
+        os.makedirs(dirname)

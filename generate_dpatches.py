@@ -108,7 +108,7 @@ def extract_dpatches(dirname, source):
         src_filename = "%s/%s" % (patchdir, patch)
         dest_filename = "%s/%s" % (dirname, patch)
 
-        ensure(dest_filename)
+        tree.ensure(dest_filename)
         tree.copyfile(src_filename, dest_filename)
 
 

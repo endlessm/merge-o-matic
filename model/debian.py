@@ -1,4 +1,5 @@
 from model.base import Distro, Package
+from util import tree
 
 class DebianDistro(Distro):
   def __init__(self, name, parent=None):
@@ -36,7 +37,7 @@ class DebianDistro(Distro):
                   continue
 
           logging.debug("Downloading %s", url)
-          ensure(filename)
+          tree.ensure(filename)
           try:
               urllib.URLopener().retrieve(url, filename)
           except IOError:
