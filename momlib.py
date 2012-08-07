@@ -44,7 +44,7 @@ from optparse import OptionParser
 
 from deb.controlfile import ControlFile
 from deb.version import Version
-from util import shell, tree
+from util import shell, tree, pathhash
 
 try:
     from xml.etree import ElementTree
@@ -90,13 +90,6 @@ def quiet_callback(opt, value, parser, *args, **kwds):
 # --------------------------------------------------------------------------- #
 # Utility functions
 # --------------------------------------------------------------------------- #
-
-def pathhash(path):
-    """Return the path hash component for path."""
-    if path.startswith("lib"):
-        return path[:4]
-    else:
-        return path[:1]
 
 def cleanup(path):
     """Remove the path and any empty directories up to ROOT."""

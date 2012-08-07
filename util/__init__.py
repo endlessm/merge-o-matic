@@ -18,3 +18,11 @@
 
 from util import shell
 from util import tree
+
+def pathhash(path):
+    """Return the path hash component for path."""
+    if path.startswith("lib"):
+        return path[:4]
+    else:
+        return path[:1]
+
