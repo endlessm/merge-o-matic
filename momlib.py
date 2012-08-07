@@ -46,6 +46,8 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 from util import shell, tree, pathhash
 
+from model import Distro
+
 try:
     from xml.etree import ElementTree
 except ImportError:
@@ -852,8 +854,12 @@ class PackageLists(object):
             for sub_src in DISTRO_SOURCES[src]:
                 distro = sub_src["distro"]
                 dist = sub_src["dist"]
+                d = Distro.get(distro)
                 try:
-                    source, version, pool_source = get_same_source(distro, dist, package)
+                    pkg = d.findPackage(package, dist=dist)
+                    source = pkg.getSources()
+                    pool_source = pkg.getPoolSource()
+                    version = pkg.version
                 except IndexError:
                     continue
                 if best is None or version > best[1]:
