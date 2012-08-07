@@ -33,6 +33,7 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 from util import tree, shell
 from model import Distro
+import model.error
 
 
 # Regular expression for top of debian/changelog
@@ -109,7 +110,7 @@ def main(options, args):
                     our_version = pkg.version
                 our_pool_source = pkg.getSources()[0]
                 logging.debug("%s: %s is %s", pkg, our_distro, our_version)
-            except KeyError:
+            except model.error.PackageNotFound:
                 continue
 
             try:
@@ -121,11 +122,12 @@ def main(options, args):
                     src_d = Distro.get(src_distro)
                     pkg = src_d.package(pkg.name)
                     src_dist = options.source_suite
-                    (src_source, src_version, src_pool_source) \
-                                = pkg.getSource()
+                    src_source = pkg.getSources()[0]
+                    src_version = pkg.version
+                    src_pool_source = pkg.getPoolSource()
 
                 logging.debug("%s: %s is %s", pkg.name, src_distro, src_version)
-            except IndexError:
+            except model.error.PackageNotFound:
                 continue
 
             try:
