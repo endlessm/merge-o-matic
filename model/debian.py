@@ -6,6 +6,7 @@ from os import path
 import urllib
 import error
 from deb.version import Version
+import config
 
 class DebianDistro(Distro):
   def __init__(self, name, parent=None):
@@ -34,7 +35,7 @@ class DebianDistro(Distro):
 
       for md5sum, size, name in files(source):
           url = "%s/%s/%s" % (mirror, sourcedir, name)
-          filename = "%s/%s/%s" % (ROOT, pooldir, name)
+          filename = "%s/%s/%s" % (config.get('ROOT'), pooldir, name)
 
           if os.path.isfile(filename):
               if os.path.getsize(filename) == int(size):
@@ -48,5 +49,9 @@ class DebianDistro(Distro):
           except IOError:
               logging.error("Downloading %s failed", url)
               raise
-          logging.info("Saved %s", tree.subdir(ROOT, filename))
+          logging.info("Saved %s", tree.subdir(config.get('ROOT'), filename))
 
+def files(source):
+    """Return (md5sum, size, name) for each file."""
+    files = source["Files"].strip("\n").split("\n")
+    return [ f.split(None, 2) for f in files ]

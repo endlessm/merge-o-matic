@@ -4,15 +4,17 @@ from osc import core as osccore
 from osc import oscerr
 
 from model.base import Distro, Package
-from util import tree
+from util import tree, shell
 import os
 import tempfile
+import gzip
 import json
 import time
 import urllib
 from os import path
 import logging
 import error
+import config
 
 from deb.controlfile import ControlFile
 from deb.version import Version
@@ -23,7 +25,7 @@ class OBSDistro(Distro):
     self._obsCache = {}
 
   def oscDirectory(self):
-    return '/'.join((get("ROOT"), 'osc', self.name))
+    return '/'.join((config.get("ROOT"), 'osc', self.name))
 
   def branchPackage(self, packageName):
     assert(not(self.parent is None))
@@ -177,7 +179,7 @@ class OBSDistro(Distro):
     """Hardlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
     self.sync(dist, component)
     def pool_copy(package):
-        pooldir = "%s/%s" % (get("ROOT"), package.poolDirectory())
+        pooldir = "%s/%s" % (config.get("ROOT"), package.poolDirectory())
         obsdir = package.obsDir()
         if not os.path.isdir(pooldir):
             os.makedirs(pooldir)
@@ -199,7 +201,7 @@ class OBSDistro(Distro):
                 is_pooldir = True
             fullname = "%s/%s" % (dirname, filename)
             if not os.path.exists(fullname):
-                logging.info("Unlinking stale %s", tree.subdir(ROOT, fullname))
+                logging.info("Unlinking stale %s", tree.subdir(config.get('ROOT'), fullname))
                 os.unlink(fullname)    
     if package is None:
       for p in self.packages(dist, component):
@@ -208,17 +210,17 @@ class OBSDistro(Distro):
         p = self.package(dist, component, package)
         pool_copy(p)
 
-    os.path.walk("%s/pool/%s" % (ROOT, self.poolName(component)), walker, None)
+    os.path.walk("%s/pool/%s" % (config.get('ROOT'), self.poolName(component)), walker, None)
 
     sources_filename = self.sourcesFile(dist, component)
-    logging.info("Updating %s", tree.subdir(ROOT, sources_filename))
+    logging.info("Updating %s", tree.subdir(config.get('ROOT'), sources_filename))
     if not os.path.isdir(os.path.dirname(sources_filename)):
         os.makedirs(os.path.dirname(sources_filename))
 
     # For some reason, if we try to write directly to the gzipped stream,
     # it gets corrupted at the end
     with open(self.sourcesFile(dist, component, False), "w") as f:
-        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (ROOT, self.poolName(component))), chdir=ROOT, stdout=f)
+        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (config.get('ROOT'), self.poolName(component))), chdir=config.get('ROOT'), stdout=f)
     with open(self.sourcesFile(dist, component, False)) as f:
         with gzip.open(sources_filename, "wb") as gzf:
             gzf.write(f.read())

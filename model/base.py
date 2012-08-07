@@ -6,6 +6,7 @@ import logging
 import urllib
 from deb.controlfile import ControlFile
 from deb.version import Version
+import gzip
 
 import error
 
@@ -134,7 +135,7 @@ class Distro(object):
         logging.error("Downloading %s failed", url)
         raise
 
-    logging.info("Saved %s", tree.subdir(ROOT, filename))
+    logging.info("Saved %s", tree.subdir(config.get('ROOT'), filename))
     with gzip.open(self.sourcesFile(dist, component)) as gzf:
         with open(self.sourcesFile(dist, component, False), "wb") as f:
             f.write(gzf.read())
