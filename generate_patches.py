@@ -24,6 +24,7 @@ from deb.version import Version
 from util import tree
 from re import search
 from model import Distro
+import model.error
 
 
 def options(parser):
@@ -72,7 +73,7 @@ def main(options, args):
                 our_version = package.version
                 our_pool_source = package.getSources()
                 logging.debug("%s: %s is %s", package, our_distro, our_version)
-            except KeyError:
+            except model.errors.PackageNotFound:
                 continue
 
             try:
@@ -87,7 +88,7 @@ def main(options, args):
                                 = src_d.getSameSource(src_dist, package)
 
                 logging.debug("%s: %s is %s", package, src_d, src_version)
-            except IndexError:
+            except model.error.PackageNotFound:
                 continue
 
             try:
