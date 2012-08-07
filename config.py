@@ -30,7 +30,6 @@ sys.path.insert(1, MOM_CONFIG_PATH)
 import momsettings
 configdb = momsettings
 sys.path.remove(MOM_CONFIG_PATH)
-from momlib import *
 
 SOURCES_CACHE = {}
 
