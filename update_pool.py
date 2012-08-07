@@ -54,7 +54,6 @@ def main(options, args):
         d = Distro.get(our_distro)
         sources = []
         logging.info("Updating %s/%s/%s", d.name, our_dist, our_component)
-        d.updateSources(our_dist, our_component)
         d.updatePool(our_dist, our_component)
         updated_sources.add((our_distro, our_dist, our_component))
         sources.extend(d.getSources(our_dist, our_component))
@@ -63,7 +62,6 @@ def main(options, args):
             distname = source["dist"]
             sourceDistro = Distro.get(source["distro"])
             for component in sourceDistro.components():
-              sourceDistro.updateSources(distname, component)
               sourceDistro.updatePool(distname, component)
 
 if __name__ == "__main__":
