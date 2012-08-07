@@ -109,7 +109,7 @@ def main(options, args):
                 else:
                     our_version = pkg.version
                 our_pool_source = pkg.getSources()[0]
-                logging.debug("%s: %s is %s", pkg, our_distro, our_version)
+                logging.debug("our %s: %s is %s", pkg, d, our_version)
             except model.error.PackageNotFound:
                 continue
 
@@ -120,13 +120,13 @@ def main(options, args):
                 else:
                     src_distro = options.source_distro
                     src_d = Distro.get(src_distro)
-                    pkg = src_d.package(pkg.name)
+                    src_pkg = src_d.package(pkg.name)
                     src_dist = options.source_suite
-                    src_source = pkg.getSources()[0]
-                    src_version = pkg.version
-                    src_pool_source = pkg.getPoolSource()
+                    src_source = src_pkg.getSources()[0]
+                    src_version = src_pkg.version
+                    src_pool_source = src_pkg.getPoolSource()
 
-                logging.debug("%s: %s is %s", pkg.name, src_distro, src_version)
+                logging.debug("source %s: %s is %s", pkg.name, src_distro, src_version)
             except model.error.PackageNotFound:
                 continue
 
