@@ -43,11 +43,18 @@ util_nonexe_files = \
 	util/shell.py \
 	util/tree.py
 
+model_nonexe_files = \
+	model/__init__.py \
+	model/obs.py \
+	model/debian.py \
+	model/base.py
+
 all_files = \
 	$(main_exe_files) \
 	$(main_nonexe_files) \
 	$(deb_nonexe_files) \
 	$(util_nonexe_files) \
+	$(model_nonexe_files) \
 	COPYING \
 	cron.daily \
 	Makefile \
@@ -66,6 +73,7 @@ install: $(all_files)
 	install -m 0755 $(main_exe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	install -m 0644 $(deb_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/deb
 	install -m 0644 $(util_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/util
+	install -m 0644 $(model_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/model
 	[[ x"$(PY_COMPILE)" = xyes ]] && \
 		$(PYTHON) -m compileall -q -d "$(PREFIX)/$(LIBDIR)"/merge-o-matic -x 'addcomment.py|main.py' \
 		"$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
@@ -96,4 +104,5 @@ $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 	install -m 0755 $(main_exe_files) "$(PACKAGE_NAME)-$(VERSION)"
 	install -m 0644 $(deb_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/deb
 	install -m 0644 $(util_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/util
+	install -m 0644 $(model_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/model
 	tar --format=ustar -chf - "$(PACKAGE_NAME)-$(VERSION)" | bzip2 -c > ""$(PACKAGE_NAME)-$(VERSION)".tar.bz2"

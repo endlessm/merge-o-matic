@@ -20,7 +20,7 @@
 import sys
 import os
 
-from config import Distro
+from model import Distro
 from momlib import *
 
 

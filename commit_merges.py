@@ -19,7 +19,7 @@
 
 from momlib import *
 import config
-from config import Distro, OBSDistro, get
+from model import Distro, OBSDistro
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",

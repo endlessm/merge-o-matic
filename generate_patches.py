@@ -23,7 +23,7 @@ from momlib import *
 from deb.version import Version
 from util import tree
 from re import search
-from config import Distro
+from model import Distro
 
 
 def options(parser):

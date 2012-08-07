@@ -32,7 +32,7 @@ from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
 from util import tree, shell
-from config import Distro
+from model import Distro
 
 
 # Regular expression for top of debian/changelog

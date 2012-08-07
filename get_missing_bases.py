@@ -22,6 +22,7 @@ import sys
 import urllib
 from momlib import *
 from config import *
+from model import Distro
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",

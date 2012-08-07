@@ -22,7 +22,7 @@ import logging
 
 from momlib import *
 from util import tree
-from config import Distro
+from model import Distro
 
 
 def options(parser):
