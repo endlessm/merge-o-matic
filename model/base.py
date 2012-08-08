@@ -215,6 +215,7 @@ class Package(object):
     filename = self.sourcesFile()
 
     logging.info("Updating %s", filename)
+    tree.ensure(pooldir)
     with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
                   stdout=sources)
