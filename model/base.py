@@ -187,18 +187,16 @@ class Package(object):
     for source in sources:
       if source['Package'] == self.name:
         matches.append(source)
-    if matches:
-      if version is None:
-        matches.sort(key=lambda x:Version(x['Version']))
-        return matches.pop()
-      else:
-        for p in matches:
-          if version == p['Version']:
-            return p
-        else:
-          raise IndexError
+    assert(len(matches) > 0)
+    if version is None:
+      matches.sort(key=lambda x:Version(x['Version']))
+      return matches.pop()
     else:
-      raise IndexError
+      for p in matches:
+        if version == p['Version']:
+          return p
+      else:
+        raise error.PackageVersionNotFound(self, version)
 
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):
