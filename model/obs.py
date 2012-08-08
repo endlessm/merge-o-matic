@@ -175,56 +175,6 @@ class OBSDistro(Distro):
     except KeyError:
       raise error.PackageNotFound(name, dist, component)
 
-  def updatePool(self, dist, component, package=None):
-    """Hardlink sources checked out from osc into pool, update Sources, and clear stale symlinks"""
-    self.sync(dist, component)
-    def pool_copy(package):
-        pooldir = "%s/%s" % (config.get("ROOT"), package.poolDirectory())
-        obsdir = package.obsDir()
-        if not os.path.isdir(pooldir):
-            os.makedirs(pooldir)
-        for f in package.files:
-            if f == '_link':
-              continue
-            target = "%s/%s" % (pooldir, f)
-            if os.path.lexists(target):
-                os.unlink(target)
-            # Hardlink instead of symlink because we want to preserve files in the pool for diffs
-            # even after they are removed from obs checkouts
-            logging.debug("Linking %s/%s to pool %s", obsdir, f, target)
-            os.link("%s/%s" % (obsdir, f), target)
-
-    def walker(arg, dirname, filenames):
-        is_pooldir = False
-        for filename in filenames:
-            if filename[-4:] == ".dsc" or filename == "Sources" or filename == "Sources.gz":
-                is_pooldir = True
-            fullname = "%s/%s" % (dirname, filename)
-            if not os.path.exists(fullname):
-                logging.info("Unlinking stale %s", tree.subdir(config.get('ROOT'), fullname))
-                os.unlink(fullname)    
-    if package is None:
-      for p in self.packages(dist, component):
-        pool_copy(p)
-    else:
-        p = self.package(dist, component, package)
-        pool_copy(p)
-
-    os.path.walk("%s/pool/%s" % (config.get('ROOT'), self.poolName(component)), walker, None)
-
-    sources_filename = self.sourcesFile(dist, component)
-    logging.info("Updating %s", tree.subdir(config.get('ROOT'), sources_filename))
-    if not os.path.isdir(os.path.dirname(sources_filename)):
-        os.makedirs(os.path.dirname(sources_filename))
-
-    # For some reason, if we try to write directly to the gzipped stream,
-    # it gets corrupted at the end
-    with open(self.sourcesFile(dist, component, False), "w") as f:
-        shell.run(("apt-ftparchive", "sources", "%s/pool/%s" % (config.get('ROOT'), self.poolName(component))), chdir=config.get('ROOT'), stdout=f)
-    with open(self.sourcesFile(dist, component, False)) as f:
-        with gzip.open(sources_filename, "wb") as gzf:
-            gzf.write(f.read())
-
   def obsProject(self, dist, component):
     if self.parent:
       return "%s:%s"%(self.name, self.parent.obsProject(dist, component))

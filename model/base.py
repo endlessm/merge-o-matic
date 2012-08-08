@@ -59,7 +59,32 @@ class Distro(object):
     return url + "/source/Sources.gz"
 
   def updatePool(self, dist, component, package=None):
-    raise NotImplementedError
+    mirror = self.config("mirror")
+    sources = self.getSources(dist, component)
+    for source in sources:
+      if package != source["Package"] and not (package is None):
+        continue
+      sourcedir = source["Directory"]
+
+      pooldir = self.package(dist, component, source["Package"]).poolDirectory()
+
+      for md5sum, size, name in files(source):
+          url = "%s/%s/%s" % (mirror, sourcedir, name)
+          filename = "%s/%s/%s" % (config.get('ROOT'), pooldir, name)
+
+          if os.path.isfile(filename):
+              if os.path.getsize(filename) == int(size):
+                  logging.debug("Skipping %s, already downloaded.", filename)
+                  continue
+
+          logging.debug("Downloading %s", url)
+          tree.ensure(filename)
+          try:
+              urllib.URLopener().retrieve(url, filename)
+          except IOError:
+              logging.error("Downloading %s failed", url)
+              raise
+          logging.info("Saved %s", tree.subdir(config.get('ROOT'), filename))
 
   def findPackage(self, name, dist=None, component=None):
     if dist is None:
@@ -219,6 +244,11 @@ class Package(object):
     with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
                   stdout=sources)
+
+def files(source):
+    """Return (md5sum, size, name) for each file."""
+    files = source["Files"].strip("\n").split("\n")
+    return [ f.split(None, 2) for f in files ]
 
 import model.debian
 import model.obs
