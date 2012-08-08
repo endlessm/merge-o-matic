@@ -91,7 +91,8 @@ class Distro(object):
     return self.config("dists")
 
   def packages(self, dist, component):
-    raise NotImplementedError
+    sources = self.getSources(dist, component)
+    return map(lambda x:self.package(dist, component, x["Package"]), sources)
 
   def config(self, *args, **kwargs):
     args = ("DISTROS", self.name) + args

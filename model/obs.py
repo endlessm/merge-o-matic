@@ -233,10 +233,6 @@ class OBSDistro(Distro):
   def branch(self, name):
     return OBSDistro(name, self)
 
-  def packages(self, dist, component):
-    self.updateOBSCache(dist, component)
-    return map(lambda x:self.package(dist, component, x), self._obsCache[dist][component].iterkeys())
-
   def sourcesURL(self, dist, component):
     mirror = self.config("mirror")
     url = mirror+':/'.join((self.name, dist))+':/'+component+'/'+dist+'/dists/'+dist+'/'+component+'/source/Sources.gz'
