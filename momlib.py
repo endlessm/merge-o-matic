@@ -868,7 +868,7 @@ class PackageLists(object):
             if best is not None:
                 return best
         else:
-            raise model.error.PackageNotFound, "%s not found in any source groups for %s" % (package, target)
+            raise model.error.PackageNotFound(package)
 
     def add(self, target, src, package):
         """If src is None, the default source group is used"""

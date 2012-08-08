@@ -1,5 +1,5 @@
 class PackageNotFound(Exception):
-  def __init__(self, name, dist, component):
+  def __init__(self, name, dist=None, component=None):
     self._n = name
     self._d = dist
     self._c = component
