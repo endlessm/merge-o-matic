@@ -71,14 +71,14 @@ def main(options, args):
         except:
             pass
 
+        # Update the Sources files against new packages that have been downloaded
+        update_sources.main(options, args)
+
         try:
             # Download new packages
             update_pool.main(options, args)
         except:
             sys.excepthook(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2])
-
-        # Update the Sources files against new packages that have been downloaded
-        update_sources.main(options, args)
 
         try:
             # Try to download missing base versions from the source distro pool
