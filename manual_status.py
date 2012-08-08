@@ -62,7 +62,7 @@ def main(options, args):
         merges = []
 
         d = Distro.get(our_distro)
-        for our_source in d.newestSources(our_dist, our_component)
+        for our_source in d.newestSources(our_dist, our_component):
             try:
                 package = our_source["Package"]
                 our_version = Version(our_source["Version"])
