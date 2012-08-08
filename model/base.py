@@ -163,7 +163,8 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
-    return "pool/%s/%s/%s" % (self.distro.poolName(self.component), pathhash(self.name), self.name)
+    dir = self.getPoolSource()['Directory']
+    return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
 
   def commitMerge(self):
     pass
