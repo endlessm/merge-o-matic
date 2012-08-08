@@ -111,7 +111,7 @@ class Distro(object):
     for s in self.getSources(dist, component):
       if s['Package'] == name:
         return Package(self, dist, component, name, Version(s['Version']))
-    raise error.PackageNotFound(dist, component, name)
+    raise error.PackageNotFound(name, dist, component)
 
   def branch(self, name):
     return Distro(name, self)
@@ -186,8 +186,11 @@ class Package(object):
     self.name = name
     self.dist = dist
     self.component = component
-    self.files = []
     self.version = version
+
+  @property
+  def files(self):
+    return []
 
   def __unicode__(self):
     return '/'.join((str(self.distro), self.dist, self.component, self.name))

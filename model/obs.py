@@ -117,16 +117,22 @@ class OBSDistro(Distro):
       return
     logging.info("Updating cache")
     obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
-    for package in obsPackageList:
+
+    unknownPackages = []
+    for pkg in obsPackageList:
+      if pkg not in foundPackages:
+        unknownPackages.append(pkg)
+
+    for obsPkg in unknownPackages:
       if package in foundPackages:
-        continue          
-      logging.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), package)
+        continue
+      logging.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), obsPkg)
       source = None
       files = []
       filelist = []
       while True:
         try:
-          filelist = osccore.meta_get_filelist(self.config("obs", "url"), self.obsProject(dist, component), package)
+          filelist = osccore.meta_get_filelist(self.config("obs", "url"), self.obsProject(dist, component), obsPkg)
           break
         except KeyboardInterrupt, e:
           raise e
@@ -139,7 +145,7 @@ class OBSDistro(Distro):
           os.close(tmpHandle)
           logging.debug("Downloading %s to %s", filename, tmpName)
           while True:
-            osccore.get_source_file(self.config("obs", "url"), self.obsProject(dist, component), package, filename, targetfilename=tmpName)
+            osccore.get_source_file(self.config("obs", "url"), self.obsProject(dist, component), obsPkg, filename, targetfilename=tmpName)
             if os.stat(tmpName).st_size == 0:
               logging.warn("Couldn't download %s. Retrying.", filename)
             else:
@@ -147,12 +153,12 @@ class OBSDistro(Distro):
           source = ControlFile(tmpName, multi_para=False, signed=True)
           os.unlink(tmpName)
       if source is None:
-        logging.error("%s/%s did not have a .dsc file.", self.obsProject(dist, component), package)
+        logging.error("%s/%s did not have a .dsc file.", self.obsProject(dist, component), obsPkg)
       else:
-        logging.debug("%s -> %s", package, source.para["Source"])
+        logging.debug("%s -> %s", obsPkg, source.para["Source"])
         self._obsCache[dist][component][source.para["Source"]] = {
           "name": source.para["Source"],
-          "obs-name": package,
+          "obs-name": obsPkg,
           "files": files,
           "version": source.para['Version']
         }
@@ -171,7 +177,10 @@ class OBSDistro(Distro):
   def package(self, dist, component, name):
     self.updateOBSCache(dist, component, name)
     try:
-      return OBSPackage(self, dist, component, self._obsCache[dist][component][name])
+      for s in self.getSources(dist, component):
+        if s['Package'] == name:
+          return OBSPackage(self, dist, component, name, Version(s['Version']))
+      raise error.PackageNotFound(name, dist, component)
     except KeyError:
       raise error.PackageNotFound(name, dist, component)
 
@@ -189,11 +198,23 @@ class OBSDistro(Distro):
     return url
 
 class OBSPackage(Package):
-  def __init__(self, distro, dist, component, data):
-    super(OBSPackage, self).__init__(distro, dist, component, data['name'], Version(data['version']))
-    self.files = data['files']
-    self.name = data['name']
-    self.obsName = str(data['obs-name'])
+  def __init__(self, distro, dist, component, name, version):
+    super(OBSPackage, self).__init__(distro, dist, component, name, version)
+
+  @property
+  def obsName(self):
+    self._updateOBSCache()
+    return self._obsName
+
+  @property
+  def files(self):
+    self._updateOBSCache()
+    return self._files
+
+  def _updateOBSCache(self):
+    self.distro.updateOBSCache(self.dist, self.component, self.name)
+    self._obsName = self.distro._obsCache[self.dist][self.component]['obs-name']
+    self._files = self.distro._obsCache[self.dist][self.component]['files']
   
   def obsDir(self):
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))
