@@ -183,9 +183,9 @@ class OBSDistro(Distro):
   def branch(self, name):
     return OBSDistro(name, self)
 
-  def sourcesURL(self, dist, component):
+  def mirrorURL(self, dist, component):
     mirror = self.config("mirror")
-    url = mirror+':/'.join((self.name, dist))+':/'+component+'/'+dist+'/dists/'+dist+'/'+component+'/source/Sources.gz'
+    url = mirror+':/'.join((self.name, dist))+':/'+component+'/'+dist
     return url
 
 class OBSPackage(Package):

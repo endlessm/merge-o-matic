@@ -50,7 +50,7 @@ class Distro(object):
   def sourcesURL(self, dist, component):
     if (dist, component) in self.config("sources_urls", default={}):
       return self.config("sources_urls")
-    mirror = self.config("mirror")
+    mirror = self.mirrorURL(dist, component)
     url = mirror + "/dists"
     if dist is not None:
       url += "/" + dist
@@ -58,8 +58,11 @@ class Distro(object):
       url += "/" + component
     return url + "/source/Sources.gz"
 
+  def mirrorURL(self, dist, component):
+    return self.config("mirror")
+
   def updatePool(self, dist, component, package=None):
-    mirror = self.config("mirror")
+    mirror = self.mirrorURL(dist, component)
     sources = self.getSources(dist, component)
     for source in sources:
       if package != source["Package"] and not (package is None):
@@ -104,7 +107,11 @@ class Distro(object):
     raise error.PackageNotFound(name, dist, component)
 
   def package(self, dist, component, name):
-    raise NotImplementedError
+    source = None
+    for s in self.getSources(dist, component):
+      if s['Package'] == name:
+        return Package(self, dist, component, name, Version(s['Version']))
+    raise error.PackageNotFound(dist, component, name)
 
   def branch(self, name):
     return Distro(name, self)
