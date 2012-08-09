@@ -19,7 +19,9 @@ import config
 from deb.controlfile import ControlFile
 from deb.version import Version
 
+
 class OBSDistro(Distro):
+  masterCache = {}
   def __init__(self, name, parent=None):
     super(OBSDistro, self).__init__(name, parent)
     self._obsCache = {}
@@ -103,16 +105,22 @@ class OBSDistro(Distro):
     tree.ensure(os.path.expanduser("~/.mom-cache/"))
     cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
     expireTime = time.time()-3600
+
+    if self.name in OBSDistro.masterCache and len(self._obsCache) == 0:
+      logging.debug("Reusing master cache")
+      self._obsCache = OBSDistro.masterCache[self.name]
+
     if os.path.isfile(cacheFile) and os.stat(cacheFile).st_mtime > expireTime and len(self._obsCache) == 0:
       logging.debug("Reusing json cache")
       cache = json.load(open(cacheFile, 'r'))
       self._obsCache = cache['data']
+      OBSDistro.masterCache[self.name] = self._obsCache
     finished = False
     if not dist in self._obsCache:
       self._obsCache[dist] = {}
     if not component in self._obsCache[dist]:
       self._obsCache[dist][component] = {}
-    foundPackages = map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues())
+    foundPackages = map(lambda x:x['name'], self._obsCache[dist][component].itervalues())
     if package in foundPackages:
       return
     logging.info("Updating cache for %s", package)
@@ -175,6 +183,7 @@ class OBSDistro(Distro):
     json.dump({'complete': finished, 'data': self._obsCache}, fh)
     fh.close()
     logging.debug("Flushing cache to disk")
+    OBSDistro.masterCache[self.name] = self._obsCache
 
   def package(self, dist, component, name):
     self.updateOBSCache(dist, component, name)
