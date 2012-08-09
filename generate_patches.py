@@ -112,7 +112,7 @@ def make_patches(our_distro, our_source, src_distro, src_source, base,
     """Make sets of patches from the given base."""
     package = our_source["Package"]
     try:
-        base_source = get_nearest_source(our_distro, src_distro, package, base)
+        base_source,base_distro = get_nearest_source(our_distro, src_distro, package, base)
         base_version = Version(base_source["Version"])
         logging.debug("%s: base is %s (%s wanted)",
                       package, base_version, base)
@@ -156,8 +156,8 @@ def generate_patch(base_source, distro, our_source,
         if basis is not None and basis == base_version:
             return
 
-    unpack_source(base_source)
-    unpack_source(our_source)
+    unpack_source(base_source, base_distro)
+    unpack_source(our_source, our_distro)
 
     tree.ensure(filename)
     save_patch_file(filename, base_source, our_source)
