@@ -108,8 +108,8 @@ def main(options, args):
                     our_version = Version(options.version)
                 else:
                     our_version = pkg.version
-                our_pool_source = pkg.getSources()[0]
                 logging.debug("our %s: %s is %s", pkg, d, our_version)
+                our_pool_source = pkg.getSources()[0]
             except model.error.PackageNotFound:
                 continue
 
