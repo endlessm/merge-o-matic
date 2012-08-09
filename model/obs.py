@@ -115,7 +115,7 @@ class OBSDistro(Distro):
     foundPackages = map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues())
     if package in foundPackages:
       return
-    logging.info("Updating cache")
+    logging.info("Updating cache for %s", package)
     obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
 
     unknownPackages = []
@@ -123,6 +123,7 @@ class OBSDistro(Distro):
       if pkg not in foundPackages:
         unknownPackages.append(pkg)
 
+    modified = False
     for obsPkg in unknownPackages:
       if package in foundPackages:
         continue
@@ -163,7 +164,9 @@ class OBSDistro(Distro):
           "version": source.para['Version']
         }
         self._saveCache()
-    self._saveCache(True)
+        modified = True
+    if modified:
+      self._saveCache(True)
 
   def _saveCache(self, finished=False):
     tree.ensure(os.path.expanduser("~/.mom-cache/"))
@@ -172,7 +175,6 @@ class OBSDistro(Distro):
     json.dump({'complete': finished, 'data': self._obsCache}, fh)
     fh.close()
     logging.debug("Flushing cache to disk")
-    
 
   def package(self, dist, component, name):
     self.updateOBSCache(dist, component, name)
