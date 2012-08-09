@@ -57,12 +57,15 @@ def main(options, args):
         d.updatePool(our_dist, our_component)
         updated_sources.add((our_distro, our_dist, our_component))
         sources.extend(d.getSources(our_dist, our_component))
-        for sourceName in DISTRO_TARGETS[target]['sources']:
-          for source in DISTRO_SOURCES[sourceName]:
-            distname = source["dist"]
-            sourceDistro = Distro.get(source["distro"])
-            for component in sourceDistro.components():
-              sourceDistro.updatePool(distname, component)
+        for pkg in sources:
+          for sourceName in DISTRO_TARGETS[target]['sources']:
+            for source in DISTRO_SOURCES[sourceName]:
+              distname = source["dist"]
+              sourceDistro = Distro.get(source["distro"])
+              PACKAGELISTS.add_if_needed(target, sourceName, pkg['Package'])
+              for component in sourceDistro.components():
+                sourceDistro.updatePool(distname, component, pkg['Package'])
+        PACKAGELISTS.save_if_modified(target)
 
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
