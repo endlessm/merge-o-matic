@@ -28,7 +28,7 @@ DISTROS = {
         },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "precise-updates", "precise-security", "precise" ],
+        "dists": [ "precise-updates", "precise-security", "precise", "quantal", "quantal-updates", "quantal-security" ],
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
