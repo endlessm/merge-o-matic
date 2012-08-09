@@ -134,6 +134,8 @@ class Distro(object):
     return ret
 
   def sourcesFile(self, dist, component, compressed=True):
+    if self.parent:
+      return self.parent.sourcesFile(dist, component, compressed)
     if compressed:
       return "%s.gz"%(self.sourcesFile(dist, component, False))
     path = '/'.join((config.get("ROOT"), 'dists', self.name))

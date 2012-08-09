@@ -93,14 +93,14 @@ class OBSDistro(Distro):
           logging.exception("Couldn't update %s.", package)
       self._validateCheckout(dist, component, package)
 
-  def sync(self, dist, component):
+  def sync(self, dist, component, packages=[]):
     try:
-      logging.debug("Attempting checkout of %s", self)
-      self.checkout(dist, component)
+      logging.debug("Attempting checkout of %s/%s", self, packages)
+      self.checkout(dist, component, packages)
     except:
       pass
-    logging.debug("Attempting update of %s", self)
-    self.update(dist, component)
+    logging.debug("Attempting update of %s/%s", self, packages)
+    self.update(dist, component, packages)
 
   def updateOBSCache(self, dist, component, package=None):
     tree.ensure(os.path.expanduser("~/.mom-cache/"))
@@ -227,8 +227,8 @@ class OBSPackage(Package):
 
   def _updateOBSCache(self):
     self.distro.updateOBSCache(self.dist, self.component, self.name)
-    self._obsName = self.distro._obsCache[self.dist][self.component]['obs-name']
-    self._files = self.distro._obsCache[self.dist][self.component]['files']
+    self._obsName = self.distro._obsCache[self.dist][self.component][self.name]['obs-name']
+    self._files = self.distro._obsCache[self.dist][self.component][self.name]['files']
   
   def obsDir(self):
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))

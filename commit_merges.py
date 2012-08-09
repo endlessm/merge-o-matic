@@ -66,7 +66,7 @@ def main(options, args):
               logging.debug("Branching %s", package)
               branchPkg = package.branch("home:momtest:branches:%s"%(d.name))
               branch = branchPkg.distro
-              branch.updatePool(our_dist, our_component, report['package'])
+              branch.sync(our_dist, our_component, [branchPkg,])
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
               for f in branchPkg.files:
                 if f == "_link":
