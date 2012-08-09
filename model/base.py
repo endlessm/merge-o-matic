@@ -234,6 +234,15 @@ class Package(object):
       else:
         raise error.PackageVersionNotFound(self, version)
 
+  def getPoolSources(self):
+    sources = self.distro.getSources(self.dist, self.component)
+    matches = []
+    for source in sources:
+      if source['Package'] == self.name:
+        matches.append(source)
+    matches.sort(key=lambda x:Version(x['Version']))
+    return matches
+
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):
     mergedVersion = Version(upstream.version()+"co1")

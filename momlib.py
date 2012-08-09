@@ -477,9 +477,11 @@ def get_pool_source(distro, component,package, version=None):
 
 def get_nearest_source(our_distro, src_distro, package, base):
     """Return the base source or nearest to it."""
+    pkg = Distro.get(our_distro).findPackage(package)
+    srcPkg = Distro.get(src_distro).findPackage(package)
     try:
-        sources = get_pool_sources(src_distro, package)
-        sources.extend(get_pool_sources(our_distro, package))
+        sources = srcPkg.getPoolSources()
+        sources.extend(pkg.getPoolSources())
     except IOError:
         sources = []
 
@@ -491,8 +493,8 @@ def get_nearest_source(our_distro, src_distro, package, base):
             bases.append(source)
     else:
         try:
-            return get_pool_source(our_distro, package, base)
-        except (IOError, IndexError):
+            return pkg.getPoolSource(base)
+        except model.error.PackageVersionNotFound:
             version_sort(bases)
             return bases.pop()
 
