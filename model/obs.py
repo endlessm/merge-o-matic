@@ -22,6 +22,7 @@ from deb.version import Version
 
 class OBSDistro(Distro):
   masterCache = {}
+  obsLists = {}
   def __init__(self, name, parent=None):
     super(OBSDistro, self).__init__(name, parent)
     self._obsCache = {}
@@ -107,26 +108,29 @@ class OBSDistro(Distro):
     expireTime = time.time()-3600
 
     if self.name in OBSDistro.masterCache and len(self._obsCache) == 0:
-      logging.debug("Reusing master cache")
       self._obsCache = OBSDistro.masterCache[self.name]
 
     if os.path.isfile(cacheFile) and os.stat(cacheFile).st_mtime > expireTime and len(self._obsCache) == 0:
-      logging.debug("Reusing json cache")
-      cache = json.load(open(cacheFile, 'r'))
-      self._obsCache = cache['data']
-      OBSDistro.masterCache[self.name] = self._obsCache
+      try:
+        cache = json.load(open(cacheFile, 'r'))
+        self._obsCache = cache['data']
+        OBSDistro.masterCache[self.name] = self._obsCache
+      except ValueError:
+        logging.warning("Cache is corrupted. Rebuilding from scratch.")
     finished = False
     if not dist in self._obsCache:
       self._obsCache[dist] = {}
     if not component in self._obsCache[dist]:
       self._obsCache[dist][component] = {}
-    foundPackages = map(lambda x:x['name'], self._obsCache[dist][component].itervalues())
-    if package in foundPackages:
+    if package in self._obsCache[dist][component] or (len(self._obsCache[dist][component]) > 0 and package is None):
       return
-    logging.info("Updating cache for %s", package)
-    obsPackageList = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
 
+    logging.debug("Updating cache for %s", package)
     unknownPackages = []
+    if not self.obsProject(dist, component) in OBSDistro.obsLists:
+      OBSDistro.obsLists[self.obsProject(dist, component)] = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
+    obsPackageList = OBSDistro.obsLists[self.obsProject(dist, component)]
+    foundPackages = map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues())
     for pkg in obsPackageList:
       if pkg not in foundPackages:
         unknownPackages.append(pkg)
@@ -172,17 +176,16 @@ class OBSDistro(Distro):
           "version": source.para['Version']
         }
         self._saveCache()
-        modified = True
-    if modified:
-      self._saveCache(True)
 
-  def _saveCache(self, finished=False):
+  def _saveCache(self):
+    logging.debug("Flushing cache to disk")
     tree.ensure(os.path.expanduser("~/.mom-cache/"))
     cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
-    fh = open(cacheFile, 'w')
-    json.dump({'complete': finished, 'data': self._obsCache}, fh)
+    tmpCache = cacheFile+"~"
+    fh = open(tmpCache, 'w')
+    json.dump({'complete': True, 'data': self._obsCache}, fh)
     fh.close()
-    logging.debug("Flushing cache to disk")
+    os.rename(tmpCache, cacheFile)
     OBSDistro.masterCache[self.name] = self._obsCache
 
   def package(self, dist, component, name):
