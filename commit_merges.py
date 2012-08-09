@@ -71,7 +71,10 @@ def main(options, args):
               for f in branchPkg.files:
                 if f == "_link":
                   continue
-                os.unlink('%s/%s'%(branchPkg.obsDir(), f))
+                try:
+                  os.unlink('%s/%s'%(branchPkg.obsDir(), f))
+                except OSError:
+                  pass
               if report['merged_is_right']:
                 srcDistro = Distro.get(report['right_distro'])
                 for upstream in DISTRO_TARGETS[target]['sources']:
