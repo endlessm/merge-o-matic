@@ -136,7 +136,7 @@ def main(options, args):
 
             try:
                 base = get_base(our_pool_source)
-                base_source = get_nearest_source(our_distro, src_distro, pkg.name, base)
+                base_source, base_distro = get_nearest_source(our_distro, src_distro, pkg.name, base)
                 base_version = Version(base_source["Version"])
                 logging.debug("%s: base is %s (%s wanted)",
                             pkg.name, base_version, base)
@@ -147,7 +147,7 @@ def main(options, args):
                     merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
                 continue
 
-            produce_merge(our_pool_source, our_distro, our_dist, base_source,
+            produce_merge(our_pool_source, our_distro, our_dist, base_source, base_distro,
                         src_pool_source, src_distro, src_dist, result_dir(target, pkg.name),
                         force=options.force)
 
@@ -163,7 +163,7 @@ def is_build_metadata_changed(left_source, right_source):
 
     return False
 
-def produce_merge(left_source, left_distro, left_dist, base_source,
+def produce_merge(left_source, left_distro, left_dist, base_source, base_distro,
                   right_source, right_distro, right_dist, output_dir, force=False):
     """Produce a merge for the given two packages."""
     package = base_source["Package"]
@@ -206,9 +206,9 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                                  right_distro)
 
     try:
-        left_dir = unpack_source(left_source)
-        base_dir = unpack_source(base_source)
-        right_dir = unpack_source(right_source)
+        left_dir = unpack_source(left_source, left_distro)
+        base_dir = unpack_source(base_source, base_distro)
+        right_dir = unpack_source(right_source, right_distro)
 
         merged_dir = work_dir(package, merged_version)
         try:

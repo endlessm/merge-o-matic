@@ -480,23 +480,24 @@ def get_nearest_source(our_distro, src_distro, package, base):
     pkg = Distro.get(our_distro).findPackage(package)
     srcPkg = Distro.get(src_distro).findPackage(package)
     try:
-        sources = srcPkg.getPoolSources()
-        sources.extend(pkg.getPoolSources())
+        sources = map(lambda x:{'distro': src_distro, 'src': x}, srcPkg.getPoolSources())
+        sources.extend(map(lambda x:{'distro': our_distro, 'src': x}, pkg.getPoolSources()))
     except IOError:
         sources = []
 
     bases = []
     for source in sources:
-        if base == source["Version"]:
-            return source
-        elif Version(base) >= Version(re.sub("build[0-9]+$", "", source["Version"])):
+        if base == source['src']["Version"]:
+            return (source['src'], source['distro'])
+        elif Version(base) >= Version(re.sub("build[0-9]+$", "", source['src']["Version"])):
             bases.append(source)
     else:
         try:
-            return pkg.getPoolSource(base)
+            return (pkg.getPoolSource(base), our_distro)
         except model.error.PackageVersionNotFound:
-            version_sort(bases)
-            return bases.pop()
+            bases.sort(key=lambda x: Version(x['src']['Version']))
+            b = bases.pop()
+            return (b['src'], b['distro'])
 
 # --------------------------------------------------------------------------- #
 # Source meta-data handling
@@ -561,13 +562,15 @@ def save_basis(filename, version):
 # Unpacked source handling
 # --------------------------------------------------------------------------- #
 
-def unpack_source(source):
+def unpack_source(source, distro):
     """Unpack the given source and return location."""
     destdir = unpack_directory(source)
     if os.path.isdir(destdir):
         return destdir
 
-    srcdir = "%s/%s" % (ROOT, source["Directory"])
+    d = Distro.get(distro)
+    pkg = d.findPackage(source['Package'])
+    srcdir = "%s/%s" % (ROOT, pkg.poolDirectory())
     for md5sum, size, name in files(source):
         if name.endswith(".dsc"):
             dsc_file = name
