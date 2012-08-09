@@ -250,6 +250,8 @@ def produce_merge(left_source, left_distro, left_dist, base_source,
                          output_dir, merged_dir, False, build_metadata_changed)
         finally:
             cleanup(merged_dir)
+    except OSError:
+        logging.exception("Could not unpack %s", package)
     finally:
         cleanup_source(right_source)
         cleanup_source(base_source)
