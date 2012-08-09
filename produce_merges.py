@@ -109,7 +109,11 @@ def main(options, args):
                 else:
                     our_version = pkg.version
                 logging.debug("our %s: %s is %s", pkg, d, our_version)
-                our_pool_source = pkg.getSources()[0]
+                sourceList = pkg.getSources()
+                if len(sourceList) == 0:
+                  logging.warn("Empty Sources file for %s", pkg)
+                  continue
+                our_pool_source = sourceList[0]
             except model.error.PackageNotFound:
                 continue
 
