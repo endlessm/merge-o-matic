@@ -569,7 +569,7 @@ def unpack_source(source, distro):
         return destdir
 
     d = Distro.get(distro)
-    pkg = d.findPackage(source['Package'])
+    pkg = d.findPackage(source['Package'], Version(source['Version']))
     srcdir = "%s/%s" % (ROOT, pkg.poolDirectory())
     for md5sum, size, name in files(source):
         if name.endswith(".dsc"):
