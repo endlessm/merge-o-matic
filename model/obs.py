@@ -125,7 +125,7 @@ class OBSDistro(Distro):
     if package in self._obsCache[dist][component] or (len(self._obsCache[dist][component]) > 0 and package is None):
       return
 
-    logging.debug("Updating cache for %s", package)
+    logging.debug("Updating cache for %s/%s", self, package)
     unknownPackages = []
     if not self.obsProject(dist, component) in OBSDistro.obsLists:
       OBSDistro.obsLists[self.obsProject(dist, component)] = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
