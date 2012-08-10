@@ -224,7 +224,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source, base_distro,
             cleanup(output_dir)
             os.makedirs(output_dir)
 
-            copy_in(output_dir, base_source)
+            copy_in(output_dir, base_source, base_distro)
 
             left_patch = copy_in(output_dir, left_source, left_distro)
             right_patch = copy_in(output_dir, right_source, right_distro)
@@ -735,17 +735,20 @@ def add_changelog(package, merged_version, left_distro, left_dist,
 
     os.rename(changelog_file + ".new", changelog_file)
 
-def copy_in(output_dir, source, distro=None):
+def copy_in(output_dir, source, distro):
     """Make a copy of the source files."""
+
+    pkg = Distro.get(distro).findPackage(source['Package'])
     for md5sum, size, name in files(source):
-        src = "%s/%s/%s" % (ROOT, source["Directory"], name)
+        src = "%s/%s/%s" % (ROOT, pkg.poolDirectory(), name)
         dest = "%s/%s" % (output_dir, name)
         if os.path.isfile(dest):
             os.unlink(dest)
-        os.link(src, dest)
-
-    if distro is None:
-        return None
+        try:
+          logging.debug("%s -> %s", src, dest)
+          os.link(src, dest)
+        except OSError, e:
+          logging.exception("File not found: %s", src)
 
     patch = patch_file(distro, source)
     if os.path.isfile(patch):
