@@ -197,7 +197,7 @@ class OBSDistro(Distro):
     self.updateOBSCache(dist, component, name)
     try:
       for s in self.getSources(dist, component):
-        if s['Package'] == name and (version is None or Version(s['version']) == version):
+        if s['Package'] == name and (version is None or Version(s['Version']) == version):
           return OBSPackage(self, dist, component, name, Version(s['Version']))
       raise error.PackageNotFound(name, dist, component, version)
     except KeyError:
