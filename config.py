@@ -65,6 +65,12 @@ class Source(object):
   def dist(self):
     return self._dist
 
+  def __str__(self):
+    return repr(self)
+
+  def __repr__(self):
+    return "Source(%s, %s)"%(self._distro, self._dist)
+
 class SourceList(object):
   def __init__(self, name):
     super(SourceList, self).__init__()
@@ -80,6 +86,12 @@ class SourceList(object):
 
   def __getitem__(self, i):
     return self._sources[i]
+
+  def __str__(self):
+    return repr(self)
+
+  def __repr__(self):
+    return repr(self._sources)
 
 class Target(object):
   def __init__(self, name):
@@ -109,6 +121,12 @@ class Target(object):
   @property
   def committable(self):
     return self.config('commit', default=False)
+
+  def __str__(self):
+    return repr(self)
+
+  def __repr__(self):
+    return "Target(%s)"%(self._name)
 
 def targets(names=[]):
   if len(names) == 0:
