@@ -77,7 +77,7 @@ def walk(path, topdown=True, relative=True):
         else:
             base = dirpath
 
-        if topdown:
+        if topdown and not relative:
             yield base
 
         for filename in filenames:

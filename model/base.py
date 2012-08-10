@@ -269,7 +269,7 @@ class Package(object):
     if os.path.exists(filename):
       sourceStat = os.stat(filename)
       for f in tree.walk(pooldir):
-        s = os.stat(f)
+        s = os.stat('/'.join((pooldir,f)))
         if s.st_mtime > sourceStat.st_mtime:
           needsUpdate = True
           break
