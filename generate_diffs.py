@@ -53,6 +53,8 @@ def main(options, args):
           for this in sources:
             try:
               generate_diff(d.name, last, this)
+            except model.error.PackageNotFound:
+              logging.exception("Could not find a package to diff against.")
             finally:
               if last is not None:
                 cleanup_source(last)
