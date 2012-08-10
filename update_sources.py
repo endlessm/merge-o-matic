@@ -37,12 +37,13 @@ def main(options, args):
             source.distro.updateSources(source.dist, component)
       for package in target.distro.packages(target.dist, target.component):
         package.updatePoolSource()
-        try:
-          upstreamPkg = source.distro.findPackage(package.name)
-          upstreamPkg.updatePool()
-          upstreamPkg.updatePoolSource()
-        except model.error.PackageNotFound:
-          pass
+        for source in upstreamList:
+          try:
+            upstreamPkg = source.distro.findPackage(package.name, dist=source.dist)
+            upstreamPkg.updatePool()
+            upstreamPkg.updatePoolSource()
+          except model.error.PackageNotFound:
+            pass
 
 
 if __name__ == "__main__":

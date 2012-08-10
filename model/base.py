@@ -264,7 +264,6 @@ class Package(object):
     pooldir = self.poolDirectory()
     filename = self.sourcesFile()
 
-    logging.info("Updating %s", filename)
     tree.ensure(pooldir)
     needsUpdate = False
     if os.path.exists(filename):
@@ -278,6 +277,7 @@ class Package(object):
       needsUpdate = True
 
     if needsUpdate:
+      logging.info("Updating %s", filename)
       with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
           stdout=sources)
