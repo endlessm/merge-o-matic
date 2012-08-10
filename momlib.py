@@ -862,7 +862,7 @@ class PackageLists(object):
                 dist = sub_src["dist"]
                 d = Distro.get(distro)
                 try:
-                    pkg = d.findPackage(package, dist=dist)
+                    pkg = d.findPackage(package, searchDist=dist)
                     source = pkg.getSources()
                     pool_source = pkg.getPoolSource()
                     version = pkg.version

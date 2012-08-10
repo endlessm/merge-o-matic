@@ -39,7 +39,7 @@ def main(options, args):
         package.updatePoolSource()
         for source in upstreamList:
           try:
-            upstreamPkg = source.distro.findPackage(package.name, dist=source.dist)
+            upstreamPkg = source.distro.findPackage(package.name, searchDist=source.dist)
             upstreamPkg.updatePool()
             upstreamPkg.updatePoolSource()
           except model.error.PackageNotFound:
