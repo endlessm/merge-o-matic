@@ -23,6 +23,7 @@ import os
 from model import Distro
 from momlib import *
 import config
+import model.error
 
 
 def main(options, args):
@@ -36,9 +37,12 @@ def main(options, args):
             source.distro.updateSources(source.dist, component)
       for package in target.distro.packages(target.dist, target.component):
         package.updatePoolSource()
-        upstreamPkg = source.distro.findPackage(package.name)
-        upstreamPkg.updatePool()
-        upstreamPkg.updatePoolSource()
+        try:
+          upstreamPkg = source.distro.findPackage(package.name)
+          upstreamPkg.updatePool()
+          upstreamPkg.updatePoolSource()
+        except model.error.PackageNotFound:
+          pass
 
 
 if __name__ == "__main__":
