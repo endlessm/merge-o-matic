@@ -89,22 +89,22 @@ class Distro(object):
               raise
           logging.info("Saved %s", tree.subdir(config.get('ROOT'), filename))
 
-  def findPackage(self, name, dist=None, component=None, version=None):
-    if dist is None:
+  def findPackage(self, name, searchDist=None, searchComponent=None, version=None):
+    if searchDist is None:
       dists = self.dists()
     else:
-      dists = [dist,]
-    if component is None:
+      dists = [searchDist,]
+    if searchComponent is None:
       components = self.components()
     else:
-      components = [component,]
+      components = [searchComponent,]
     for dist in dists:
       for component in components:
         try:
           return self.package(dist, component, name, version)
         except error.PackageNotFound:
           continue
-    raise error.PackageNotFound(name, dist, component)
+    raise error.PackageNotFound(name, searchDist, searchComponent)
 
   def package(self, dist, component, name, version=None):
     assert(version is None or isinstance(version, Version))
