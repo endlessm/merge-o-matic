@@ -27,6 +27,10 @@ class OBSDistro(Distro):
     super(OBSDistro, self).__init__(name, parent)
     self._obsCache = {}
 
+  @property
+  def obsUser(self):
+    return osc.conf.get_apiurl_usr(self.config("obs", "url"))
+
   def oscDirectory(self):
     return '/'.join((config.get("ROOT"), 'osc', self.name))
 

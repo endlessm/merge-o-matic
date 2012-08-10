@@ -64,7 +64,7 @@ def main(options, args):
               #package.commit('Automatic update by Merge-O-Matic')
             else:
               logging.debug("Branching %s", package)
-              branchPkg = package.branch("home:momtest:branches:%s"%(d.name))
+              branchPkg = package.branch("home:%s:branches:%s"%(d.obsUser, d.name))
               branch = branchPkg.distro
               branch.sync(our_dist, our_component, [branchPkg,])
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
