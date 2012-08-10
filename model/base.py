@@ -256,6 +256,9 @@ class Package(object):
       if left_version < right_version:
         tree.ensure("%s/%s" % (output_dir, "REPORT"))
 
+  def updatePool(self):
+    self.distro.updatePool(self, self.dist, self.component, self.name)
+
   def updatePoolSource(self):
     pooldir = self.poolDirectory()
     filename = self.sourcesFile()

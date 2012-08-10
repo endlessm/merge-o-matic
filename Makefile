@@ -25,7 +25,6 @@ main_exe_files = \
 	stats_graphs.py \
 	stats.py \
 	syndicate.py \
-	update_pool.py \
 	update_sources.py
 
 main_nonexe_files = \

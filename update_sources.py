@@ -29,10 +29,16 @@ def main(options, args):
     for target in config.targets(args):
       d = target.distro
       d.updateSources(target.dist, target.component)
+      d.updatePool(target.dist, target.component)
       for upstreamList in target.sources:
         for source in upstreamList:
           for component in source.distro.components():
             source.distro.updateSources(source.dist, component)
+      for package in target.distro.packages(target.dist, target.component):
+        package.updatePoolSource()
+        upstreamPkg = source.distro.findPackage(package.name)
+        upstreamPkg.updatePool()
+        upstreamPkg.updatePoolSource()
 
 
 if __name__ == "__main__":

@@ -37,13 +37,17 @@ def options(parser):
                       help="Process only these packages")
 
 def main(options, args):
-    if len(args):
-        distros = args
-    else:
-        distros = get_pool_distros()
-
     # Update target distribution sources and calculate the list of packages we are
     # interested in (no need to download the entire Ubuntu archive...)
+    for target in config.targets(args):
+      target.distro.updatePool(target.dist, target.component)
+      for package in target.distro.packages():
+        package.updatePoolSources()
+        for upstreamList in target.sources:
+          for source in upstreamList:
+            for component in source.distro.components():
+              source.distro.updatePool(source.dist, component)
+      packages = target.
     updated_sources = set()
     for target in DISTRO_TARGETS:
         our_distro = DISTRO_TARGETS[target]["distro"]
