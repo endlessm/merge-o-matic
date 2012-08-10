@@ -262,9 +262,21 @@ class Package(object):
 
     logging.info("Updating %s", filename)
     tree.ensure(pooldir)
-    with open(filename, "w") as sources:
+    needsUpdate = False
+    if os.path.exists(filename):
+      sourceStat = os.stat(filename)
+      for f in tree.walk(pooldir):
+        s = os.stat(f)
+        if s.st_mtime > sourceStat.st_mtime:
+          needsUpdate = True
+          break
+    else:
+      needsUpdate = True
+
+    if needsUpdate:
+      with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
-                  stdout=sources)
+          stdout=sources)
 
 def files(source):
     """Return (md5sum, size, name) for each file."""

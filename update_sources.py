@@ -22,22 +22,17 @@ import os
 
 from model import Distro
 from momlib import *
+import config
 
 
 def main(options, args):
-    if len(args):
-        distros = args
-    else:
-        distros = get_pool_distros()
-
-    # Iterate the pool directory of the given distributions
-    for distro in distros:
-        d = Distro.get(distro)
-        for component in d.components():
-          for dist in d.dists():
-            d.updateSources(dist, component)
-            for p in d.packages(dist, component):
-              p.updatePoolSource()
+    for target in config.targets(args):
+      d = target.distro
+      d.updateSources(target.dist, target.component)
+      for upstreamList in target.sources:
+        for source in upstreamList:
+          for component in source.distro.components():
+            source.distro.updateSources(source.dist, component)
 
 
 if __name__ == "__main__":

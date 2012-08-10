@@ -65,6 +65,7 @@ def main(options, args):
               PACKAGELISTS.add_if_needed(target, sourceName, pkg['Package'])
               for component in sourceDistro.components():
                 sourceDistro.updatePool(distname, component, pkg['Package'])
+                sourceDistro.package(pkg['Package'], distname, component).updatePoolSource()
         PACKAGELISTS.save_if_modified(target)
 
 if __name__ == "__main__":
