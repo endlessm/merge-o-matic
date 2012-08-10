@@ -23,6 +23,7 @@ import logging
 from momlib import *
 from util import tree
 from model import Distro
+import config
 
 
 def options(parser):
@@ -34,60 +35,35 @@ def options(parser):
                       help="Process only this distribution target")
 
 def main(options, args):
-    if options.target is not None:
-        target_distro, target_dist, target_component = get_target_distro_dist_component(options.target)
-        distros = [target_distro]
-    elif len(args):
-        distros = args
-    else:
-        distros = get_pool_distros()
-
     # For latest version of each package in the given distributions, iterate the pool in order
     # and generate a diff from the previous version and a changes file
-    for distro in distros:
-        d = Distro.get(distro)
-        if options.target is None:
-            dists = d.config("dists")
-        else:
-            dists = [target_dist]
-        for dist in dists:
-            if options.target is None:
-                components = d.config('components')
-            else:
-                components = [target_component]
-            for component in components:
-                for source in d.newestSources(dist, component):
-                    if options.package is not None \
-                           and source["Package"] not in options.package:
-                        continue
-                    if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
-                        continue
+    for target in config.targets(args):
+      d = target.distro
+      for source in d.newestSources(target.dist, target.component):
+        try:
+          pkg = d.package(target.dist, target.component, source['Package'])
+        except model.error.PackageNotFound, e:
+          logging.exception("Spooky stuff going on with %s.", d)
+          continue
+        sources = pkg.getSources()
+        version_sort(sources)
 
-                    try:
-                        pkg = d.package(dist, component, source['Package'])
-                    except model.error.PackageNotFound, e:
-                        logging.exception("FIXME: Spooky stuff going on with %s.", d)
-                        continue
-                    sources = pkg.getSources()
-                    version_sort(sources)
+        last = None
+        try:
+          for this in sources:
+            try:
+              generate_diff(d.name, last, this)
+            finally:
+              if last is not None:
+                cleanup_source(last)
+            last = this
+        finally:
+          if last is not None:
+            cleanup_source(last)
 
-                    last = None
-                    try:
-                        for this in sources:
-                            try:
-                                generate_diff(distro, last, this)
-                            finally:
-                                if last is not None:
-                                    cleanup_source(last)
-
-                            last = this
-                    finally:
-                        if last is not None:
-                            cleanup_source(last)
 
 def generate_diff(distro, last, this):
     """Generate the differences."""
-    logging.debug("%s: %s %s", distro, this["Package"], this["Version"])
 
     changes_filename = changes_file(distro, this)
     if not os.path.isfile(changes_filename) \
@@ -104,6 +80,7 @@ def generate_diff(distro, last, this):
     if last is None:
         return
 
+    logging.debug("%s: %s %s %s", distro, this["Package"], this["Version"], last['Version'])
     diff_filename = diff_file(distro, this)
     if not os.path.isfile(diff_filename) \
             and not os.path.isfile(diff_filename + ".bz2"):
