@@ -20,6 +20,7 @@
 from momlib import *
 import config
 from model import Distro, OBSDistro
+import urllib2
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -61,7 +62,11 @@ def main(options, args):
 
             if config.get("DISTRO_TARGETS", target, "commit", default=False):
               logging.info("Committing changes to %s", package)
-              #package.commit('Automatic update by Merge-O-Matic')
+              try:
+                #package.commit('Automatic update by Merge-O-Matic')
+                pass
+              except urllib2.HTTPError:
+                logging.exception("Failed to commit %s", package)
             else:
               logging.debug("Branching %s", package)
               branchPkg = package.branch("home:%s:branches:%s"%(d.obsUser, d.name))
@@ -93,8 +98,11 @@ def main(options, args):
                 if f == "_link":
                   continue
                 shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
-              branchPkg.commit('Automatic update by Merge-O-Matic')
-              #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
+              try:
+                branchPkg.commit('Automatic update by Merge-O-Matic')
+                #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
+              except urllib2.HTTPError:
+                logging.exception("Failed to commit %s", branchPkg)
 
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
