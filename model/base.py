@@ -110,7 +110,7 @@ class Distro(object):
     assert(version is None or isinstance(version, Version))
     source = None
     for s in self.getSources(dist, component):
-      if s['Package'] == name and (version is not None and Version(s['Version']) == version):
+      if s['Package'] == name and (version is None or Version(s['Version']) == version):
         return Package(self, dist, component, name, Version(s['Version']))
     raise error.PackageNotFound(name, dist, component)
 
