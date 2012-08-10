@@ -1,5 +1,5 @@
 PACKAGE_NAME = merge-o-matic-local
-VERSION = 2012.07.10
+VERSION = 2012.08.09
 
 PREFIX ?= /usr
 LIBDIR ?= lib
@@ -69,7 +69,7 @@ all:
 
 # We do not want to compile addcomment.py or main.py
 install: $(all_files)
-	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/{deb,util}
+	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/{deb,util,model}
 	install -m 0644 $(main_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	install -m 0755 $(main_exe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	install -m 0644 $(deb_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/deb
@@ -89,7 +89,7 @@ dist: $(PACKAGE_NAME)-$(VERSION).tar.bz2
 $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 	sed -e 's/%%VERSION%%/$(VERSION)/' merge-o-matic-local.spec.in > merge-o-matic-local.spec
 	-rm -r "$(PACKAGE_NAME)-$(VERSION)"
-	mkdir -p "$(PACKAGE_NAME)-$(VERSION)"/{deb,util}
+	mkdir -p "$(PACKAGE_NAME)-$(VERSION)"/{deb,util,model}
 	install -m 0644 \
 		$(main_nonexe_files) \
 		COPYING \
