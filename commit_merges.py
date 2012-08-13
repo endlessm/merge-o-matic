@@ -29,6 +29,7 @@ def options(parser):
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
                       action="append",
                       help="Process only these packages")
+    parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
 
 def main(options, args):
     if options.target:
@@ -62,11 +63,12 @@ def main(options, args):
 
             if config.get("DISTRO_TARGETS", target, "commit", default=False):
               logging.info("Committing changes to %s", package)
-              try:
-                #package.commit('Automatic update by Merge-O-Matic')
-                pass
-              except urllib2.HTTPError:
-                logging.exception("Failed to commit %s", package)
+              if not options.dry_run:
+                try:
+                  #package.commit('Automatic update by Merge-O-Matic')
+                  pass
+                except urllib2.HTTPError:
+                  logging.exception("Failed to commit %s", package)
             else:
               logging.debug("Branching %s", package)
               branchPkg = package.branch("home:%s:branches:%s"%(d.obsUser, d.name))
@@ -110,11 +112,12 @@ def main(options, args):
                 if f == "_link":
                   continue
                 shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
-              try:
-                branchPkg.commit('Automatic update by Merge-O-Matic')
-                #branchPkg.submitMergeRequest(d.obsProject(our_dist, our_component), diff)
-              except urllib2.HTTPError:
-                logging.exception("Failed to commit %s", branchPkg)
+              if not options.dry_run:
+                try:
+                  branchPkg.commit('Automatic update by Merge-O-Matic')
+                  #branchPkg.submitMergeRequest(d.obsProject(our_dist, our_component), diff)
+                except urllib2.HTTPError:
+                  logging.exception("Failed to commit %s", branchPkg)
 
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
