@@ -24,6 +24,7 @@ from momlib import *
 from util import tree
 from model import Distro
 import model.error
+import config
 
 
 def options(parser):
@@ -35,45 +36,18 @@ def options(parser):
                       help="Process only this distribution target")
 
 def main(options, args):
-    if options.target is not None:
-        target_distro, target_dist, target_component = get_target_distro_dist_component(options.target)
-        distros = [target_distro]
-    elif len(args):
-        distros = args
-    else:
-        distros = get_pool_distros()
-
-    # For each package in the given distributions, iterate the pool in order
-    # and extract patches from debian/patches
-    for distro in distros:
-        if options.target is None:
-            dists = DISTROS[distro]["dists"]
-        else:
-            dists = [target_dist]
-        d = Distro.get(distro)
-        for dist in dists:
-            if options.target is None:
-                components = DISTROS[distro]["components"]
-            else:
-                components = [target_component]
-            for component in components:
-                for source in d.newestSources(dist, component):
-                    if options.package is not None \
-                           and source["Package"] not in options.package:
-                        continue
-                    if not PACKAGELISTS.check_any_distro(distro, dist, source["Package"]):
-                        continue
-
-                    try:
-                      pkg = d.package(dist, component, source['Package'])
-                    except model.error.PackageNotFound, e:
-                      logging.exception("FIXME: Spooky stuff going on with %s.", d)
-                      continue
-                    sources = pkg.getSources()
-                    version_sort(sources)
-
-                    for source in sources:
-                        generate_dpatch(distro, source)
+    for target in config.targets(args):
+      d = target.distro
+      for source in d.newestSources(target.dist, target.component):
+        try:
+          pkg = d.package(target.dist, target.component, source['Package'])
+        except model.error.PackageNotFound, e:
+          logging.exception("FIXME: Spooky stuff going on with %s.", d)
+          continue
+        sources = pkg.getSources()
+        version_sort(sources)
+        for source in sources:
+          generate_dpatch(d.name, source)
 
 def generate_dpatch(distro, source):
     """Generate the extracted patches."""
