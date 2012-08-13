@@ -100,7 +100,7 @@ def main(options, args):
                   break
 
               logging.debug("Running debdiff on %s and %s", oldDsc, newDsc)
-              diff = shell.get(("debdiff", oldDsc, newDsc))
+              diff = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
               for f in branchPkg.files:
                 if f == "_link":
                   continue
