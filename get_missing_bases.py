@@ -24,6 +24,7 @@ from momlib import *
 from config import *
 from model import Distro
 from util import tree
+import config
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -40,40 +41,28 @@ def options(parser):
                       help="Source suite (aka distrorelease)")
 
 def main(options, args):
-    if options.target:
-        targets = [options.target]
-    else:
-        targets = filter(lambda target: "obs" in DISTROS[DISTRO_TARGETS[target]["distro"]], DISTRO_TARGETS)
+    for target in config.targets(args):
+      distro = target.distro
+      for source in distro.newestSources(target.dist, target.component):
+        package = source['Package']
+        try:
+          if options.source_distro is None:
+            (src_source, src_version, src_pool_source, src_distro, src_dist) \
+                        = PACKAGELISTS.find_in_source_distros(target, package)
+          else:
+            src_distro = options.source_distro
+            src_dist = options.source_suite
+            (src_source, src_version, src_pool_source) \
+                        = get_same_source(src_distro, src_dist, package)
+        except IndexError:
+          continue
 
-    for target in targets:
-        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        distro = Distro.get(our_distro)
-        for source in distro.newestSources(our_dist, our_component):
-            package = source["Package"]
-
-            if options.package is not None and package not in options.package:
-                continue
-            if not PACKAGELISTS.check_target(target, None, package):
-                continue
-
-            try:
-                if options.source_distro is None:
-                    (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                                = PACKAGELISTS.find_in_source_distros(target, package)
-                else:
-                    src_distro = options.source_distro
-                    src_dist = options.source_suite
-                    (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, package)
-            except IndexError:
-                continue
-
-            base = get_base(source)
-            try:
-                base_source = get_nearest_source(our_distro, src_distro, package, base)
-            except IndexError:
-                logging.debug("Attempting to fetch missing base %s_%s for %s", package, base, src_version)
-                get_source(src_distro, package, base, src_source["Directory"])
+        base = get_base(source)
+        try:
+          base_source = get_nearest_source(our_distro, src_distro, package, base)
+        except IndexError:
+          logging.debug("Attempting to fetch missing base %s_%s for %s", package, base, src_version)
+          get_source(src_distro, package, base, src_source["Directory"])
 
 def get_source(distro, package, version, sourcedir):
     """Download a source package into our pool."""
