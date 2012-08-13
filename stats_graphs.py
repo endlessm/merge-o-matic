@@ -93,8 +93,11 @@ def main(options, args):
         current = get_current(stats[target])
         history = get_history(stats[target], start)
 
-        pie_chart(target, current)
-        range_chart(target, history, start, today, events)
+        try:
+          pie_chart(target, current)
+          range_chart(target, history, start, today, events)
+        except:
+          continue
 
 
 def date_to_datetime(s):
