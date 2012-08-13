@@ -203,7 +203,7 @@ class Package(object):
 
   def poolDirectory(self):
     dir = self.getPoolSource()['Directory']
-    return '/'.join((config.get('ROOT'), 'pool', self.distro.poolName(self.component), dir))
+    return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
 
   def commitMerge(self):
     pass
