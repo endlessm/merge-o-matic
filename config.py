@@ -122,6 +122,10 @@ class Target(object):
   def committable(self):
     return self.config('commit', default=False)
 
+  @property
+  def name(self):
+    return self._name
+
   def __str__(self):
     return repr(self)
 
