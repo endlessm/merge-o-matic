@@ -73,13 +73,6 @@ def main(options, args):
               branch = branchPkg.distro
               branch.sync(our_dist, our_component, [branchPkg,])
               logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
-              for f in branchPkg.files:
-                if f == "_link":
-                  continue
-                try:
-                  os.unlink('%s/%s'%(branchPkg.obsDir(), f))
-                except OSError:
-                  pass
               if report['merged_is_right']:
                 srcDistro = Distro.get(report['right_distro'])
                 for upstream in DISTRO_TARGETS[target]['sources']:
@@ -94,13 +87,32 @@ def main(options, args):
                         pass
               else:
                 pfx = result_dir(target, package.name)
+
+              for f in branchPkg.files:
+                if f.endswith(".dsc"):
+                  oldDsc = '%s/%s'%(branchPkg.obsDir(), f)
+                  break
+              for f in filepaths:
+                if f.endswith(".dsc"):
+                  newDsc = '%s/%s'%(pfx, f)
+                  break
+
+              logging.debug("Running debdiff on %s and %s", oldDsc, newDsc)
+              diff = shell.get(("debdiff", oldDsc, newDsc))
+              for f in branchPkg.files:
+                if f == "_link":
+                  continue
+                try:
+                  os.unlink('%s/%s'%(branchPkg.obsDir(), f))
+                except OSError:
+                  pass
               for f in filepaths:
                 if f == "_link":
                   continue
                 shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
-                #branchPkg.submitMergeRequest(d.name, 'Automatic update by Merge-O-Matic')
+                #branchPkg.submitMergeRequest(d.obsProject(our_dist, our_component), diff)
               except urllib2.HTTPError:
                 logging.exception("Failed to commit %s", branchPkg)
 
