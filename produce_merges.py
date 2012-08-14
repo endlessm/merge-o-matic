@@ -488,6 +488,7 @@ def merge_changelog(left_dir, right_dir, merged_dir, filename):
 
     left_cl = read_changelog("%s/%s" % (left_dir, filename))
     right_cl = read_changelog("%s/%s" % (right_dir, filename))
+    tree.ensure(filename)
 
     with open("%s/%s" % (merged_dir, filename), "w") as output:
         for right_ver, right_text in right_cl:
