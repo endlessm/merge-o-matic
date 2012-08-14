@@ -39,7 +39,7 @@ def main(options, args):
         continue
       for source in d.newestSources(target.dist, target.component):
         try:
-          output_dir = result_dir(target, source['Package'])
+          output_dir = result_dir(target.name, source['Package'])
           report = read_report(output_dir)
         except ValueError:
           continue
@@ -62,22 +62,21 @@ def main(options, args):
           logging.debug("Branching %s", package)
           branchPkg = package.branch("home:%s:branches:%s"%(d.obsUser, d.name))
           branch = branchPkg.distro
-          branch.sync(our_dist, our_component, [branchPkg,])
+          branch.sync(target.dist, target.component, [branchPkg,])
           logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
           if report['merged_is_right']:
             srcDistro = Distro.get(report['right_distro'])
-            for upstream in DISTRO_TARGETS[target]['sources']:
-              for src in DISTRO_SOURCES[upstream]:
-                srcDistro = Distro.get(src['distro'])
-                for component in srcDistro.components():
-                  try:
-                    pkg = srcDistro.package(src['dist'], component, package.name)
-                    pfx = pkg.poolDirectory()
-                    break
-                  except:
-                    pass
+            for upstream in target.sources:
+              for src in upstream:
+                srcDistro = src.distro
+                try:
+                  pkg = srcDistro.findPackage(package.name, dist=src['dist'])
+                  pfx = pkg.poolDirectory()
+                  break
+                except:
+                  pass
           else:
-            pfx = result_dir(target, package.name)
+            pfx = result_dir(target.name, package.name)
 
           for f in branchPkg.files:
             if f.endswith(".dsc"):
@@ -104,7 +103,7 @@ def main(options, args):
               shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
             try:
               branchPkg.commit('Automatic update by Merge-O-Matic')
-              branchPkg.submitMergeRequest(d.obsProject(our_dist, our_component), diff)
+              branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), diff)
             except urllib2.HTTPError:
               logging.exception("Failed to commit %s", branchPkg)
           else:
