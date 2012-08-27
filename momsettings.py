@@ -4,14 +4,12 @@ ROOT = "/srv/obs/merge-o-matic"
 # Website root
 MOM_URL = "http://SERVER:83/"
 
-# Used for emails
-MOM_NAME = "Merge-o-Matic"
+# Used as the 'from' for any mails sent
+MOM_NAME = "Merge-o-Matic for DISTRO"
 MOM_EMAIL = "mom@SERVER"
 
 # Who to send bug emails to
 RECIPIENTS = ['trever.fischer@collabora.co.uk']
-#             [ "ubuntu-archive@lists.ubuntu.com",
-#               "ubuntu-devel@lists.ubuntu.com" ]
 
 # Distribution definitions
 # For additional subprojects, use additional distro definitions
@@ -54,6 +52,12 @@ DISTRO_SOURCES = {
 DISTRO_TARGETS = {}
 
 def defineDist(name, upstream, commitable):
+  """Adds an entry to DISTRO_TARGETS.
+
+     @param name The name of the distro
+     @param upstream A key from DISTRO_SOURCES, linking this distro with a collection of upstream repos
+     @commitable Whether or not you want to be able to commit to OBS, or submit merge requests.
+  """
   for component in DISTROS['DISTRO']['components']:
     DISTRO_TARGETS["%s-%s"%(name, component)] = {
       'distro': 'DISTRO',
@@ -64,8 +68,8 @@ def defineDist(name, upstream, commitable):
     }
 
 defineDist('SUITE_A', 'precise+updates', False)
-defineDist('SUITE_B', 'precise+updates', True)
-defineDist('SUITE_C', 'quantal+updates', True)
+defineDist('SUITE_B', 'precise+updates', False)
+defineDist('SUITE_C', 'quantal+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
