@@ -47,14 +47,14 @@ def main(options, args):
         sources = pkg.getSources()
         version_sort(sources)
         for source in sources:
-          generate_dpatch(d.name, source)
+          generate_dpatch(d.name, source, pkg)
 
-def generate_dpatch(distro, source):
+def generate_dpatch(distro, source, pkg):
     """Generate the extracted patches."""
-    logging.debug("%s: %s %s", distro, source["Package"], source["Version"])
+    logging.debug("%s: %s %s", distro, pkg, source["Version"])
 
     stamp = "%s/%s/dpatch-stamp-%s" \
-        % (ROOT, source["Directory"], source["Version"])
+        % (ROOT, pkg.poolDirectory(), source["Version"])
 
     if not os.path.isfile(stamp):
         open(stamp, "w").close()
