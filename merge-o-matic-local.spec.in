@@ -25,7 +25,7 @@ Requires: apt-utils
 Requires: deb
 Requires: logrotate
 Requires: osc
-Requires: PyChart
+Requires: python-pychart
 Requires: python >= 2.7
 
 %description
@@ -95,3 +95,4 @@ rm -rf %{buildroot}
 
 * Tue Apr 10 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.04.10-1
 - initial version
+
