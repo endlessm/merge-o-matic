@@ -47,7 +47,11 @@ def main(options, args):
         sources = pkg.getSources()
         version_sort(sources)
         for source in sources:
-          generate_dpatch(d.name, source, pkg)
+          try:
+            generate_dpatch(d.name, source, pkg)
+          except model.error.PackageNotFound:
+            logging.exception("Could not find %s/%s for unpacking. How odd.",
+                pkg, source['Version'])
 
 def generate_dpatch(distro, source, pkg):
     """Generate the extracted patches."""
@@ -59,7 +63,10 @@ def generate_dpatch(distro, source, pkg):
     if not os.path.isfile(stamp):
         open(stamp, "w").close()
 
-        unpack_source(source, distro)
+        try:
+            unpack_source(source, distro)
+        except ValueError:
+            logging.exception("Could not unpack %s!", pkg)
         try:
             dirname = dpatch_directory(distro, source)
             extract_dpatches(dirname, source)

@@ -70,7 +70,11 @@ def generate_diff(distro, last, this):
     changes_filename = changes_file(distro, this)
     if not os.path.isfile(changes_filename) \
             and not os.path.isfile(changes_filename + ".bz2"):
-        unpack_source(this, distro)
+        try:
+          unpack_source(this, distro)
+        except ValueError:
+          logging.exception("Couldn't unpack %s.", this)
+          return
         try:
             save_changes_file(changes_filename, this, last)
             logging.info("Saved changes file: %s",
