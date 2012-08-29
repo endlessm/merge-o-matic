@@ -201,6 +201,9 @@ class Package(object):
   def __str__(self):
     return self.__unicode__()
 
+  def __repr__(self):
+    return self.__unicode__()
+
   def poolDirectory(self):
     dir = self.getPoolSource()['Directory']
     return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
