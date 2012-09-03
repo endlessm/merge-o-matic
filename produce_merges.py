@@ -147,9 +147,12 @@ def main(options, args):
                     merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
                 continue
 
-            produce_merge(our_pool_source, our_distro, our_dist, base_source, base_distro,
-                        src_pool_source, src_distro, src_dist, result_dir(target, pkg.name),
-                        force=options.force)
+            try:
+                produce_merge(our_pool_source, our_distro, our_dist, base_source, base_distro,
+                            src_pool_source, src_distro, src_dist, result_dir(target, pkg.name),
+                            force=options.force)
+            except IOError:
+                logging.exception("Could not produce merge due to bad/missing files?")
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""
@@ -252,6 +255,8 @@ def produce_merge(left_source, left_distro, left_dist, base_source, base_distro,
             cleanup(merged_dir)
     except OSError:
         logging.exception("Could not unpack %s", package)
+    except model.error.PackageNotFound:
+        logging.exception("Could not find package %s, something spooky is going on?", package)
     finally:
         cleanup_source(right_source)
         cleanup_source(base_source)
