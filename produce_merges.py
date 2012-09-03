@@ -113,7 +113,10 @@ def main(options, args):
                 if len(sourceList) == 0:
                   logging.warn("Empty Sources file for %s", pkg)
                   continue
-                our_pool_source = sourceList[0]
+                for v in sourceList:
+                    if Version(v['Version']) == our_version:
+                        our_pool_source = v
+                        break
             except model.error.PackageNotFound:
                 continue
 
