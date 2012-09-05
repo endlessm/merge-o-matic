@@ -92,9 +92,9 @@ def main(options, args):
               break
 
           #logging.debug("Running debdiff on %s and %s", oldDsc, newDsc)
-          #diff = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
+          #comment = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
           # FIXME: Debdiff needs implemented in OBS, as large merge descriptions break clucene.
-          diff = ""
+          comment = "Merge report is available at %s"%('/'.join((config.get('MOM_URL'), output_dir, 'REPORT')))
           if not options.dry_run:
             filesUpdated = False
             for f in branchPkg.files:
@@ -113,8 +113,7 @@ def main(options, args):
             if filesUpdated:
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
-                branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), diff)
-                pass
+                branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), comment)
               except urllib2.HTTPError:
                 logging.exception("Failed to commit %s", branchPkg)
           else:
