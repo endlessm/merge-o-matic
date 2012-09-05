@@ -87,8 +87,10 @@ def main(options, args):
               newDsc = '%s/%s'%(pfx, f)
               break
 
-          logging.debug("Running debdiff on %s and %s", oldDsc, newDsc)
-          diff = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
+          #logging.debug("Running debdiff on %s and %s", oldDsc, newDsc)
+          #diff = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
+          # FIXME: Debdiff needs implemented in OBS, as large merge descriptions break clucene.
+          diff = ""
           if not options.dry_run:
             for f in branchPkg.files:
               if f == "_link":
