@@ -67,7 +67,6 @@ def defineDist(name, upstream, commitable):
       'commit': commitable
     }
 
-defineDist('SUITE_A', 'precise+updates', False)
 defineDist('SUITE_B', 'precise+updates', False)
 defineDist('SUITE_C', 'quantal+updates', False)
 
