@@ -245,7 +245,7 @@ def produce_merge(left_source, left_distro, left_dist, base_source, base_distro,
                                          Version(left_source["Version"]),
                                          output_dir, merged_dir)
                 if src_file.endswith(".dsc"):
-                    build_metadata_changed = is_build_metadata_changed(left_source, ControlFile("%s/%s" % (output_dir, src_file)).para)
+                    build_metadata_changed = is_build_metadata_changed(left_source, ControlFile("%s/%s" % (output_dir, src_file), signed=True).para)
                     patch_file = create_patch(package, merged_version,
                                               output_dir, merged_dir,
                                               right_source, right_dir)
@@ -818,7 +818,7 @@ def create_source(package, version, since, output_dir, merged_dir):
             return create_tarball(package, version, output_dir, merged_dir)
 
         if os.path.isfile("%s/%s" % (parent, filename)):
-            logging.info("Created %s", filename)
+            logging.info("Created dpkg-source %s", filename)
             for name in os.listdir(parent):
                 src = "%s/%s" % (parent, name)
                 dest = "%s/%s" % (output_dir, name)
@@ -966,7 +966,7 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
 
                 # Files from the dsc
                 dsc = ControlFile("%s/%s" % (output_dir, src_file),
-                                multi_para=False, signed=False).para
+                                multi_para=False, signed=True).para
                 print >>report, "    %s" % src_file
                 for md5sum, size, name in files(dsc):
                     print >>report, "    %s" % name
