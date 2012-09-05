@@ -589,7 +589,7 @@ def unpack_source(source, distro):
         # output directory for "dpkg-source -x" must not exist
         if (os.path.isdir(destdir)):
             os.rmdir(destdir)
-        shell.run(("dpkg-source", "-x", dsc_file, destdir), chdir=srcdir, stdout=sys.stdout, stderr=sys.stderr)
+        shell.run(("dpkg-source", "--skip-patches", "-x", dsc_file, destdir), chdir=srcdir, stdout=sys.stdout, stderr=sys.stderr)
         # Make sure we can at least read everything under .pc, which isn't
         # automatically true with dpkg-dev 1.15.4.
         pc_dir = os.path.join(destdir, ".pc")
