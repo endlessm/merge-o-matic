@@ -64,7 +64,7 @@ def main(options, args):
               logging.exception("Failed to commit %s", package)
         else:
           logging.debug("Branching %s", package)
-          branchPkg = package.branch("home:%s:branches:%s"%(d.obsUser, d.name))
+          branchPkg = package.branch("home:%s:branches"%(d.obsUser))
           branch = branchPkg.distro
           branch.sync(target.dist, target.component, [branchPkg,])
           logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
