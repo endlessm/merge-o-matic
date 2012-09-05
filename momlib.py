@@ -71,11 +71,13 @@ def run(main_func, options_func=None, usage=None, description=None):
     """Run the given main function after initialising options."""
     logging.Formatter.converter = time.gmtime
     logging.basicConfig(format="%(asctime)s  %(message)s", datefmt="%a, %d %b %Y %H:%M:%S +0000") # RFC 2822
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-q", "--quiet", action="callback",
                       callback=quiet_callback, help="Be less chatty")
+    parser.add_option("-v", "--verbose", action="callback",
+                      callback=verbose_callback, help="Be more noisy")
     if options_func is not None:
         options_func(parser)
 
@@ -85,6 +87,8 @@ def run(main_func, options_func=None, usage=None, description=None):
 def quiet_callback(opt, value, parser, *args, **kwds):
     logging.getLogger().setLevel(logging.WARNING)
 
+def verbose_callback(opt, value, parser, *args, **kwds):
+    logging.getLogger().setLevel(logging.DEBUG)
 
 # --------------------------------------------------------------------------- #
 # Utility functions
