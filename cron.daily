@@ -22,7 +22,7 @@ exit
 
 set -e
 
-LOG="/var/log/mom.log"
+LOG="/srv/obs/log/mom.log"
 
 touch "$LOG"
 chown mom:mom "$LOG"
