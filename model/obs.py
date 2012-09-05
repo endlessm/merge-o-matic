@@ -194,7 +194,6 @@ class OBSDistro(Distro):
 
   def package(self, dist, component, name, version=None):
     assert(version is None or isinstance(version, Version))
-    self.updateOBSCache(dist, component, name)
     try:
       for s in self.getSources(dist, component):
         if s['Package'] == name and (version is None or Version(s['Version']) == version):
