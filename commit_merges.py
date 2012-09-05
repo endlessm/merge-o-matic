@@ -96,22 +96,27 @@ def main(options, args):
           # FIXME: Debdiff needs implemented in OBS, as large merge descriptions break clucene.
           diff = ""
           if not options.dry_run:
+            filesUpdated = False
             for f in branchPkg.files:
               if f == "_link":
                 continue
               try:
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
+                filesUpdated = True
               except OSError:
                 pass
             for f in filepaths:
               if f == "_link":
                 continue
               shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
-            try:
-              branchPkg.commit('Automatic update by Merge-O-Matic')
-              branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), diff)
-            except urllib2.HTTPError:
-              logging.exception("Failed to commit %s", branchPkg)
+              filesUpdated = True
+            if filesUpdated:
+              try:
+                branchPkg.commit('Automatic update by Merge-O-Matic')
+                branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), diff)
+                pass
+              except urllib2.HTTPError:
+                logging.exception("Failed to commit %s", branchPkg)
           else:
             logging.info("Not committing, due to --dry-run")
 
