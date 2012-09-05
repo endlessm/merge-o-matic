@@ -36,6 +36,8 @@ def main(options, args):
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
         d = Distro.get(our_distro)
         for source in d.getSources(our_dist, our_component):
+            if options.package and source['Package'] not in options.package:
+                continue
             base = get_base(source)
             logging.debug("%s %s", source["Package"], source["Version"])
             logging.debug("base is %s", base)

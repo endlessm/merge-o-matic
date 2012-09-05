@@ -48,6 +48,8 @@ def main(options, args):
             d = Distro.get(our_distro)
             for source in d.newestSources(our_dist, our_component):
                 package = source["Package"]
+                if options.package and source['Package'] not in options.package:
+                    continue
 
                 if not PACKAGELISTS.check_target(target, None, source["Package"]):
                     continue

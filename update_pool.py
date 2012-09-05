@@ -62,6 +62,8 @@ def main(options, args):
         updated_sources.add((our_distro, our_dist, our_component))
         sources.extend(d.getSources(our_dist, our_component))
         for pkg in sources:
+          if options.package and pkg['Package'] not in options.package:
+            continue
           for sourceName in DISTRO_TARGETS[target]['sources']:
             for source in DISTRO_SOURCES[sourceName]:
               distname = source["dist"]

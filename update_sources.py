@@ -30,12 +30,14 @@ def main(options, args):
     for target in config.targets(args):
       d = target.distro
       d.updateSources(target.dist, target.component)
-      d.updatePool(target.dist, target.component)
       for upstreamList in target.sources:
         for source in upstreamList:
           for component in source.distro.components():
             source.distro.updateSources(source.dist, component)
       for package in target.distro.packages(target.dist, target.component):
+        if options.package and package.name not in options.package:
+          continue
+        d.updatePool(target.dist, target.component, package.name)
         package.updatePoolSource()
         for source in upstreamList:
           try:

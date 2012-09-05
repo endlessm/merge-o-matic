@@ -40,6 +40,8 @@ def main(options, args):
     for target in config.targets(args):
       d = target.distro
       for source in d.newestSources(target.dist, target.component):
+        if options.package and source['Package'] not in options.package:
+          continue
         try:
           pkg = d.package(target.dist, target.component, source['Package'])
         except model.error.PackageNotFound, e:
