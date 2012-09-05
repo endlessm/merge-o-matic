@@ -48,7 +48,7 @@ def main(options, args):
         try:
           if options.source_distro is None:
             (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                        = PACKAGELISTS.find_in_source_distros(target, package)
+                        = PACKAGELISTS.find_in_source_distros(target.name, package)
           else:
             src_distro = options.source_distro
             src_dist = options.source_suite
@@ -59,7 +59,7 @@ def main(options, args):
 
         base = get_base(source)
         try:
-          base_source = get_nearest_source(our_distro, src_distro, package, base)
+          base_source = get_nearest_source(distro.name, src_distro, package, base)
         except IndexError:
           logging.debug("Attempting to fetch missing base %s_%s for %s", package, base, src_version)
           get_source(src_distro, package, base, src_source["Directory"])
