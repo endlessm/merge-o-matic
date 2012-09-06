@@ -78,6 +78,8 @@ def run(main_func, options_func=None, usage=None, description=None):
                       callback=quiet_callback, help="Be less chatty")
     parser.add_option("-v", "--verbose", action="callback",
                       callback=verbose_callback, help="Be more noisy")
+    parser.add_option("-p", "--package", type="string", metavar="PACKAGE", action="append",
+                      help="Process only this package")
     if options_func is not None:
         options_func(parser)
 
