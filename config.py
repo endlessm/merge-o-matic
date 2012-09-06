@@ -71,6 +71,9 @@ class Source(object):
   def __repr__(self):
     return "Source(%s, %s)"%(self._distro, self._dist)
 
+  def __eq__(self, other):
+    return self._distro == other._distro and self._dist == other._dist
+
 class SourceList(object):
   def __init__(self, name):
     super(SourceList, self).__init__()
