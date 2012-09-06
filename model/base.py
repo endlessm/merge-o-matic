@@ -23,6 +23,9 @@ class Distro(object):
   def __unicode__(self):
     return self.name
 
+  def __eq__(self, other):
+    return self.name == other.name
+
   def __str__(self):
     return self.__unicode__()
 
@@ -87,7 +90,7 @@ class Distro(object):
           except IOError:
               logging.error("Downloading %s failed", url)
               raise
-          logging.info("Saved %s", tree.subdir(config.get('ROOT'), filename))
+          logging.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
 
   def findPackage(self, name, searchDist=None, searchComponent=None, version=None):
     if searchDist is None:
@@ -171,7 +174,7 @@ class Distro(object):
         logging.error("Downloading %s failed", url)
         raise
 
-    logging.info("Saved %s", tree.subdir(config.get('ROOT'), filename))
+    logging.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
     with gzip.open(self.sourcesFile(dist, component)) as gzf:
         with open(self.sourcesFile(dist, component, False), "wb") as f:
             f.write(gzf.read())
@@ -190,6 +193,9 @@ class Package(object):
     self.dist = dist
     self.component = component
     self.version = version
+
+  def __eq__(self, other):
+    return self.distro == other.distro and self.name == other.name and self.dist == other.dist and self.component == other.component and self.version == other.version
 
   @property
   def files(self):
@@ -280,7 +286,7 @@ class Package(object):
       needsUpdate = True
 
     if needsUpdate:
-      logging.info("Updating %s", filename)
+      logging.debug("Updating %s", filename)
       with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
           stdout=sources)
