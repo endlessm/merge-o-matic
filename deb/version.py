@@ -126,6 +126,27 @@ class Version(object):
         return 0
 
 
+    def base(self, slip=False):
+        def strip_suffix(text, suffix):
+            try:
+                idx = text.rindex(suffix)
+            except ValueError:
+                return text
+
+            for char in text[idx+len(suffix):]:
+                if not (char.isdigit() or char == '.'):
+                    return text
+
+            return text[:idx]
+        v = strip_suffix(str(self), "build")
+        v = strip_suffix(v, "co")
+        if v.endswith("-"):
+            v += "0"
+        if slip and v.endswith("-0"):
+            v = v[:-2] + "-1"
+        return Version(v)
+
+
 def strcut(str, idx, accept):
     """Cut characters from str that are entirely in accept."""
     ret = ""
