@@ -24,6 +24,9 @@ import json
 import time
 import urllib
 import model
+import re
+import model.error
+from deb.version import Version
 from os import path
 
 MOM_CONFIG_PATH = "/etc/merge-o-matic"
@@ -96,6 +99,14 @@ class SourceList(object):
   def __repr__(self):
     return repr(self._sources)
 
+  def findPackage(self, name):
+    for s in self._sources:
+      try:
+        return s.distro.findPackage(name, searchDist=s.dist)
+      except model.error.PackageNotFound:
+        continue
+    raise model.error.PackageNotFound, name
+
 class Target(object):
   def __init__(self, name):
     super(Target, self).__init__()
@@ -134,6 +145,27 @@ class Target(object):
 
   def __repr__(self):
     return "Target(%s)"%(self._name)
+
+  def findNearestVersion(self, version):
+    assert(isinstance(version, model.PackageVersion))
+    base = version.version.base()
+    sources = []
+    for srclist in self.sources:
+      for src in srclist:
+        try:
+          sources.extend(src.distro.findPackage(version.package.name, searchDist=src.dist).versions())
+        except model.error.PackageNotFound:
+          pass
+    sources.extend(version.package.versions())
+    bases = []
+    for source in sources:
+      if base == source.version:
+        return source
+      elif base >= Version(re.sub("build[0-9]+$", "", str(source.version))):
+        bases.append(source)
+    bases.append(version)
+    bases.sort()
+    return bases.pop()
 
 def targets(names=[]):
   if len(names) == 0:
