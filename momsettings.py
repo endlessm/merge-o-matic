@@ -72,3 +72,5 @@ defineDist('SUITE_C', 'quantal+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
+
+LOCAL_SUFFIX = "co1"
