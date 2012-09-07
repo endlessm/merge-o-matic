@@ -24,29 +24,44 @@ from model import Distro
 from momlib import *
 import config
 import model.error
-
+import logging
 
 def main(options, args):
+    upstreamSources = []
+    packages = []
     for target in config.targets(args):
+      logging.info("Updating sources for %s", target)
       d = target.distro
       d.updateSources(target.dist, target.component)
       for upstreamList in target.sources:
         for source in upstreamList:
-          for component in source.distro.components():
-            source.distro.updateSources(source.dist, component)
+          if source not in upstreamSources:
+            upstreamSources.append(source)
       for package in target.distro.packages(target.dist, target.component):
         if options.package and package.name not in options.package:
           continue
-        d.updatePool(target.dist, target.component, package.name)
-        package.updatePoolSource()
-        for source in upstreamList:
-          try:
-            upstreamPkg = source.distro.findPackage(package.name, searchDist=source.dist)
-            upstreamPkg.updatePool()
-            upstreamPkg.updatePoolSource()
-          except model.error.PackageNotFound:
-            pass
+        packages.append(package)
 
+        for upstreamList in target.sources:
+          for source in upstreamList:
+            try:
+              upstreamPkg = source.distro.findPackage(package.name, searchDist=source.dist)
+              if upstreamPkg not in packages:
+                packages.append(upstreamPkg)
+            except model.error.PackageNotFound:
+              logging.debug("%s not found in %s, skipping.", package, source)
+              pass
+
+    for upstream in upstreamSources:
+      for component in upstream.distro.components():
+        logging.info("Updating upstream sources for %s/%s", source, component)
+        upstream.distro.updateSources(source.dist, component)
+    logging.info("%d packages considered for updating", len(packages))
+    for pkg in packages:
+      logging.info("Updating %s", pkg)
+      pkg.updatePool()
+      pkg.updatePoolSource()
+      logging.info("Updated %s to %s", pkg, pkg.newestVersion())
 
 if __name__ == "__main__":
     run(main, usage="%prog [DISTRO...]",
