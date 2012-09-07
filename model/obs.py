@@ -192,15 +192,14 @@ class OBSDistro(Distro):
     os.rename(tmpCache, cacheFile)
     OBSDistro.masterCache[self.name] = self._obsCache
 
-  def package(self, dist, component, name, version=None):
-    assert(version is None or isinstance(version, Version))
+  def package(self, dist, component, name):
     try:
       for s in self.getSources(dist, component):
-        if s['Package'] == name and (version is None or Version(s['Version']) == version):
-          return OBSPackage(self, dist, component, name, Version(s['Version']))
-      raise error.PackageNotFound(name, dist, component, version)
+        if s['Package'] == name:
+          return OBSPackage(self, dist, component, name)
+      raise error.PackageNotFound(name, dist, component)
     except KeyError:
-      raise error.PackageNotFound(name, dist, component, version)
+      raise error.PackageNotFound(name, dist, component)
 
   def obsProject(self, dist, component):
     if self.parent:
@@ -216,8 +215,8 @@ class OBSDistro(Distro):
     return url
 
 class OBSPackage(Package):
-  def __init__(self, distro, dist, component, name, version):
-    super(OBSPackage, self).__init__(distro, dist, component, name, version)
+  def __init__(self, distro, dist, component, name):
+    super(OBSPackage, self).__init__(distro, dist, component, name)
 
   @property
   def obsName(self):

@@ -104,17 +104,16 @@ class Distro(object):
     for dist in dists:
       for component in components:
         try:
-          return self.package(dist, component, name, version)
+          return self.package(dist, component, name)
         except error.PackageNotFound:
           continue
     raise error.PackageNotFound(name, searchDist, searchComponent)
 
-  def package(self, dist, component, name, version=None):
-    assert(version is None or isinstance(version, Version))
+  def package(self, dist, component, name):
     source = None
     for s in self.getSources(dist, component):
-      if s['Package'] == name and (version is None or Version(s['Version']) == version):
-        return Package(self, dist, component, name, Version(s['Version']))
+      if s['Package'] == name:
+        return Package(self, dist, component, name)
     raise error.PackageNotFound(name, dist, component)
 
   def branch(self, name):
@@ -184,18 +183,16 @@ class Distro(object):
 
 
 class Package(object):
-  def __init__(self, distro, dist, component, name, version):
+  def __init__(self, distro, dist, component, name):
     super(Package, self).__init__()
-    assert(isinstance(version, Version))
     assert(isinstance(distro, Distro))
     self.distro = distro
     self.name = name
     self.dist = dist
     self.component = component
-    self.version = version
 
   def __eq__(self, other):
-    return self.distro == other.distro and self.name == other.name and self.dist == other.dist and self.component == other.component and self.version == other.version
+    return self.distro == other.distro and self.name == other.name and self.dist == other.dist and self.component == other.component
 
   @property
   def files(self):
@@ -211,15 +208,11 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
-    dir = self.getPoolSource()['Directory']
+    dir = self.newestVersion().getSources()['Directory']
     return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
 
   def commitMerge(self):
     pass
-
-  def version(self):
-    return self.version
-    return Version(self.source["Version"])
 
   def sourcesFile(self):
     return '%s/%s/Sources'%(config.get('ROOT'), self.poolDirectory())
@@ -229,23 +222,6 @@ class Package(object):
     sources = ControlFile(filename, multi_para=True, signed=False)
     return sources.paras
 
-  def getPoolSource(self, version=None):
-    sources = self.distro.getSources(self.dist, self.component)
-    matches = []
-    for source in sources:
-      if source['Package'] == self.name:
-        matches.append(source)
-    assert(len(matches) > 0)
-    if version is None:
-      matches.sort(key=lambda x:Version(x['Version']))
-      return matches.pop()
-    else:
-      for p in matches:
-        if version == p['Version']:
-          return p
-      else:
-        raise error.PackageVersionNotFound(self, version)
-
   def getPoolSources(self):
     sources = self.distro.getSources(self.dist, self.component)
     matches = []
@@ -254,6 +230,13 @@ class Package(object):
         matches.append(source)
     matches.sort(key=lambda x:Version(x['Version']))
     return matches
+
+  def version(self, version):
+    for v in self.versions():
+      if v.version == version:
+        return v
+    raise error.PackageVersionNotFound(self, version)
+    
 
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):
@@ -268,6 +251,21 @@ class Package(object):
 
   def updatePool(self):
     self.distro.updatePool(self.dist, self.component, self.name)
+
+  def versions(self):
+    versions = []
+    for source in self.getPoolSources():
+      if source['Package'] == self.name:
+        versions.append(PackageVersion(self, Version(source['Version'])))
+    return versions
+
+  def newestVersion(self):
+    versions = self.versions()
+    newest = versions[0]
+    for v in versions:
+      if v > newest:
+        newest = v
+    return newest
 
   def updatePoolSource(self):
     pooldir = self.poolDirectory()
@@ -290,6 +288,32 @@ class Package(object):
       with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
           stdout=sources)
+ 
+class PackageVersion(object):
+  def __init__(self, package, version):
+    self.package = package
+    self.version = version
+
+  def __eq__(self, other):
+    return self.package == other.package and self.version == other.version
+
+  def __cmp__(self, other):
+    return self.version.__cmp__(other.version)
+
+  def __str__(self):
+    return self.__unicode__()
+
+  def __repr__(self):
+    return self.__unicode__()
+
+  def __unicode__(self):
+    return "%s-%s"%(self.package, self.version)
+  
+  def getSources(self):
+    for s in self.package.getPoolSources():
+      if Version(s['Version']) == self.version:
+        return s
+    raise error.PackageVersionNotFound(self.package, self.version)
 
 def files(source):
     """Return (md5sum, size, name) for each file."""
