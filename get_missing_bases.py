@@ -23,6 +23,7 @@ import urllib
 from momlib import *
 from config import *
 from model import Distro
+import model.error
 from util import tree
 import config
 
@@ -30,9 +31,6 @@ def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Distribution target to fetch for")
-    parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
-                      action="append",
-                      help="Process only these packages")
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
                       default=None,
                       help="Source distribution")
@@ -55,6 +53,9 @@ def main(options, args):
             (src_source, src_version, src_pool_source) \
                         = get_same_source(src_distro, src_dist, package)
         except IndexError:
+          continue
+        except model.error.PackageNotFound:
+          logging.warn("Couldn't find upstream package for %s", package)
           continue
 
         base = get_base(source)
