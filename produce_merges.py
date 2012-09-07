@@ -32,7 +32,8 @@ from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
 from util import tree, shell
-from model import Distro
+from model import Distro, PackageVersion
+import config
 import model.error
 
 
@@ -56,9 +57,6 @@ def options(parser):
                       default=None,
                       help="Distribution target to use")
 
-    parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
-                      action="append",
-                      help="Process only these packages")
     parser.add_option("-V", "--version", type="string", metavar="VER",
                       help="Version to obtain from destination")
 
@@ -70,10 +68,6 @@ def options(parser):
                       help="Only process packages listed in this file")
 
 def main(options, args):
-    if options.target:
-        targets = [options.target]
-    else:
-        targets = DISTRO_TARGETS.keys()
 
     excludes = []
     if options.exclude is not None:
@@ -88,74 +82,27 @@ def main(options, args):
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # produce a merge combining both sets of changes
-    for target in targets:
-        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        d = Distro.get(our_distro)
-        for our_source in d.newestSources(our_dist, our_component):
-            if options.package is not None \
-                and our_source["Package"] not in options.package:
-                continue
-            if not PACKAGELISTS.check_target(target, None, our_source["Package"]):
-                continue
-            if len(includes) and our_source["Package"] not in includes:
-                continue
-            if len(excludes) and our_source["Package"] in excludes:
-                continue
-
-            try:
-                pkg = d.package(our_dist, our_component, our_source['Package'])
-                if options.version:
-                    our_version = Version(options.version)
-                else:
-                    our_version = pkg.version
-                logging.debug("our %s: %s is %s", pkg, d, our_version)
-                sourceList = pkg.getSources()
-                if len(sourceList) == 0:
-                  logging.warn("Empty Sources file for %s", pkg)
-                  continue
-                for v in sourceList:
-                    if Version(v['Version']) == our_version:
-                        our_pool_source = v
-                        break
-            except model.error.PackageNotFound:
-                continue
-
-            try:
-                if options.source_distro is None:
-                    (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                                = PACKAGELISTS.find_in_source_distros(target, pkg.name)
-                else:
-                    src_distro = options.source_distro
-                    src_d = Distro.get(src_distro)
-                    src_pkg = src_d.package(pkg.name)
-                    src_dist = options.source_suite
-                    src_source = src_pkg.getSources()[0]
-                    src_version = src_pkg.version
-                    src_pool_source = src_pkg.getPoolSource()
-
-                logging.debug("source %s: %s is %s", pkg.name, src_distro, src_version)
-            except model.error.PackageNotFound:
-                continue
-
-            try:
-                base = get_base(our_pool_source)
-                base_source, base_distro = get_nearest_source(our_distro, src_distro, pkg.name, base)
-                base_version = Version(base_source["Version"])
-                logging.debug("%s: base is %s (%s wanted)",
-                            pkg.name, base_version, base)
-            except IndexError:
-                write_report(pkg.name, our_pool_source, our_distro, left_patch=None, base_source=None,
-                    right_source=src_pool_source, right_distro=src_distro, right_patch=None,
-                    merged_version=None, conflicts=None, src_file=None, patch_file=None, output_dir=result_dir(target, pkg.name),
-                    merged_dir=None, merged_is_right=False, build_metadata_changed=is_build_metadata_changed(our_pool_source, src_pool_source))
-                continue
-
-            try:
-                produce_merge(our_pool_source, our_distro, our_dist, base_source, base_distro,
-                            src_pool_source, src_distro, src_dist, result_dir(target, pkg.name),
-                            force=options.force)
-            except IOError:
-                logging.exception("Could not produce merge due to bad/missing files?")
+    for target in config.targets(args):
+        our_dist = target.dist
+        our_component = target.component
+        d = target.distro
+        for pkg in d.packages(target.dist, target.component):
+          if options.package is not None and pkg.name not in options.package:
+            continue
+          if len(includes) and pkg.name not in includes:
+            continue
+          if len(excludes) and pkg.name in excludes:
+            continue
+          if options.version:
+            our_version = Version(options.version)
+          else:
+            our_version = pkg.newestVersion()
+          base = target.findNearestVersion(PackageVersion(our_version.package, our_version.version.base()))
+          nearest = target.findNearestVersion(pkg.newestVersion())
+          if our_version >= nearest:
+            continue
+          logging.info("local: %s, upstream: %s", our_version, nearest)
+          produce_merge(our_version, base, nearest, result_dir(target.name, pkg.name))
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""
@@ -168,103 +115,6 @@ def is_build_metadata_changed(left_source, right_source):
             return True
 
     return False
-
-def produce_merge(left_source, left_distro, left_dist, base_source, base_distro,
-                  right_source, right_distro, right_dist, output_dir, force=False):
-    """Produce a merge for the given two packages."""
-    package = base_source["Package"]
-    merged_version = Version(right_source["Version"] + "co1")
-
-    base_version = Version(re.sub("build[0-9]+$", "", base_source["Version"]))
-    left_version = Version(re.sub("build[0-9]+$", "", left_source["Version"]))
-    right_version = Version(re.sub("build[0-9]+$", "", right_source["Version"]))
-    if base_version >= left_version:
-        cleanup(output_dir)
-        if left_version < right_version:
-            tree.ensure("%s/%s" % (output_dir, "REPORT"))
-            write_report(package, left_source, left_distro, None, base_source,
-                        right_source, right_distro, None,
-                        merged_version, None, None, None,
-                        output_dir, None, True, is_build_metadata_changed(left_source, right_source))
-        return
-    elif base_version >= right_version:
-        cleanup(output_dir)
-        return
-
-    if not force:
-        try:
-            report = read_report(output_dir)
-            (prev_base, prev_left, prev_right) \
-                        = (report["base_version"], report["left_version"], report["right_version"])
-            if prev_base == base_version \
-                   and prev_left == left_source["Version"] \
-                   and prev_right == right_source["Version"]:
-                return
-        except ValueError:
-            pass
-
-    logging.info("Trying to merge %s: %s <- %s -> %s", package,
-                 left_source["Version"], base_source["Version"],
-                 right_source["Version"])
-
-    left_name = "%s-%s (%s)" % (package, left_source["Version"], left_distro)
-    right_name = "%s-%s (%s)" % (package, right_source["Version"],
-                                 right_distro)
-
-    try:
-        left_dir = unpack_source(left_source, left_distro)
-        base_dir = unpack_source(base_source, base_distro)
-        right_dir = unpack_source(right_source, right_distro)
-
-        merged_dir = work_dir(package, merged_version)
-        try:
-            conflicts = do_merge(left_dir, left_name, left_distro, base_dir,
-                                 right_dir, right_name, right_distro,
-                                 merged_dir)
-
-            add_changelog(package, merged_version, left_distro, left_dist,
-                          right_distro, right_dist, merged_dir)
-
-
-            # Now clean up the output
-            cleanup(output_dir)
-            os.makedirs(output_dir)
-
-            copy_in(output_dir, base_source, base_distro)
-
-            left_patch = copy_in(output_dir, left_source, left_distro)
-            right_patch = copy_in(output_dir, right_source, right_distro)
-
-            patch_file = None
-            build_metadata_changed = False
-            if len(conflicts):
-                src_file = create_tarball(package, merged_version,
-                                          output_dir, merged_dir)
-            else:
-                src_file = create_source(package, merged_version,
-                                         Version(left_source["Version"]),
-                                         output_dir, merged_dir)
-                if src_file.endswith(".dsc"):
-                    build_metadata_changed = is_build_metadata_changed(left_source, ControlFile("%s/%s" % (output_dir, src_file), signed=True).para)
-                    patch_file = create_patch(package, merged_version,
-                                              output_dir, merged_dir,
-                                              right_source, right_dir)
-
-            write_report(package, left_source, left_distro, left_patch, base_source,
-                         right_source, right_distro, right_patch,
-                         merged_version, conflicts, src_file, patch_file,
-                         output_dir, merged_dir, False, build_metadata_changed)
-        finally:
-            cleanup(merged_dir)
-    except OSError:
-        logging.exception("Could not unpack %s", package)
-    except model.error.PackageNotFound:
-        logging.exception("Could not find package %s, something spooky is going on?", package)
-    finally:
-        cleanup_source(right_source)
-        cleanup_source(base_source)
-        cleanup_source(left_source)
-
 
 
 def do_merge(left_dir, left_name, left_distro, base_dir,
@@ -852,7 +702,6 @@ def create_patch(package, version, output_dir, merged_dir,
     finally:
         tree.remove(parent)
 
-
 def write_report(package, left_source, left_distro, left_patch, base_source,
                  right_source, right_distro, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
@@ -1057,6 +906,65 @@ def read_package_list(filename):
 
     return packages
 
+def produce_merge(left, base, upstream, output_dir):
+
+  left_dir = unpack_source(left.getSources(), left.package.distro.name)
+  base_dir = unpack_source(base.getSources(), base.package.distro.name)
+  upstream_dir = unpack_source(upstream.getSources(), upstream.package.distro.name)
+
+  merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
+  if base >= left:
+    cleanup(output_dir)
+    if left < upstream:
+      logging.info("No merge required: %s < %s", left, upstream)
+      tree.ensure("%s/%s" % (output_dir, "REPORT"))
+      write_report(left.package.name, left.getSources(), left.package.distro.name, None, base.getSources(),
+                   upstream.getSources(), upstream.package.distro.name, None,
+                   merged_version, None, None, None,
+                   output_dir, None, True, is_build_metadata_changed(left.getSources(), upstream.getSources()))
+      return
+    elif base >= upstream:
+      cleanup(output_dir)
+      return
+
+  merged_dir = work_dir(left.package.name, merged_version)
+  logging.info("Merging %s..%s onto %s", upstream, base, left)
+
+  try:
+    conflicts = do_merge(left_dir, left.package.name, left.package.distro.name, base_dir,
+                         upstream_dir, upstream.package.name, upstream.package.distro.name,
+                         merged_dir)
+  except OSError:
+    cleanup(merged_dir)
+    logging.exception("Could not merge %s, probably bad files?", left)
+    return
+
+  add_changelog(left.package.name, merged_version, left.package.distro.name, left.package.dist,
+                upstream.package.distro.name, upstream.package.dist, merged_dir)
+  cleanup(output_dir)
+  os.makedirs(output_dir)
+  copy_in(output_dir, base.getSources(), base.package.distro.name)
+  left_patch = copy_in(output_dir, left.getSources(), left.package.distro.name)
+  right_patch = copy_in(output_dir, upstream.getSources(), upstream.package.distro.name)
+
+  if len(conflicts):
+    src_file = create_tarball(left.package.name, merged_version, output_dir, merged_dir)
+  else:
+    src_file = create_source(left.package.name, merged_version, left.version, output_dir, merged_dir)
+    if src_file.endswith(".dsc"):
+      build_metadata_changed = is_build_metadata_changed(left.getSources(), ControlFile("%s/%s" % (output_dir, src_file), signed=True).para)
+      patch_file = create_patch(left.package.name, merged_version,
+                                output_dir, merged_dir,
+                                upstream.getSources(), upstream_dir)
+    write_report(left.package.name, left.getSources(), left.package.distro.name, left_patch, base.getSources(),
+                 upstream.getSources(), upstream.package.distro.name, right_patch,
+                 merged_version, conflicts, src_file, patch_file,
+                 output_dir, merged_dir, False, build_metadata_changed)
+  logging.info("Wrote output to %s", src_file)
+  cleanup(merged_dir)
+  cleanup_source(upstream.getSources())
+  cleanup_source(base.getSources())
+  cleanup_source(left.getSources())
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",
