@@ -20,7 +20,7 @@ DISTROS = {
             "project": "DISTRO",
         },
         "mirror": "http://SERVER:82/debian/",
-        "dists": [ "SUITE_A", "SUITE_B", "SUITE_C" ],
+        "dists": [ "SUITE_B", "SUITE_C" ],
         "components": [ "target", "sdk", "development" ],
         "expire": True,
         },
