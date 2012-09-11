@@ -51,24 +51,25 @@ DISTRO_SOURCES = {
 
 DISTRO_TARGETS = {}
 
-def defineDist(name, upstream, commitable):
+def defineDist(distro, name, upstream, commitable):
   """Adds an entry to DISTRO_TARGETS.
 
      @param name The name of the distro
      @param upstream A key from DISTRO_SOURCES, linking this distro with a collection of upstream repos
-     @commitable Whether or not you want to be able to commit to OBS, or submit merge requests.
+     @param commitable Whether or not you want to be able to commit to OBS, or submit merge requests.
+     @param distro The distro to use
   """
-  for component in DISTROS['DISTRO']['components']:
+  for component in DISTROS[distro]['components']:
     DISTRO_TARGETS["%s-%s"%(name, component)] = {
-      'distro': 'DISTRO',
+      'distro': distro,
       'dist': name,
       'component': component,
       'sources': [ upstream, ],
       'commit': commitable
     }
 
-defineDist('SUITE_B', 'precise+updates', False)
-defineDist('SUITE_C', 'quantal+updates', False)
+defineDist('DISTRO', 'SUITE_B', 'precise+updates', False)
+defineDist('DISTRO', 'SUITE_C', 'quantal+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
