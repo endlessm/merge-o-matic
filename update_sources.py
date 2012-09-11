@@ -36,6 +36,9 @@ def main(options, args):
       for upstreamList in target.sources:
         for source in upstreamList:
           if source not in upstreamSources:
+            for component in source.distro.components():
+              logging.info("Updating upstream sources for %s/%s", source, component)
+              source.distro.updateSources(source.dist, component)
             upstreamSources.append(source)
       for package in target.distro.packages(target.dist, target.component):
         if options.package and package.name not in options.package:
@@ -52,10 +55,6 @@ def main(options, args):
               logging.debug("%s not found in %s, skipping.", package, source)
               pass
 
-    for upstream in upstreamSources:
-      for component in upstream.distro.components():
-        logging.info("Updating upstream sources for %s/%s", source, component)
-        upstream.distro.updateSources(source.dist, component)
     logging.info("%d packages considered for updating", len(packages))
     for pkg in packages:
       logging.info("Updating %s", pkg)
