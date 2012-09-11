@@ -40,8 +40,6 @@ def main(options, args):
       for source in d.newestSources(target.dist, target.component):
         if options.package and source['Package'] not in options.package:
           continue
-        if not PACKAGELISTS.check_target(target.name, None, source['Package']):
-          continue
         try:
           output_dir = result_dir(target.name, source['Package'])
           report = read_report(output_dir)
