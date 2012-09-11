@@ -1,5 +1,5 @@
 PACKAGE_NAME = merge-o-matic-local
-VERSION = 2012.09.05
+VERSION = 2012.09.11
 
 PREFIX ?= /usr
 LIBDIR ?= lib
