@@ -76,6 +76,17 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Tue Sep 11 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.11
+- Rough edges cleaned up, some internal design refactoring for easier
+  maintainability
+- SUITE_A removed
+
+* Wed Sep 05 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.05
+- MoM no longer allows bad packages to stop processing of all other packages
+- Configuration internals are redesigned to reduce redundant configuration
+  files.
+- Much improved stability and reliability in OBS support.
+
 * Mon Jul 10 2012 Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com> - 2012.07.10
 - Use per-target merge output directories.
 - Allow MoM to skip committing merges to some osc projects by setting
