@@ -55,7 +55,6 @@ def main(options, args):
         except IndexError:
           continue
         except model.error.PackageNotFound:
-          logging.warn("Couldn't find upstream package for %s", package)
           continue
 
         base = get_base(source)
