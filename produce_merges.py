@@ -31,7 +31,7 @@ from textwrap import fill
 from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
-from util import tree, shell
+from util import tree, shell, run
 from model import Distro, PackageVersion
 import config
 import model.error

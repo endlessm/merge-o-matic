@@ -21,15 +21,12 @@ import os
 import logging
 
 from momlib import *
-from util import tree
+from util import tree, run
 from model import Distro
 import config
 
 
 def options(parser):
-    parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
-                      action="append",
-                      help="Process only these packages")
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Process only this distribution target")

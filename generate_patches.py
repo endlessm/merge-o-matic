@@ -21,7 +21,7 @@ import logging
 
 from momlib import *
 from deb.version import Version
-from util import tree
+from util import tree, run
 from re import search
 from model import Distro
 import model.error
@@ -41,10 +41,6 @@ def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Distribution target to use")
-
-    parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
-                      action="append",
-                      help="Process only these packages")
 
 def main(options, args):
     if options.target:
@@ -70,7 +66,7 @@ def main(options, args):
 
             try:
                 package = d.package(our_dist, our_component, our_source['Package'])
-                our_version = package.version
+                our_version = package.newestVersion().version
                 our_pool_source = package.getSources()
                 logging.debug("%s: %s is %s", package, our_distro, our_version)
             except model.error.PackageNotFound:

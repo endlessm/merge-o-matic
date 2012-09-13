@@ -21,14 +21,12 @@ from momlib import *
 import config
 from model import Distro, OBSDistro
 import urllib2
+from util import run
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Distribution target to publish")
-    parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
-                      action="append",
-                      help="Process only these packages")
     parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
 
 def main(options, args):

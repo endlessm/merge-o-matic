@@ -25,6 +25,7 @@ import logging
 from momlib import *
 from deb.version import Version
 from model import Distro
+from util import run
 
 import model.error
 
@@ -40,10 +41,6 @@ def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Distribution target to generate stats for")
-
-    parser.add_option("-p", "--package", type="string", metavar="PACKAGE",
-                      action="append",
-                      help="Process only these packages")
 
 def main(options, args):
     if options.target:

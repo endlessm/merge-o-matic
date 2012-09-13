@@ -21,10 +21,10 @@ import sys
 import os
 
 from model import Distro
-from momlib import *
 import config
 import model.error
 import logging
+from util import run
 
 def main(options, args):
     upstreamSources = []

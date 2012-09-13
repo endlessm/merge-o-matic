@@ -26,6 +26,7 @@ import re
 from rfc822 import parseaddr
 from momlib import *
 from model import Distro
+from util import run
 
 
 # Order of priorities

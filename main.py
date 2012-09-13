@@ -22,7 +22,8 @@ import os.path
 import shutil
 import sys
 
-from momlib import *
+from util import run
+import config
 import update_sources
 import get_missing_bases
 import generate_diffs
@@ -45,9 +46,9 @@ def options(parser):
     parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
                       
 def main(options, args):
-    lockdir = "%s/.lock" % ROOT
+    lockdir = "%s/.lock" % config.get('ROOT')
     codedir = os.path.dirname(__file__)
-    unpackeddir = "%s/unpacked" % ROOT
+    unpackeddir = "%s/unpacked" % config.get('ROOT')
 
     # Default options values referenced in various *.main() functions
     options.exclude = None
