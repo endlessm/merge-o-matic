@@ -161,7 +161,7 @@ class Target(object):
     for source in sources:
       if base == source.version:
         return source
-      elif base >= Version(re.sub("build[0-9]+$", "", str(source.version))):
+      elif base <= Version(re.sub("build[0-9]+$", "", str(source.version))):
         bases.append(source)
     bases.append(version)
     bases.sort()
