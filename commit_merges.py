@@ -70,7 +70,8 @@ def main(options, args):
               for src in upstream:
                 srcDistro = src.distro
                 try:
-                  pkg = srcDistro.findPackage(package.name, searchDist=src.dist)
+                  pkg = srcDistro.findPackage(package.name, searchDist=src.dist,
+                      version=package.newestVersion().version)[0]
                   pfx = pkg.poolDirectory()
                   break
                 except model.error.PackageNotFound:

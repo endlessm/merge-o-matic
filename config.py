@@ -153,7 +153,9 @@ class Target(object):
     for srclist in self.sources:
       for src in srclist:
         try:
-          sources.extend(src.distro.findPackage(version.package.name, searchDist=src.dist).versions())
+          for pkg in  src.distro.findPackage(version.package.name,
+              searchDist=src.dist):
+            sources.extend(pkg.package.versions())
         except model.error.PackageNotFound:
           pass
     sources.extend(version.package.versions())

@@ -48,9 +48,10 @@ def main(options, args):
         for upstreamList in target.sources:
           for source in upstreamList:
             try:
-              upstreamPkg = source.distro.findPackage(package.name, searchDist=source.dist)
-              if upstreamPkg not in packages:
-                packages.append(upstreamPkg)
+              upstreamPkgs = source.distro.findPackage(package.name, searchDist=source.dist)
+              for upstreamPkg in upstreamPkgs:
+                if upstreamPkg not in packages:
+                  packages.append(upstreamPkg)
             except model.error.PackageNotFound:
               logging.debug("%s not found in %s, skipping.", package, source)
               pass

@@ -546,8 +546,9 @@ def unpack_source(source, distro):
         return destdir
 
     d = Distro.get(distro)
-    pkg = d.findPackage(source['Package'], version=Version(source['Version']))
-    srcdir = "%s/%s" % (ROOT, pkg.poolDirectory())
+    pv = d.findPackage(source['Package'], version=source['Version'])[0]
+    print pv
+    srcdir = "%s/%s" % (ROOT, pv.poolDirectory())
     for md5sum, size, name in files(source):
         if name.endswith(".dsc"):
             dsc_file = name
@@ -555,7 +556,7 @@ def unpack_source(source, distro):
     else:
         raise ValueError, "Missing dsc file"
 
-    logging.info("Unpacking %s/%s", srcdir, dsc_file)
+    logging.info("Unpacking %s from %s/%s", pv, srcdir, dsc_file)
 
     tree.ensure(destdir)
     try:

@@ -101,13 +101,21 @@ class Distro(object):
       components = self.components()
     else:
       components = [searchComponent,]
+    ret = []
     for dist in dists:
       for component in components:
         try:
-          return self.package(dist, component, name)
+          pkg = self.package(dist, component, name)
+          ret.extend(pkg.versions())
         except error.PackageNotFound:
           continue
-    raise error.PackageNotFound(name, searchDist, searchComponent)
+        for v in pkg.versions():
+          if version and v.version != version:
+            continue
+          ret.append(v)
+    if len(ret) == 0:
+      raise error.PackageNotFound(name, searchDist, searchComponent)
+    return ret
 
   def package(self, dist, component, name):
     source = None
@@ -208,8 +216,7 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
-    dir = self.newestVersion().getSources()['Directory']
-    return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
+    return self.newestVersion().poolDirectory()
 
   def commitMerge(self):
     pass
@@ -314,6 +321,10 @@ class PackageVersion(object):
       if Version(s['Version']) == self.version:
         return s
     raise error.PackageVersionNotFound(self.package, self.version)
+
+  def poolDirectory(self):
+      dir = self.getSources()['Directory']
+      return "pool/%s/%s/" % (self.package.distro.poolName(self.package.component), dir)
 
 def files(source):
     """Return (md5sum, size, name) for each file."""
