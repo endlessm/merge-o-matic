@@ -81,7 +81,7 @@ class Version(object):
         if not len(self.upstream):
             raise ValueError
         if not valid_upstream.search(self.upstream):
-            raise ValueError
+            raise ValueError, "%s is not a valid upstream version"%self.upstream
 
         self.epoch = int(self.epoch)
 
