@@ -76,6 +76,9 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Thu Sep 14 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.14
+- Fix a typo between < and > which prevented any packages from being updated
+
 * Tue Sep 11 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.11
 - Rough edges cleaned up, some internal design refactoring for easier
   maintainability
