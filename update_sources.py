@@ -50,8 +50,8 @@ def main(options, args):
             try:
               upstreamPkgs = source.distro.findPackage(package.name, searchDist=source.dist)
               for upstreamPkg in upstreamPkgs:
-                if upstreamPkg not in packages:
-                  packages.append(upstreamPkg)
+                if upstreamPkg.package not in packages:
+                  packages.append(upstreamPkg.package)
             except model.error.PackageNotFound:
               logging.debug("%s not found in %s, skipping.", package, source)
               pass
