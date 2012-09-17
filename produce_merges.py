@@ -102,7 +102,10 @@ def main(options, args):
           if our_version >= nearest:
             continue
           logging.info("local: %s, upstream: %s", our_version, nearest)
-          produce_merge(our_version, base, nearest, result_dir(target.name, pkg.name))
+          try:
+            produce_merge(our_version, base, nearest, result_dir(target.name, pkg.name))
+          except ValueError:
+            logging.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""

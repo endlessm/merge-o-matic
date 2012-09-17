@@ -54,6 +54,8 @@ def main(options, args):
               generate_diff(d.name, last, this)
             except model.error.PackageNotFound:
               logging.exception("Could not find a package to diff against.")
+            except ValueError:
+              logging.exception("Could not find a .dsc file, perhaps it moved components?")
             finally:
               if last is not None:
                 cleanup_source(last)
