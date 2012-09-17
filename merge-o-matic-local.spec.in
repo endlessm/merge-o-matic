@@ -76,6 +76,10 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Thu Sep 17 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.17
+- Fixed URLs in merge requests, and a workaround for when packages change
+  components upstream.
+
 * Thu Sep 14 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.14
 - Fix a typo between < and > which prevented any packages from being updated
 
