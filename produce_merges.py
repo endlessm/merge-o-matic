@@ -917,18 +917,13 @@ def produce_merge(left, base, upstream, output_dir):
 
   merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
   if base >= left:
+    logging.info("Nothing to be done: %s >= %s", base, left)
     cleanup(output_dir)
-    if left < upstream:
-      logging.info("No merge required: %s < %s", left, upstream)
-      tree.ensure("%s/%s" % (output_dir, "REPORT"))
-      write_report(left.package.name, left.getSources(), left.package.distro.name, None, base.getSources(),
-                   upstream.getSources(), upstream.package.distro.name, None,
-                   merged_version, None, None, None,
-                   output_dir, None, True, is_build_metadata_changed(left.getSources(), upstream.getSources()))
-      return
-    elif base >= upstream:
-      cleanup(output_dir)
-      return
+    return
+  elif base >= upstream:
+    logging.info("Nothing to be done: %s >= %s", base, upstream)
+    cleanup(output_dir)
+    return
 
   merged_dir = work_dir(left.package.name, merged_version)
   logging.info("Merging %s..%s onto %s", upstream, base, left)
