@@ -22,6 +22,7 @@ import config
 from model import Distro, OBSDistro
 import urllib2
 from util import run
+from util.tree import subdir
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
