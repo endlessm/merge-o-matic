@@ -216,7 +216,8 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
-    return self.newestVersion().poolDirectory()
+    dir = "%s/%s"%(pathhash(self.name), self.name)
+    return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
 
   def commitMerge(self):
     pass
@@ -261,9 +262,15 @@ class Package(object):
 
   def versions(self):
     versions = []
-    for source in self.getPoolSources():
-      if source['Package'] == self.name:
-        versions.append(PackageVersion(self, Version(source['Version'])))
+    for s in self.distro.getSources(self.dist, self.component):
+      if s['Package'] == self.name:
+        versions.append(PackageVersion(self, Version(s['Version'])))
+    try:
+      sources = self.getSources()
+    except:
+      return versions
+    for source in sources:
+      versions.append(PackageVersion(self, Version(source['Version'])))
     return versions
 
   def newestVersion(self):
@@ -317,14 +324,13 @@ class PackageVersion(object):
     return "%s-%s"%(self.package, self.version)
   
   def getSources(self):
-    for s in self.package.getPoolSources():
+    for s in self.package.getSources():
       if Version(s['Version']) == self.version:
         return s
     raise error.PackageVersionNotFound(self.package, self.version)
 
   def poolDirectory(self):
-      dir = self.getSources()['Directory']
-      return "pool/%s/%s/" % (self.package.distro.poolName(self.package.component), dir)
+      return self.package.poolDirectory()
 
 def files(source):
     """Return (md5sum, size, name) for each file."""
