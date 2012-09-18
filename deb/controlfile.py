@@ -66,17 +66,12 @@ class ControlFile(object):
 
     def open(self, file, *args, **kwds):
         """Open and parse a control-file format file."""
-        try:
-            if file[-3:] == ".gz":
-                with gzip.open(file) as gzf:
-                    self.parse(gzf, *args, **kwds)
-            else:
-                with open(file) as f:
-                    self.parse(f, *args, **kwds)
-
-        except Exception, e:
-            e.path = file
-            raise e
+        if file[-3:] == ".gz":
+            with gzip.open(file) as gzf:
+                self.parse(gzf, *args, **kwds)
+        else:
+            with open(file) as f:
+                self.parse(f, *args, **kwds)
 
     def parse(self, file, multi_para=False, signed=False):
         """Parse a control-file format file.
