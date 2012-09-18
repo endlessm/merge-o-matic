@@ -24,7 +24,7 @@ from momlib import *
 from config import *
 from model import Distro
 import model.error
-from util import tree
+from util import tree, run
 import config
 
 def options(parser):
@@ -41,68 +41,18 @@ def options(parser):
 def main(options, args):
     for target in config.targets(args):
       distro = target.distro
-      for source in distro.newestSources(target.dist, target.component):
-        package = source['Package']
-        try:
-          if options.source_distro is None:
-            (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                        = PACKAGELISTS.find_in_source_distros(target.name, package)
-          else:
-            src_distro = options.source_distro
-            src_dist = options.source_suite
-            (src_source, src_version, src_pool_source) \
-                        = get_same_source(src_distro, src_dist, package)
-        except IndexError:
-          continue
-        except model.error.PackageNotFound:
+      for pkg in distro.packages(target.dist, target.component):
+        if options.package is not None and pkg.name not in options.package:
           continue
 
-        base = get_base(source)
         try:
-          base_source = get_nearest_source(distro.name, src_distro, package, base)
+          base = target.findNearestVersion(pkg.newestVersion())
+          if base > pkg.newestVersion():
+            raise IndexError
         except IndexError:
-          logging.debug("Attempting to fetch missing base %s_%s for %s", package, base, src_version)
-          get_source(src_distro, package, base, src_source["Directory"])
-
-def get_source(distro, package, version, sourcedir):
-    """Download a source package into our pool."""
-    try:
-        mirror = DISTROS[distro]["mirror"]
-    except:
-        logging.debug("Distro '%s' has no mirror specified" % distro)
-        return
-
-    pooldir = pool_directory(distro, package)
-    
-    try:
-        name = "%s_%s.dsc" % (package, version)
-        url = "%s/%s/%s" % (mirror, sourcedir, name)
-        filename = "%s/%s/%s" % (ROOT, pooldir, name)
-        get_file(url, filename)
-        source = SourceControl(filename)
-    except:
-        return
-
-    for md5sum, size, name in files(source):
-        url = "%s/%s/%s" % (mirror, sourcedir, name)
-        filename = "%s/%s/%s" % (ROOT, pooldir, name)
-        get_file(url, filename, size)
-
-    update_pool_sources(distro, package)
-
-def get_file(url, filename, size=None):
-    if os.path.isfile(filename):
-        if size is None or os.path.getsize(filename) == int(size):
-            return
-
-    logging.debug("Downloading %s", url)
-    tree.ensure(filename)
-    try:
-        urllib.URLopener().retrieve(url, filename)
-    except IOError as e:
-        logging.error("Downloading %s failed: %s", url, e.args)
-        raise
-    logging.info("Saved %s", tree.subdir(ROOT, filename))
+          logging.debug("Attempting to fetch missing base %s for %s",
+              pkg.newestVersion().version.base(), pkg.newestVersion())
+          target.fetchMissingVersion(pkg, pkg.newestVersion().version.base())
 
 if __name__ == "__main__":
     run(main, options, usage="%prog]",

@@ -28,6 +28,9 @@ import re
 import model.error
 from deb.version import Version
 from os import path
+import os
+from deb.source import ControlFile
+from util import files, tree
 
 MOM_CONFIG_PATH = "/etc/merge-o-matic"
 sys.path.insert(1, MOM_CONFIG_PATH)
@@ -155,19 +158,72 @@ class Target(object):
         try:
           for pkg in  src.distro.findPackage(version.package.name,
               searchDist=src.dist):
-            sources.extend(pkg.package.versions())
+            for v in pkg.package.versions():
+              if v not in sources:
+                sources.append(v)
         except model.error.PackageNotFound:
           pass
-    sources.extend(version.package.versions())
+    for v in version.package.versions():
+      if v not in sources:
+        sources.append(v)
     bases = []
     for source in sources:
       if base == source.version:
         return source
-      elif base <= Version(re.sub("build[0-9]+$", "", str(source.version))):
+      elif base <= Version(re.sub("build[0-9]+$", "", str(source.version))) and source not in bases:
         bases.append(source)
     bases.append(version)
     bases.sort()
-    return bases.pop()
+    return bases[0]
+
+  def _getFile(self, url, filename, size=None):
+    if os.path.isfile(filename):
+        if size is None or os.path.getsize(filename) == int(size):
+            return
+
+    logging.debug("Downloading %s", url)
+    tree.ensure(filename)
+    try:
+        urllib.URLopener().retrieve(url, filename)
+    except IOError as e:
+        logging.error("Downloading %s failed: %s", url, e.args)
+        raise
+    logging.info("Saved %s", filename)
+
+  def _tryFetch(self, pkg, version):
+    mirror = pkg.distro.mirrorURL(pkg.dist, pkg.component)
+    pooldir = pkg.getPoolSources()[0]['Directory']
+    name = "%s_%s.dsc" % (pkg.name, version)
+    url = "%s/%s/%s" % (mirror, pooldir, name)
+    outfile = "%s/%s" % (pkg.poolDirectory(), name)
+    logging.debug("Downloading %s to %s", url, outfile)
+    try:
+      self._getFile(url, outfile)
+    except IOError:
+      logging.debug("Could not download %s.", url)
+      return False
+    source = ControlFile()
+    try:
+      source.open(outfile, signed=True, multi_para=True)
+    except:
+      pass
+    for md5sum, size, name in files(source.paras[0]):
+      url = "%s/%s/%s" % (mirror, pooldir, name)
+      outfile = "%s/%s" % (pkg.poolDirectory(), name)
+      self._getFile(url, outfile, size)
+    return True
+  
+  def fetchMissingVersion(self, package, version):
+    for srclist in self.sources:
+      for src in srclist:
+        try:
+          for pkg in src.distro.findPackage(package.name):
+            if self._tryFetch(pkg.package, version):
+              pkg.package.updatePoolSource()
+              return
+        except IOError, e:
+          logging.exception("Could not download %s_%s", pkg, version)
+          continue
 
 def targets(names=[]):
   if len(names) == 0:

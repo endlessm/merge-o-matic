@@ -59,4 +59,7 @@ def quiet_callback(opt, value, parser, *args, **kwds):
 def verbose_callback(opt, value, parser, *args, **kwds):
     logging.getLogger().setLevel(logging.DEBUG)
 
-
+def files(source):
+    """Return (md5sum, size, name) for each file."""
+    files = source["Files"].strip("\n").split("\n")
+    return [ f.split(None, 2) for f in files ]
