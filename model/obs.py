@@ -211,7 +211,7 @@ class OBSDistro(Distro):
 
   def mirrorURL(self, dist, component):
     mirror = self.config("mirror")
-    url = mirror+':/'.join((self.name, dist))+':/'+component+'/'+dist
+    url = mirror+'/'+':/'.join((self.name, dist))+':/'+component+'/'+dist
     return url
 
 class OBSPackage(Package):
