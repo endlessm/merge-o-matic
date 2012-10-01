@@ -256,7 +256,15 @@ class OBSPackage(Package):
     del self.distro._obsCache[self.dist][self.component][self.name]
 
   def submitMergeRequest(self, upstreamDistro, msg):
-    osccore.create_submit_request(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist, self.component), self.obsName, upstreamDistro, self.obsName, msg)
+    reqs = osccore.get_request_list(self.distro.config('obs', 'url'),
+        self.distro.obsProject(self.dist, self.component), self.obsName,
+        req_type='submit', req_state=['new', 'review'])
+    user = self.distro.obsUser
+    oldreqs = [ i for i in reqs if i.state.who == user ]
+    result = osccore.create_submit_request(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist, self.component), self.obsName, upstreamDistro, self.obsName, msg)
+    for req in oldreqs:
+      osccore.change_request_state(self.distro.config('obs', 'url'), req.reqid,
+          'superseded', 'superseded by %s' % result, result)
 
   def branch(self, projectBranch):
     branch = self.distro.branch(projectBranch)
