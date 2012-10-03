@@ -97,13 +97,29 @@ def main(options, args):
             our_version = Version(options.version)
           else:
             our_version = pkg.newestVersion()
-          base = target.findNearestVersion(PackageVersion(our_version.package, our_version.version.base()))
-          nearest = target.findNearestVersion(pkg.newestVersion())
-          if our_version >= nearest:
+          base = target.findNearestVersion(our_version)
+          upstream = None
+          print 'finding upstream for', our_version
+          for srclist in target.sources:
+            for src in srclist:
+              try:
+                possible = src.distro.findPackage(pkg.name,
+                    searchDist=src.dist)[0]
+                print 'possible upstream:', possible
+                if upstream is None or possible > upstream:
+                  upstream = possible
+              except model.error.PackageNotFound:
+                pass
+          if upstream is None:
+            logging.debug("%s not available upstream, skipping", our_version)
             continue
-          logging.info("local: %s, upstream: %s", our_version, nearest)
+          if our_version >= upstream:
+            logging.debug("%s >= %s, skipping", our_version, upstream)
+            continue
+          logging.info("local: %s, upstream: %s, base: %s", our_version,
+              upstream, base)
           try:
-            produce_merge(our_version, base, nearest, result_dir(target.name, pkg.name))
+            produce_merge(our_version, base, upstream, result_dir(target.name, pkg.name))
           except ValueError:
             logging.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
 
@@ -273,7 +289,10 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
     """Handle the common case of a file in both left and right."""
     if filename == "debian/changelog":
         # two-way merge of changelogs
-        merge_changelog(left_dir, right_dir, merged_dir, filename)
+        try:
+          merge_changelog(left_dir, right_dir, merged_dir, filename)
+        except:
+          return True
     elif filename.endswith(".po") and not \
             same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # two-way merge of po contents (do later)
@@ -600,7 +619,7 @@ def add_changelog(package, merged_version, left_distro, left_dist,
 def copy_in(output_dir, source, distro):
     """Make a copy of the source files."""
 
-    pkg = Distro.get(distro).findPackage(source['Package'])
+    pkg = Distro.get(distro).findPackage(source['Package'])[0]
     for md5sum, size, name in files(source):
         src = "%s/%s/%s" % (ROOT, pkg.poolDirectory(), name)
         dest = "%s/%s" % (output_dir, name)
@@ -911,16 +930,12 @@ def read_package_list(filename):
 
 def produce_merge(left, base, upstream, output_dir):
 
-  left_dir = unpack_source(left.getSources(), left.package.distro.name)
-  base_dir = unpack_source(base.getSources(), base.package.distro.name)
-  upstream_dir = unpack_source(upstream.getSources(), upstream.package.distro.name)
+  left_dir = unpack_source(left)
+  base_dir = unpack_source(base)
+  upstream_dir = unpack_source(upstream)
 
   merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
-  if base >= left:
-    logging.info("Nothing to be done: %s >= %s", base, left)
-    cleanup(output_dir)
-    return
-  elif base >= upstream:
+  if base >= upstream:
     logging.info("Nothing to be done: %s >= %s", base, upstream)
     cleanup(output_dir)
     return
@@ -937,13 +952,20 @@ def produce_merge(left, base, upstream, output_dir):
     logging.exception("Could not merge %s, probably bad files?", left)
     return
 
-  add_changelog(left.package.name, merged_version, left.package.distro.name, left.package.dist,
-                upstream.package.distro.name, upstream.package.dist, merged_dir)
+  try:
+    add_changelog(left.package.name, merged_version, left.package.distro.name, left.package.dist,
+                  upstream.package.distro.name, upstream.package.dist, merged_dir)
+  except IOError:
+    logging.exception("Could not update changelog for %s!", left)
+    return
   cleanup(output_dir)
   os.makedirs(output_dir)
   copy_in(output_dir, base.getSources(), base.package.distro.name)
   left_patch = copy_in(output_dir, left.getSources(), left.package.distro.name)
   right_patch = copy_in(output_dir, upstream.getSources(), upstream.package.distro.name)
+
+  patch_file = None
+  build_metadata_changed = False
 
   if len(conflicts):
     src_file = create_tarball(left.package.name, merged_version, output_dir, merged_dir)
@@ -954,10 +976,10 @@ def produce_merge(left, base, upstream, output_dir):
       patch_file = create_patch(left.package.name, merged_version,
                                 output_dir, merged_dir,
                                 upstream.getSources(), upstream_dir)
-    write_report(left.package.name, left.getSources(), left.package.distro.name, left_patch, base.getSources(),
-                 upstream.getSources(), upstream.package.distro.name, right_patch,
-                 merged_version, conflicts, src_file, patch_file,
-                 output_dir, merged_dir, False, build_metadata_changed)
+  write_report(left.package.name, left.getSources(), left.package.distro.name, left_patch, base.getSources(),
+               upstream.getSources(), upstream.package.distro.name, right_patch,
+               merged_version, conflicts, src_file, patch_file,
+               output_dir, merged_dir, False, build_metadata_changed)
   logging.info("Wrote output to %s", src_file)
   cleanup(merged_dir)
   cleanup_source(upstream.getSources())

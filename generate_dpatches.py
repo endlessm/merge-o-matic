@@ -39,7 +39,8 @@ def main(options, args):
         if options.package and source['Package'] not in options.package:
           continue
         try:
-          pkg = d.package(target.dist, target.component, source['Package'])
+          pkg = d.package(target.dist, target.component,
+              source['Package'])
         except model.error.PackageNotFound, e:
           logging.exception("FIXME: Spooky stuff going on with %s.", d)
           continue
@@ -47,7 +48,7 @@ def main(options, args):
         version_sort(sources)
         for source in sources:
           try:
-            generate_dpatch(d.name, source, pkg)
+            generate_dpatch(d.name, source, pkg.newestVersion())
           except model.error.PackageNotFound:
             logging.exception("Could not find %s/%s for unpacking. How odd.",
                 pkg, source['Version'])
@@ -63,7 +64,7 @@ def generate_dpatch(distro, source, pkg):
         open(stamp, "w").close()
 
         try:
-            unpack_source(source, distro)
+            unpack_source(pkg)
         except ValueError:
             logging.exception("Could not unpack %s!", pkg)
         try:

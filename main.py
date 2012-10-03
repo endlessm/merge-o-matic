@@ -85,7 +85,7 @@ def main(options, args):
 
         # Publish the patches
         publish_patches.main(options, args)
-        syndicate.main(options, args)
+        # syndicate.main(options, args)
         # mail_bugs.main(options, args)
 
         # Run the merge tool

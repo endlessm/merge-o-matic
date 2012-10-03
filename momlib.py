@@ -539,15 +539,13 @@ def save_basis(filename, version):
 # Unpacked source handling
 # --------------------------------------------------------------------------- #
 
-def unpack_source(source, distro):
+def unpack_source(pv):
     """Unpack the given source and return location."""
+    source = pv.getSources()
     destdir = unpack_directory(source)
     if os.path.isdir(destdir):
         return destdir
 
-    d = Distro.get(distro)
-    pv = d.findPackage(source['Package'], version=source['Version'])[0]
-    print pv
     srcdir = "%s/%s" % (ROOT, pv.poolDirectory())
     for md5sum, size, name in files(source):
         if name.endswith(".dsc"):

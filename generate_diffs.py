@@ -49,52 +49,52 @@ def main(options, args):
 
         last = None
         try:
-          for this in sources:
+          for version in pkg.versions():
             try:
-              generate_diff(d.name, last, this)
+              generate_diff(last, version)
             except model.error.PackageNotFound:
               logging.exception("Could not find a package to diff against.")
             except ValueError:
               logging.exception("Could not find a .dsc file, perhaps it moved components?")
             finally:
               if last is not None:
-                cleanup_source(last)
-            last = this
+                cleanup_source(last.getSources())
+            last = version
         finally:
           if last is not None:
-            cleanup_source(last)
+            cleanup_source(last.getSources())
 
 
-def generate_diff(distro, last, this):
+def generate_diff(last, this):
     """Generate the differences."""
 
-    changes_filename = changes_file(distro, this)
+    changes_filename = changes_file(this.package.distro, this.getSources())
+    if last is None:
+      return
     if not os.path.isfile(changes_filename) \
             and not os.path.isfile(changes_filename + ".bz2"):
         try:
-          unpack_source(this, distro)
+          unpack_source(this)
         except ValueError:
           logging.exception("Couldn't unpack %s.", this)
           return
         try:
-            save_changes_file(changes_filename, this, last)
+            save_changes_file(changes_filename, this.getSources(),
+                last.getSources())
             logging.info("Saved changes file: %s",
                           tree.subdir(ROOT, changes_filename))
         except (ValueError, OSError):
             logging.error("dpkg-genchanges for %s failed",
                           tree.subdir(ROOT, changes_filename))
 
-    if last is None:
-        return
-
-    logging.debug("%s: %s %s %s", distro, this["Package"], this["Version"], last['Version'])
-    diff_filename = diff_file(distro, this)
+    logging.debug("Producing diff from %s to %s", this, last)
+    diff_filename = diff_file(this.package.distro.name, this.getSources())
     if not os.path.isfile(diff_filename) \
             and not os.path.isfile(diff_filename + ".bz2"):
-        unpack_source(this, distro)
-        unpack_source(last, distro)
-        save_patch_file(diff_filename, last, this)
-        save_basis(diff_filename, last["Version"])
+        unpack_source(this)
+        unpack_source(last)
+        save_patch_file(diff_filename, last.getSources(), this.getSources())
+        save_basis(diff_filename, last.getSources()["Version"])
         logging.info("Saved diff file: %s", tree.subdir(ROOT, diff_filename))
 
 
