@@ -102,7 +102,8 @@ def main(options, args):
 
         merges.sort()
 
-        write_status_page(target, merges, our_distro)
+        write_status_page(target, merges, our_distro, d.obsProject(our_dist,
+          our_component))
         write_status_json(target, merges)
 
         status_file = "%s/merges/tomerge-%s" % (ROOT, target)
@@ -131,7 +132,7 @@ def get_uploader(distro, source):
         return None
 
 
-def write_status_page(target, merges, our_distro):
+def write_status_page(target, merges, our_distro, obsProject):
     """Write out the merge status page."""
     status_file = "%s/merges/%s.html" % (ROOT, target)
     if not os.path.isdir(os.path.dirname(status_file)):
@@ -187,7 +188,8 @@ def write_status_page(target, merges, our_distro):
             print >>status, ("<h2 id=\"%s\">%s Merges</h2>"
                              % (section, section.title()))
 
-            do_table(status, section_merges, comments, our_distro, target)
+            do_table(status, section_merges, comments, our_distro, target,
+                obsProject)
 
         print >>status, "<h2 id=stats>Statistics</h2>"
         print >>status, ("<img src=\"%s-now.png\" title=\"Current stats\">"
@@ -199,7 +201,7 @@ def write_status_page(target, merges, our_distro):
 
     os.rename(status_file + ".new", status_file)
 
-def do_table(status, merges, comments, our_distro, target):
+def do_table(status, merges, comments, our_distro, target, obsProject):
     """Output a table."""
     default_src_distro =DISTRO_SOURCES[DISTRO_TARGETS[target]["sources"][0]][0]["distro"]
     print >>status, "<table cellspacing=0>"
@@ -222,7 +224,9 @@ def do_table(status, merges, comments, our_distro, target):
         print >>status, " <sup><a href=\"https://launchpad.net/ubuntu/" \
               "+source/%s\">LP</a></sup>" % package
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \
-              "%s\">PTS</a></sup></td>" % package
+              "%s\">PTS</a></sup>" % package
+        print >>status, " <sup><a href=\"https://SERVER/package/show?package=%s" \
+              "&project=%s\">OBS</a></sup></td>" % (package, obsProject)
         print >>status, "<td rowspan=2>%s</td>" % (comments[package] if package in comments else "")
         print >>status, "</tr>"
         print >>status, "<tr bgcolor=%s>" % COLOURS[priority]
