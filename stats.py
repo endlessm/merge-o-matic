@@ -26,6 +26,7 @@ from momlib import *
 from deb.version import Version
 from model import Distro
 from util import run
+import config
 
 import model.error
 
@@ -43,79 +44,61 @@ def options(parser):
                       help="Distribution target to generate stats for")
 
 def main(options, args):
-    if options.target:
-        targets = [options.target]
-    else:
-        targets = DISTRO_TARGETS.keys()
-
     # For latest version of each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination
-    for target in targets:
-        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        stats = {}
-        stats["total"] = 0
-        stats["local"] = 0
-        stats["unmodified"] = 0
-        stats["needs-sync"] = 0
-        stats["needs-merge"] = 0
-        stats["repackaged"] = 0
-        stats["modified"] = 0
+    for target in config.targets(args):
+      stats = {}
+      stats["total"] = 0
+      stats["local"] = 0
+      stats["unmodified"] = 0
+      stats["needs-sync"] = 0
+      stats["needs-merge"] = 0
+      stats["repackaged"] = 0
+      stats["modified"] = 0
+      for pkg in target.distro.packages(target.dist, target.component):
+        stats['total'] += 1
 
-        d = Distro.get(our_distro)
-        for our_source in d.newestSources(our_dist, our_component):
-            if options.package is not None \
-                and our_source["Package"] not in options.package:
-                continue
-
-            package = our_source["Package"]
-            our_version = Version(our_source["Version"])
-            logging.debug("%s: %s is %s", package, our_distro, our_version)
-
-            stats["total"] += 1
-
-            if not PACKAGELISTS.check_target(target, None, our_source["Package"]):
-                logging.debug("%s: blacklisted or not whitelisted", package)
-                stats["local"] += 1
-                continue
-
+        upstream = None
+        for srclist in target.sources:
+          for src in srclist:
             try:
-                if options.source_distro is None:
-                    (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                                = PACKAGELISTS.find_in_source_distros(target, package)
-                else:
-                    src_distro = options.source_distro
-                    src_dist = options.source_suite
-                    (src_source, src_version, src_pool_source) \
-                                = get_same_source(src_distro, src_dist, package)
-
-                logging.debug("%s: %s is %s", package, src_distro, src_version)
+              possible = src.distro.findPackage(pkg.name,
+                  searchDist=src.dist)[0]
+              if upstream is None or possible > upstream:
+                upstream = possible
             except model.error.PackageNotFound:
-                logging.debug("%s: locally packaged", package)
-                stats["local"] += 1
-                continue
+              pass
 
-            base = get_base(our_source)
+        our_version = pkg.newestVersion()
+        logging.debug("%s: %s, upstream: %s", target.distro,
+            our_version, upstream)
+        if upstream is None:
+          logging.debug("%s: locally packaged", pkg)
+          stats["local"] += 1
+          continue
 
-            if our_version == src_version:
-                logging.debug("%s: unmodified", package)
-                stats["unmodified"] += 1
-            elif base > src_version:
-                logging.debug("%s: locally repackaged", package)
-                stats["repackaged"] += 1
-            elif our_version == base:
-                logging.debug("%s: needs sync", package)
-                stats["needs-sync"] += 1
-            elif our_version < src_version:
-                logging.debug("%s: needs merge", package)
-                stats["needs-merge"] += 1
-            elif "-0co" in str(our_version):
-                logging.debug("%s: locally repackaged", package)
-                stats["repackaged"] += 1
-            else:
-                logging.debug("%s: modified", package)
-                stats["modified"] += 1
+        base = target.findNearestVersion(our_version)
 
-        write_stats(target, stats)
+        if our_version.version == upstream.version:
+          logging.debug("%s: unmodified", pkg)
+          stats["unmodified"] += 1
+        elif base > upstream:
+          logging.debug("%s: locally repackaged", pkg)
+          stats["repackaged"] += 1
+        elif our_version.version == base.version:
+          logging.debug("%s: needs sync", pkg)
+          stats["needs-sync"] += 1
+        elif our_version.version < upstream.version:
+          logging.debug("%s: needs merge", pkg)
+          stats["needs-merge"] += 1
+        elif "-0co" in str(our_version.version):
+          logging.debug("%s: locally repackaged", pkg)
+          stats["repackaged"] += 1
+        else:
+          logging.debug("%s: modified", pkg)
+          stats["modified"] += 1
+
+      write_stats(target.name, stats)
 
 def write_stats(target, stats):
     """Write out the collected stats."""
