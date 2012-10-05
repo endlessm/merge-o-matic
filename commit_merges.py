@@ -112,10 +112,23 @@ def main(options, args):
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
                 branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), comment)
+                update_report(output_dir, True)
               except urllib2.HTTPError:
                 logging.exception("Failed to commit %s", branchPkg)
+                update_report(output_dir, False, "http error")
           else:
             logging.info("Not committing, due to --dry-run")
+
+def update_report(output_dir, committed, message=None):
+  with open("%s/REPORT" % output_dir, "a") as r:
+    print >>r
+    if committed:
+      print >>r, "Merge committed: YES"
+    else:
+      if message is not None:
+        print >>r, "Merge committed: NO (%s)"%(message)
+      else:
+        print >>r, "Merge committed: NO"
 
 if __name__ == "__main__":
     run(main, options, usage="%prog [DISTRO...]",
