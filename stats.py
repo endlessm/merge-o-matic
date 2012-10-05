@@ -46,6 +46,9 @@ def options(parser):
 def main(options, args):
     # For latest version of each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination
+    if options.package:
+      logging.info("Skipping stats since -p was specified.")
+      return
     for target in config.targets(args):
       stats = {}
       stats["total"] = 0
