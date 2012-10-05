@@ -99,13 +99,11 @@ def main(options, args):
             our_version = pkg.newestVersion()
           base = target.findNearestVersion(our_version)
           upstream = None
-          print 'finding upstream for', our_version
           for srclist in target.sources:
             for src in srclist:
               try:
                 possible = src.distro.findPackage(pkg.name,
                     searchDist=src.dist)[0]
-                print 'possible upstream:', possible
                 if upstream is None or possible > upstream:
                   upstream = possible
               except model.error.PackageNotFound:
@@ -935,12 +933,24 @@ def produce_merge(left, base, upstream, output_dir):
   upstream_dir = unpack_source(upstream)
 
   merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
+
   if base >= upstream:
     logging.info("Nothing to be done: %s >= %s", base, upstream)
     cleanup(output_dir)
     return
 
   merged_dir = work_dir(left.package.name, merged_version)
+
+  if base.version == left.version:
+    logging.info("Syncing %s to %s", left, upstream)
+    cleanup(output_dir)
+    write_report(left.package.name, left.getSources(), left.package.distro.name,
+        None, base.getSources(), upstream.getSources(),
+        upstream.package.distro.name, None,
+        merged_version, None, None, None,
+        output_dir, None, True, False)
+    return
+
   logging.info("Merging %s..%s onto %s", upstream, base, left)
 
   try:
