@@ -23,6 +23,7 @@ from model import Distro, OBSDistro
 import urllib2
 from util import run
 from util.tree import subdir
+import xml.etree.cElementTree
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -46,6 +47,10 @@ def main(options, args):
           continue
 
         package = d.package(target.dist, target.component, report['package'])
+
+        if report['committed']:
+          logging.debug("%s already committed, skipping!", package)
+
         filepaths = report['merged_files']
         if filepaths == []:
             logging.warning("Empty merged file list in %s/REPORT" % output_dir)
@@ -113,6 +118,9 @@ def main(options, args):
                 branchPkg.commit('Automatic update by Merge-O-Matic')
                 branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), comment)
                 update_report(output_dir, True)
+              except xml.etree.cElementTree.ParseError:
+                logging.exception("Failed to commit %s", branchPkg)
+                update_report(output_dir, False, "OBS API Error")
               except urllib2.HTTPError:
                 logging.exception("Failed to commit %s", branchPkg)
                 update_report(output_dir, False, "http error")
