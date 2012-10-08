@@ -50,6 +50,7 @@ def main(options, args):
 
         if report['committed']:
           logging.debug("%s already committed, skipping!", package)
+          continue
 
         filepaths = report['merged_files']
         if filepaths == []:
