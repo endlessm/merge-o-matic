@@ -110,9 +110,20 @@ def main(options, args):
                 pass
           if upstream is None:
             logging.debug("%s not available upstream, skipping", our_version)
+            cleanup(result_dir(target.name, pkg.name))
             continue
+
+          try:
+            report = read_report(result_dir(target.name, pkg.name))
+            if Version(report['right_version']) == upstream.version and Version(report['left_version']) == our_version.version:
+              logging.debug("%s already produced, skipping run", pkg)
+              continue
+          except ValueError:
+            pass
+
           if our_version >= upstream:
             logging.debug("%s >= %s, skipping", our_version, upstream)
+            cleanup(result_dir(target.name, pkg.name))
             continue
           logging.info("local: %s, upstream: %s, base: %s", our_version,
               upstream, base)
