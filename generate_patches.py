@@ -153,13 +153,14 @@ def generate_patch(base, distro, ours,
         if basis is not None and basis == base_version:
             return
 
-    unpack_source(base)
-    unpack_source(ours)
+    if not os.path.exists(filename):
+        unpack_source(base)
+        unpack_source(ours)
 
-    tree.ensure(filename)
-    save_patch_file(filename, base_source, our_source)
-    save_basis(filename, base_version)
-    logging.info("Saved patch file: %s", tree.subdir(ROOT, filename))
+        tree.ensure(filename)
+        save_patch_file(filename, base_source, our_source)
+        save_basis(filename, base_version)
+        logging.info("Saved patch file: %s", tree.subdir(ROOT, filename))
 
 
 if __name__ == "__main__":
