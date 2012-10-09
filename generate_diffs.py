@@ -39,6 +39,9 @@ def main(options, args):
       for source in d.newestSources(target.dist, target.component):
         if options.package and source['Package'] not in options.package:
           continue
+        if source['Package'] in target.blacklist:
+          logging.debug("%s is blacklisted, skipping", source['Package'])
+          continue
         try:
           pkg = d.package(target.dist, target.component, source['Package'])
         except model.error.PackageNotFound, e:

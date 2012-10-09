@@ -25,6 +25,7 @@ from util import tree, run
 from re import search
 from model import Distro
 import model.error
+import config
 
 
 def options(parser):
@@ -43,23 +44,21 @@ def options(parser):
                       help="Distribution target to use")
 
 def main(options, args):
-    if options.target:
-        targets = [options.target]
-    else:
-        targets = DISTRO_TARGETS.keys()
-
     # For latest version of each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # create patches from that to both
-    for target in targets:
-        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        d = Distro.get(our_distro)
+    for target in config.targets(args):
+        d = target.distro
+        our_distro = d.name
+        our_dist = target.dist
+        our_component = target.component
         for our_source in d.newestSources(our_dist, our_component):
             if options.package is not None \
                 and our_source["Package"] not in options.package:
                 continue
-            if not PACKAGELISTS.check_target(target, None, our_source["Package"]):
-                continue
+            if our_source['Package'] in target.blacklist:
+              logging.debug("%s is blacklisted, skipping.", our_source['Package'])
+              continue
 
             if search(".*build[0-9]+$", our_source["Version"]):
                 continue
@@ -76,7 +75,7 @@ def main(options, args):
             try:
                 if options.source_distro is None:
                     (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                                = PACKAGELISTS.find_in_source_distros(target, package)
+                                = PACKAGELISTS.find_in_source_distros(target.name, package)
                 else:
                     src_distro = options.source_distro
                     src_d = Distro.get(src_distro)

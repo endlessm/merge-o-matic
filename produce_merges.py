@@ -93,6 +93,9 @@ def main(options, args):
             continue
           if len(excludes) and pkg.name in excludes:
             continue
+          if pkg.name in target.blacklist:
+            logging.debug("%s is blacklisted, skipping", pkg)
+            continue
           if options.version:
             our_version = Version(options.version)
           else:

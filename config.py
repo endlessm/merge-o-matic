@@ -57,6 +57,28 @@ def get(*args, **kwargs):
     return kwargs.setdefault("default", None)
   return _get(configdb, *args, **kwargs)
 
+class Blacklist(object):
+  def __init__(self, files=[], contents=[]):
+    super(Blacklist, self).__init__()
+    self._list = []
+    files.append('/'.join((get("ROOT"), 'blacklist.txt')))
+    for filename in files:
+      try:
+        with open(filename, 'r') as f:
+          for line in f:
+            self._list.append(line.strip())
+      except IOError:
+        pass
+    self._list += contents
+
+  def __contains__(self, key):
+    return key in self._list
+
+  def __add__(self, other):
+    ret = Blacklist(contents=self._list)
+    ret._list += other._list
+    return ret
+
 class Source(object):
   def __init__(self, distro, dist):
     super(Source, self).__init__()
@@ -114,6 +136,14 @@ class Target(object):
   def __init__(self, name):
     super(Target, self).__init__()
     self._name = name
+    self._blacklist = None
+
+  @property
+  def blacklist(self):
+    if self._blacklist is None:
+      files = ['/'.join((get("ROOT"), 'blacklist-%s.txt'%(self.name))),]
+      self._blacklist = Blacklist(files=files)
+    return self._blacklist
 
   def config(self, *args, **kwargs):
     args = (self._name,)+args
