@@ -258,4 +258,8 @@ class Target(object):
 def targets(names=[]):
   if len(names) == 0:
     names = get('DISTRO_TARGETS').keys()
+  else:
+    for n in names:
+      if n not in get('DISTRO_TARGETS').keys():
+        raise Exception, "%s is not a target name."%(n)
   return map(Target, names)
