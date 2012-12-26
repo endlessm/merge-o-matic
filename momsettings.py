@@ -20,13 +20,13 @@ DISTROS = {
             "project": "DISTRO",
         },
         "mirror": "http://SERVER:82/debian/",
-        "dists": [ "SUITE_B", "SUITE_C", "SUITE_D"],
+        "dists": [ "SUITE_C", "SUITE_D"],
         "components": [ "target", "sdk", "development" ],
         "expire": True,
         },
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "precise-updates", "precise-security", "precise", "quantal", "quantal-updates", "quantal-security" ],
+        "dists": [ "quantal", "quantal-updates", "quantal-security" ],
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
@@ -39,10 +39,6 @@ DISTROS = {
     }
 
 DISTRO_SOURCES = {
-    "precise+updates": [
-        { "distro": "ubuntu", "dist": "precise-updates" },
-        { "distro": "ubuntu", "dist": "precise-security" },
-        { "distro": "ubuntu", "dist": "precise" } ],
     'quantal+updates': [
         { "distro": "ubuntu", "dist": "quantal-updates" },
         { "distro": "ubuntu", "dist": "quantal-security" },
@@ -68,7 +64,6 @@ def defineDist(distro, name, upstream, commitable):
       'commit': commitable
     }
 
-defineDist('DISTRO', 'SUITE_B', 'precise+updates', False)
 defineDist('DISTRO', 'SUITE_C', 'quantal+updates', False)
 defineDist('DISTRO', 'SUITE_D', 'quantal+updates', False)
 
