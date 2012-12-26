@@ -20,7 +20,7 @@ DISTROS = {
             "project": "DISTRO",
         },
         "mirror": "http://SERVER:82/debian/",
-        "dists": [ "SUITE_B", "SUITE_C" ],
+        "dists": [ "SUITE_B", "SUITE_C", "SUITE_D"],
         "components": [ "target", "sdk", "development" ],
         "expire": True,
         },
@@ -70,6 +70,7 @@ def defineDist(distro, name, upstream, commitable):
 
 defineDist('DISTRO', 'SUITE_B', 'precise+updates', False)
 defineDist('DISTRO', 'SUITE_C', 'quantal+updates', False)
+defineDist('DISTRO', 'SUITE_D', 'quantal+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
