@@ -9,7 +9,7 @@ MOM_NAME = "Merge-o-Matic for DISTRO"
 MOM_EMAIL = "mom@SERVER"
 
 # Who to send bug emails to
-RECIPIENTS = ['trever.fischer@collabora.co.uk']
+RECIPIENTS = ['DISTRO-sysadmin@collabora.co.uk']
 
 # Distribution definitions
 # For additional subprojects, use additional distro definitions
