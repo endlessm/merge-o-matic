@@ -1,6 +1,7 @@
 PACKAGE_NAME = merge-o-matic-local
 VERSION = 2013.01.30
 
+SHELL = /bin/bash
 PREFIX ?= /usr
 LIBDIR ?= lib
 PYTHON ?= python
@@ -93,7 +94,7 @@ $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 	install -m 0644 \
 		$(main_nonexe_files) \
 		COPYING \
-		cron.daily \
+		cron.d \
 		Makefile \
 		merge-o-matic.logrotate \
 		merge-o-matic-local.spec \
