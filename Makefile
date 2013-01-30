@@ -1,5 +1,5 @@
 PACKAGE_NAME = merge-o-matic-local
-VERSION = 2012.10.11
+VERSION = 2013.01.30
 
 PREFIX ?= /usr
 LIBDIR ?= lib
@@ -56,7 +56,7 @@ all_files = \
 	$(util_nonexe_files) \
 	$(model_nonexe_files) \
 	COPYING \
-	cron.daily \
+	cron.d \
 	Makefile \
 	merge-o-matic.logrotate \
 	merge-o-matic-local.spec.in \

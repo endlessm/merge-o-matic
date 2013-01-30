@@ -13,7 +13,7 @@ Release: %{release}
 Source0: %{name}-%{unmangled_version}.tar.bz2
 License: GPL-3.0
 Group: System/Packages
-Vendor: Alexandre Rostovtsev <alexandre.rostovtsev@collabora.com>
+Vendor: DISTRO maintainers <DISTRO@lists.collabora.co.uk>
 
 # for /etc/logrotate.d
 BuildRequires: logrotate
@@ -43,10 +43,10 @@ manually if an automatic update is not possible.
 %install
 make install DESTDIR=%{buildroot}
 
-mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d,cron.daily}
+mkdir -p %{buildroot}/etc/{merge-o-matic,apache2/vhosts.d,logrotate.d,cron.d}
 install -m 0644 mom.conf %{buildroot}/etc/apache2/vhosts.d/mom.conf
 install -m 0644 merge-o-matic.logrotate %{buildroot}/etc/logrotate.d/%{name}
-install -m 0755 cron.daily %{buildroot}/etc/cron.daily/%{name}
+install -m 0755 cron.d %{buildroot}/etc/cron.d/%{name}
 
 mkdir -p %{buildroot}/srv/obs/merge-o-matic
 
@@ -76,6 +76,10 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Wed Jan 30 2013 Hector Oron <hector.oron@collabora.co.uk> - 2013.01.30
+- Scan new OBS repositories layout.
+- Move cron.daily task to cron.d and send mail to DISTRO-sysadmin@collabora.co.uk
+
 * Thu Sep 17 2012 Trever Fischer <trever.fischer@collabora.co.uk> - 2012.09.17
 - Fixed URLs in merge requests, and a workaround for when packages change
   components upstream.
