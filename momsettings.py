@@ -15,11 +15,7 @@ RECIPIENTS = ['DISTRO-sysadmin@collabora.co.uk']
 # For additional subprojects, use additional distro definitions
 DISTROS = {
     "DISTRO": {
-        "obs": {
-            "url": "https://SERVER:444",
-            "project": "DISTRO",
-        },
-        "mirror": "http://SERVER:82/debian/",
+        "mirror": "http://SERVER:82/shared/DISTRO",
         "dists": [ "SUITE_C", "SUITE_D"],
         "components": [ "target", "sdk", "development" ],
         "expire": True,
