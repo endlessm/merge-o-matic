@@ -70,7 +70,7 @@ rm -rf %{buildroot}
 %dir /etc/apache2/vhosts.d
 %config(noreplace) /etc/apache2/vhosts.d/mom.conf
 %config(noreplace) /etc/logrotate.d/%{name}
-%config(noreplace) /etc/cron.daily/%{name}
+%config(noreplace) /etc/cron.d/%{name}
 %dir /srv/obs
 %attr(-,mom,mom) %dir /srv/obs/merge-o-matic
 /usr/lib/merge-o-matic

@@ -28,8 +28,8 @@ using osc (e.g. "cd /tmp; osc -A https://SERVER:444 checkout DISTRO:SUITE_A:targ
 in order to generate /srv/obs/merge-o-matic/.oscrc and agree to permanently trust
 the OBS server's SSL certificates.
 
-To automatically run merge-o-matic, comment out the "exit" line at the top of
-/etc/cron.daily/merge-o-matic-local
+merge-o-matic automatically runs a cron task under
+/etc/cron.d/merge-o-matic-local
 
 Output files
 ------------
