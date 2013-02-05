@@ -1,5 +1,4 @@
 #!/bin/bash
-# cron.daily - crontab script to run mom
 #
 # Copyright © 2008 Canonical Ltd.
 # Author: Scott James Remnant <scott@ubuntu.com>.
@@ -23,4 +22,5 @@ LOG="/srv/obs/log/mom.log"
 touch "$LOG"
 chown mom:mom "$LOG"
 
+cd /srv/obs/merge-o-matic/
 sudo -u mom /usr/lib/merge-o-matic/main.py &>> "$LOG"
