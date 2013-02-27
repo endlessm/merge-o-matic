@@ -225,7 +225,7 @@ def obs_directory(distro, package=None, obs_package=None, homeBranch=False):
     if homeBranch:
         projectName="home:momtest:branches:%s"%DISTROS[distro]["obs"]["project"]
     else:
- 	projectName = DISTROS[distro]["obs"]["project"]
+        projectName = DISTROS[distro]["obs"]["project"]
     d = "%s/osc/%s" % (ROOT, distro)
     if package is None and obs_package is None:
         return d
