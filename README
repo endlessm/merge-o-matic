@@ -24,7 +24,7 @@ Create an OBS account for merge-o-matic, and give it the needed privileges
 for the DISTRO repository projects.
 
 Switch to the mom user (e.g. "su - mom -s /bin/bash") and do a small OBS checkout
-using osc (e.g. "cd /tmp; osc -A https://SERVER:444 checkout DISTRO:SUITE_A:target bash")
+using osc (e.g. "cd /tmp; osc -A https://obs:444 checkout DISTRO:SUITE_D:target bash")
 in order to generate /srv/obs/merge-o-matic/.oscrc and agree to permanently trust
 the OBS server's SSL certificates.
 
