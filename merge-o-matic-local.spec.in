@@ -76,6 +76,9 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Fri Mar 22 2013 Hector Oron <hector.oron@collabora.co.uk> - 2013.03.22
+- Move cron script to cron.d directory.
+
 * Thu Jan 31 2013 Hector Oron <hector.oron@collabora.co.uk> - 2013.01.31
 - Fix OBS repository path.
 
