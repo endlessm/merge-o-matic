@@ -83,7 +83,7 @@ def main(options, args):
 
             try:
                 priority_idx = PRIORITY.index(source["Priority"])
-            except (KeyError, ValueError):
+            except KeyError:
                 priority_idx = 0
 
             if report["committed"]:
