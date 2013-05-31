@@ -18,7 +18,6 @@ main_exe_files = \
 	grab-merge.sh \
 	mail_bugs.py \
 	manual_status.py \
-	merge-o-matic-run \
 	merge_status.py \
 	main.py \
 	pack-archive.sh \
