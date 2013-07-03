@@ -1,4 +1,4 @@
-%define name merge-o-matic-local
+%define name merge-o-matic
 %define version %%VERSION%%
 %define unmangled_version %%VERSION%%
 %define release 1

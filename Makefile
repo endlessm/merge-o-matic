@@ -60,7 +60,7 @@ all_files = \
 	cron.d \
 	Makefile \
 	merge-o-matic.logrotate \
-	merge-o-matic-local.spec.in \
+	merge-o-matic.spec.in \
 	mom.conf \
 	momsettings.py \
 	README
@@ -87,7 +87,7 @@ install: $(all_files)
 dist: $(PACKAGE_NAME)-$(VERSION).tar.bz2
 
 $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
-	sed -e 's/%%VERSION%%/$(VERSION)/' merge-o-matic-local.spec.in > merge-o-matic-local.spec
+	sed -e 's/%%VERSION%%/$(VERSION)/' merge-o-matic.spec.in > merge-o-matic.spec
 	-rm -r "$(PACKAGE_NAME)-$(VERSION)"
 	mkdir -p "$(PACKAGE_NAME)-$(VERSION)"/{deb,util,model}
 	install -m 0644 \
@@ -96,8 +96,8 @@ $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 		cron.d \
 		Makefile \
 		merge-o-matic.logrotate \
-		merge-o-matic-local.spec \
-		merge-o-matic-local.spec.in \
+		merge-o-matic.spec \
+		merge-o-matic.spec.in \
 		mom.conf \
 		momsettings.py \
 		README \

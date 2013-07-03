@@ -9,8 +9,8 @@ DISTROS = {
   },
   "live-test": {
     "obs": {
-      "url": "https://SERVER:444/",
-      "project": "DISTRO:SUITE_A:target"
+      "url": "https://obs:444/",
+      "project": "singularity:alphacentauri:core"
     }
   }
 }

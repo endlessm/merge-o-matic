@@ -17,25 +17,25 @@ Deployment procedure
 
 Install the rpm.
 
-Edit /etc/merge-o-matic/momsettings.py (the OBS DISTRO repository URLs in
+Edit /etc/merge-o-matic/momsettings.py (the OBS repository URLs in
 DISTROS will almost certainly need to be customized, for example).
 
 Create an OBS account for merge-o-matic, and give it the needed privileges
-for the DISTRO repository projects.
+for the OBS repository projects.
 
 Switch to the mom user (e.g. "su - mom -s /bin/bash") and do a small OBS checkout
-using osc (e.g. "cd /tmp; osc -A https://obs:444 checkout DISTRO:SUITE_D:target bash")
+using osc (e.g. "cd /tmp; osc -A https://obs:444 checkout PROJECT bash")
 in order to generate /srv/obs/merge-o-matic/.oscrc and agree to permanently trust
 the OBS server's SSL certificates.
 
 merge-o-matic automatically runs a cron task under
-/etc/cron.d/merge-o-matic-local
+/etc/cron.d/merge-o-matic
 
 Output files
 ------------
 
 Under /srv/obs/merge-o-matic:
-merges/$NAME.html (e.g. DISTRO-SUITE_A-target.html) : main report
+merges/$NAME.html (e.g. singularity-alphacentauri-core.html) : main report
 $TARGET.list.txt : list of packages in $TARGET distro that come from the
 default source distro group (i.e. Ubuntu precise and precise-updates by
 default); packages not in this list will not be downloaded from the default
