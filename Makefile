@@ -1,5 +1,5 @@
-PACKAGE_NAME = merge-o-matic-local
-VERSION = 2013.03.22
+PACKAGE_NAME = merge-o-matic
+VERSION = 2013.07.03
 
 SHELL = /bin/bash
 PREFIX ?= /usr

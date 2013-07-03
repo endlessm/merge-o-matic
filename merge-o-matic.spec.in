@@ -6,7 +6,7 @@
 
 %include %{_rpmconfigdir}/macros.python
 
-Summary: Merge-o-Matic for our distro
+Summary: Merge-o-Matic for DISTRO
 Name: %{name}
 Version: %{version}
 Release: %{release}
@@ -31,7 +31,7 @@ Requires: python >= 2.7
 %description
 
 Merge-o-Matic is a continuous integration tool, used to automatically update
-the OBS repository from the corresponding Ubuntu release, and to
+the DISTRO OBS repository from the corresponding Ubuntu release, and to
 provide the necessary information for a developer to perform the update
 manually if an automatic update is not possible.
 
@@ -76,6 +76,9 @@ rm -rf %{buildroot}
 /usr/lib/merge-o-matic
 
 %changelog
+* Fri Mar 22 2013 Hector Oron <hector.oron@collabora.co.uk> - 2013.07.03
+- Update configs.
+
 * Fri Mar 22 2013 Hector Oron <hector.oron@collabora.co.uk> - 2013.03.22
 - Move cron script to cron.d directory.
 
