@@ -5,28 +5,39 @@ ROOT = "/srv/obs/merge-o-matic"
 MOM_URL = "http://SERVER:83/"
 
 # Used as the 'from' for any mails sent
-MOM_NAME = "Merge-o-Matic for DISTRO"
-MOM_EMAIL = "mom@SERVER"
+MOM_NAME = "Merge-o-Matic"
+MOM_EMAIL = "singularity-sysadmin@collabora.co.uk"
 
 # Who to send bug emails to
-RECIPIENTS = ['DISTRO-sysadmin@collabora.co.uk']
+RECIPIENTS = ['singularity-sysadmin@collabora.co.uk']
 
 # Distribution definitions
 # For additional subprojects, use additional distro definitions
 DISTROS = {
-    "DISTRO": {
+    "singularity": {
         "obs": {
-            "url": "https://SERVER:444",
-            "project": "DISTRO",
+            "url": "https://build.collabora.co.uk:444",
+            "project": "singularity",
         },
-        "mirror": "http://SERVER:82/shared/DISTRO",
-        "dists": [ "SUITE_C", "SUITE_D"],
-        "components": [ "target", "sdk", "development" ],
+        "mirror": "http://SERVER:82/shared/singularity/",
+        "dists": [ "alphacentauri" ],
+        "components": [ "core", "sdk" ],
         "expire": True,
         },
+    "DISTRO": {
+	"obs": {
+	    "url": "https://build.collabora.co.uk:444",
+	    "project": "DISTRO",
+	},
+	"mirror": "http://SERVER:82/shared/DISTRO/",
+	"dists": [ "SUITE" ],
+	# "components": [ "COMPONENT" ],
+	"components": [ ],
+	"expire": True,
+	},
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": [ "quantal", "quantal-updates", "quantal-security" ],
+        "dists": [ "raring", "raring-updates", "raring-security" ],
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
@@ -36,13 +47,13 @@ DISTROS = {
 #        "components": [ "main", "contrib", "non-free" ],
 #        "expire": True,
 #        },
-    }
-
+  }
+  
 DISTRO_SOURCES = {
-    'quantal+updates': [
-        { "distro": "ubuntu", "dist": "quantal-updates" },
-        { "distro": "ubuntu", "dist": "quantal-security" },
-        { "distro": "ubuntu", "dist": "quantal" } ],
+    'raring+updates': [
+        { "distro": "ubuntu", "dist": "raring-updates" },
+        { "distro": "ubuntu", "dist": "raring-security" },
+        { "distro": "ubuntu", "dist": "raring" } ],
     }
 
 DISTRO_TARGETS = {}
@@ -64,8 +75,8 @@ def defineDist(distro, name, upstream, commitable):
       'commit': commitable
     }
 
-defineDist('DISTRO', 'SUITE_C', 'quantal+updates', False)
-defineDist('DISTRO', 'SUITE_D', 'quantal+updates', False)
+defineDist('singularity','alphacentauri', 'raring+updates', False)
+defineDist('DISTRO','SUITE', 'raring+updates', False)
 
 # Time format for RSS feeds
 RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
