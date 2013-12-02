@@ -83,7 +83,10 @@ def main(options, args):
 
             try:
                 priority_idx = PRIORITY.index(source["Priority"])
-            except KeyError:
+            except (KeyError, ValueError) as e:
+                # either it has no priority, or the priority is something
+                # not in our array; Debian packages can end up with
+                # Priority: source
                 priority_idx = 0
 
             if report["committed"]:
