@@ -25,7 +25,7 @@ import re
 
 from rfc822 import parseaddr
 from momlib import *
-from model import Distro
+from model import Distro, OBSDistro
 from util import run
 
 
@@ -105,8 +105,12 @@ def main(options, args):
 
         merges.sort()
 
-        write_status_page(target, merges, our_distro, d.obsProject(our_dist,
-          our_component))
+        if isinstance(d, OBSDistro):
+            obs_project = d.obsProject(our_dist, our_component)
+        else:
+            obs_project = None
+
+        write_status_page(target, merges, our_distro, obs_project)
         write_status_json(target, merges)
 
         status_file = "%s/merges/tomerge-%s" % (ROOT, target)
