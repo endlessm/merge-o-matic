@@ -204,7 +204,8 @@ class OBSDistro(Distro):
   def obsProject(self, dist, component):
     if self.parent:
       return "%s:%s"%(self.name, self.parent.obsProject(dist, component))
-    return "%s:%s:%s"%(self.name, dist, component)
+    return "%s:%s:%s" % (self.config("obs", "project", default=self.name),
+            dist, component)
 
   def branch(self, name):
     return OBSDistro(name, self)
