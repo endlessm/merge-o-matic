@@ -11,12 +11,19 @@ import gzip
 import error
 
 class Distro(object):
+  """Base class for distributions corresponding to the keys of DISTROS,
+  such as "debian" or "ubuntu", and for temporary distribution branches.
+  """
   SOURCES_CACHE = {}
 
   @staticmethod
   def all():
+    """Return a list of Distro objects representing distributions.
+    These correspond to the keys of DISTROS in the configuration file."""
     ret = []
     for k in config.get("DISTROS").iterkeys():
+      # FIXME: shouldn't this return a DebianDistro or an OBSDistro,
+      # as appropriate?
       ret.append(Distro(k))
     return ret
 
@@ -41,16 +48,31 @@ class Distro(object):
 
   @staticmethod
   def get(name):
+    """Return the Distro with the given name, e.g. "debian",
+    which should be one of the keys of DISTROS.
+    """
     if "obs" in config.get("DISTROS", name):
       return model.obs.OBSDistro(name)
     return model.debian.DebianDistro(name)
 
   def __init__(self, name, parent=None):
+    """Constructor.
+
+    @param name the distro's name, e.g. "debian" for a distribution listed
+    in DISTROS, or "home:myuser:branches" for a branch
+    @param parent the Distro from which this was branched, or None if it
+    is listed in DISTROS
+    """
     super(Distro, self).__init__()
     self.parent = parent
     self.name = name
 
   def sourcesURL(self, dist, component):
+    """Return the absolute URL to Sources.gz for the given release
+    and component in this distribution. If it is not configured
+    specially in sources_urls, the mirror is assumed to follow the
+    standard apt layout (MIRROR/dists/RELEASE/COMPONENT/source/Sources.gz).
+    """
     if (dist, component) in self.config("sources_urls", default={}):
       return self.config("sources_urls")
     mirror = self.mirrorURL(dist, component)
@@ -62,9 +84,19 @@ class Distro(object):
     return url + "/source/Sources.gz"
 
   def mirrorURL(self, dist, component):
+    """Return the absolute URL of the top of the mirror for the given
+    release and component in this distribution.
+    """
     return self.config("mirror")
 
   def updatePool(self, dist, component, package=None):
+    """Populate the 'pool' directory by downloading Debian source packages
+    from the given release and component.
+
+    @param dist a release codename such as "wheezy" or "precise"
+    @param component a component (archive area) such as "main" or "contrib"
+    @param package a source package name, or None to download all of them
+    """
     mirror = self.mirrorURL(dist, component)
     sources = self.getSources(dist, component)
     for source in sources:
@@ -93,6 +125,17 @@ class Distro(object):
           logging.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
 
   def findPackage(self, name, searchDist=None, searchComponent=None, version=None):
+    """Return a list of the available versions of the given package
+    as PackageVersion objects. Raise PackageNotFound if there are no
+    such versions.
+
+    @param name the name of a source package
+    @param searchDist if not None, only search in this release codename,
+    such as "precise"
+    @param searchComponent if not None, only search in this component
+    (archive area), such as "universe"
+    @version if not None, only consider versions matching this Version
+    """
     if searchDist is None:
       dists = self.dists()
     else:
@@ -118,6 +161,13 @@ class Distro(object):
     return ret
 
   def package(self, dist, component, name):
+    """Return a Package for the given (release, component, source package)
+    tuple, or raise PackageNotFound.
+
+    @param dist a release codename like "precise"
+    @param component a component (archive area) like "universe"
+    @param name the name of a source package
+    """
     source = None
     for s in self.getSources(dist, component):
       if s['Package'] == name:
@@ -125,15 +175,30 @@ class Distro(object):
     raise error.PackageNotFound(name, dist, component)
 
   def branch(self, name):
+    """Return a Distro with self as its parent."""
     return Distro(name, self)
 
   def components(self):
+    """Return a list of components (archive areas) in each of this
+    distro's releases, e.g. ["main", "contrib", "non-free"] for Debian
+    or ["main", "restricted", "universe", "multiverse"] for Ubuntu.
+    """
     return self.config("components")
 
   def dists(self):
+    """Return a list of release codenames in this distro, e.g.
+    ["wheezy", "jessie", "unstable"].
+    """
     return self.config("dists")
 
   def packages(self, dist, component):
+    """Return a Package for each source package in (dist, component).
+
+    @param dist a release codename like "precise", or None if this
+    distro does not have release subdirectories
+    @param component a component (archive area) like "universe", or None if
+    this distro does not have release subdirectories
+    """
     sources = self.getSources(dist, component)
     return map(lambda x:self.package(dist, component, x["Package"]), sources)
 
@@ -145,6 +210,14 @@ class Distro(object):
     return ret
 
   def sourcesFile(self, dist, component, compressed=True):
+    """Return the absolute filename of the cached Sources file.
+
+    @param dist a release codename like "precise", or None if this
+    distro does not have release subdirectories
+    @param component a component (archive area) like "universe", or None if
+    this distro does not have release subdirectories
+    @param compressed if True, return the path to Sources.gz
+    """
     if self.parent:
       return self.parent.sourcesFile(dist, component, compressed)
     if compressed:
@@ -157,7 +230,9 @@ class Distro(object):
     return '/'.join((path, 'source', 'Sources'))
 
   def getSources(self, dist, component):
-    """Parse a cached Sources file."""
+    """Parse a cached Sources file. Return its stanzas, each representing
+    a source package, as dictionaries of the form { "Field": "value" }.
+    """
 
     filename = self.sourcesFile(dist, component)
     if filename not in Distro.SOURCES_CACHE:
@@ -187,11 +262,25 @@ class Distro(object):
             f.write(gzf.read())
 
   def poolName(self, component):
+    """Return the subdirectory of 'pool' which will contain this distro's
+    source packages for the given component.
+    """
     return "%s/%s"%(self.config('pool', default=self.name), component)
 
 
 class Package(object):
+  """A Debian source package in a distribution."""
+
   def __init__(self, distro, dist, component, name):
+    """Constructor.
+
+    @param distro a Distro
+    @param dist a release codename like "precise", or None if this
+    distro does not have release subdirectories
+    @param component a component (archive area) like "universe", or None if
+    this distro does not have release subdirectories
+    @param name the name of the source package
+    """
     super(Package, self).__init__()
     assert(isinstance(distro, Distro))
     self.distro = distro
@@ -216,6 +305,9 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
+    """Return the relative path to the pool directory that will contain
+    this source package's files, e.g. "pool/debian/main/h/hello".
+    """
     dir = "%s/%s"%(pathhash(self.name), self.name)
     return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
 
@@ -231,6 +323,10 @@ class Package(object):
     return sources.paras
 
   def getPoolSources(self):
+    """Return a list of Sources stanzas (dictionaries of the form
+    { "Field": "value" }) describing versions of this package
+    available in self.distro, with the oldest version first.
+    """
     sources = self.distro.getSources(self.dist, self.component)
     matches = []
     for source in sources:
@@ -258,9 +354,19 @@ class Package(object):
         tree.ensure("%s/%s" % (output_dir, "REPORT"))
 
   def updatePool(self):
+    """Download all available versions of this package from self.distro
+    into the pool.
+    """
     self.distro.updatePool(self.dist, self.component, self.name)
 
   def versions(self):
+    """Return all available versions of this package, including versions
+    now available from self.distro, and all versions which were
+    downloaded into the pool in previous runs (possibly from another
+    distro). They are in no particular order.
+
+    For up-to-date results, call updatePoolSource() first.
+    """
     versions = []
     for s in self.distro.getSources(self.dist, self.component):
       if s['Package'] == self.name:
@@ -274,6 +380,11 @@ class Package(object):
     return versions
 
   def newestVersion(self):
+    """Return the newest version of this package, either in self.distro
+    or downloaded from this or any other distro.
+
+    For up-to-date results, call updatePoolSource() first.
+    """
     versions = self.versions()
     newest = versions[0]
     for v in versions:
@@ -282,6 +393,9 @@ class Package(object):
     return newest
 
   def updatePoolSource(self):
+    """Update the Sources file listing all downloaded versions of this
+    package, if necessary.
+    """
     pooldir = self.poolDirectory()
     filename = self.sourcesFile()
 
@@ -304,6 +418,8 @@ class Package(object):
           stdout=sources)
  
 class PackageVersion(object):
+  """A pair (Package, Version)."""
+
   def __init__(self, package, version):
     self.package = package
     self.version = version
@@ -324,16 +440,24 @@ class PackageVersion(object):
     return "%s-%s"%(self.package, self.version)
   
   def getSources(self):
+    """Return the Sources stanza for this version of this package
+    as a dict of the form {"Field": "value"}, or raise PackageVersionNotFound.
+    """
     for s in self.package.getSources():
       if Version(s['Version']) == self.version:
         return s
     raise error.PackageVersionNotFound(self.package, self.version)
 
   def poolDirectory(self):
+      """Return the package's pool directory."""
       return self.package.poolDirectory()
 
 def files(source):
-    """Return (md5sum, size, name) for each file."""
+    """Return (md5sum, size, name) for each file.
+
+    @param source a stanza from Sources, as a dictionary in the form
+    {"Field": "value"}
+    """
     files = source["Files"].strip("\n").split("\n")
     return [ f.split(None, 2) for f in files ]
 

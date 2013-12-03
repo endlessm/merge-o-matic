@@ -21,26 +21,63 @@ from deb.version import Version
 
 
 class OBSDistro(Distro):
+  """A distro with OBS integration."""
+
+  # global dict { distro.name: distro._obsCache }
+  # e.g. { "debian": ... }
   masterCache = {}
+
+  # global dict { OBS project name: list of packages }
+  # e.g. { "Debian:Wheezy:Main": ["hello", ...] }
   obsLists = {}
+
   def __init__(self, name, parent=None):
     super(OBSDistro, self).__init__(name, parent)
+
+    # { release codename, e.g. "precise": {
+    #     Debian source package name, e.g. "hello": {
+    #       "name": Debian source package name,
+    #       "obs-name": package name in OBS,
+    #       "files": ["hello[...].dsc", "hello[...].tar.gz"],
+    #       "version": version as a string
+    #     }
+    #   }
+    # }
     self._obsCache = {}
 
   @property
   def obsUser(self):
+    """Return the username with which to log in to the OBS instance.
+
+    The merge-o-matic administrator is currently expected to set this up
+    by running something like 'sudo -H -u mom -- osc -A ${url} ls'
+    and entering the username and password interactively.
+    """
     return osc.conf.get_apiurl_usr(self.config("obs", "url"))
 
   def oscDirectory(self):
+    """Return the absolute path to the working area used to check out
+    packages in this distro.
+    """
     return '/'.join((config.get("ROOT"), 'osc', self.name))
 
   def branchPackage(self, packageName):
+    """Branch a package in OBS.
+
+    This may only be called on an OBSDistro branched via OBSDistro.branch().
+    """
     assert(not(self.parent is None))
     exists, targetprj, targetpkg, srcprj, srcpkg = \
       osccore.branch_pkg(self.config("obs", "url"), self.parent.obsProject(dist, component), \
         packageName, target_project=self.obsProject(dist, component))
 
   def checkout(self, dist, component, packages=[]):
+    """
+    @param dist a release codename like "precise"
+    @param component a component (archive area) like "universe"
+    @param packages a list of packages, or the empty list to act on
+    all known packages
+    """
     if path.isdir('/'.join((self.oscDirectory(), '.osc'))):
       return
     osccore.Project.init_project(self.config("obs", "url"), self.oscDirectory(), self.obsProject(dist, component))
@@ -73,6 +110,12 @@ class OBSDistro(Distro):
         break
 
   def update(self, dist, component, packages=[]):
+    """
+    @param dist a release codename like "precise"
+    @param component a component (archive area) like "universe"
+    @param packages a list of packages, or the empty list to act on
+    all known packages
+    """
     if len(packages) == 0:
       packages = self.packages(dist, component)
     for package in packages:
@@ -98,6 +141,12 @@ class OBSDistro(Distro):
       self._validateCheckout(dist, component, package)
 
   def sync(self, dist, component, packages=[]):
+    """
+    @param dist a release codename like "precise"
+    @param component a component (archive area) like "universe"
+    @param packages a list of packages, or the empty list to act on
+    all known packages
+    """
     try:
       logging.debug("Attempting checkout of %s/%s", self, packages)
       self.checkout(dist, component, packages)
@@ -202,12 +251,28 @@ class OBSDistro(Distro):
       raise error.PackageNotFound(name, dist, component)
 
   def obsProject(self, dist, component):
+    """
+    Return the OBS project for the given release and component
+    in the form "prefix:release:component", e.g. "debian:wheezy:main"
+    or "home:myuser:branches:ubuntu:precise:universe".
+
+    The prefix defaults to self.name, but can be overridden via
+    DISTROS[self.name]["obs"]["project"].
+
+    @param dist a release codename like "precise"
+    @param component a component (archive area) like "universe"
+    """
     if self.parent:
       return "%s:%s"%(self.name, self.parent.obsProject(dist, component))
     return "%s:%s:%s" % (self.config("obs", "project", default=self.name),
             dist, component)
 
   def branch(self, name):
+    """Return a new OBSDistro that is a branch of this one.
+
+    @param name a prefix like home:myuser:branches, which will be prepended to
+    this OBSDistro's name
+    """
     return OBSDistro(name, self)
 
   def mirrorURL(self, dist, component):
@@ -220,11 +285,17 @@ class OBSPackage(Package):
 
   @property
   def obsName(self):
+    """Return the name of this package in OBS, usually the same as
+    its Debian package name.
+    """
     self._updateOBSCache()
     return self._obsName
 
   @property
   def files(self):
+    """Return the filenames of this package's .dsc file and
+    related source files.
+    """
     self._updateOBSCache()
     return self._files
 
@@ -234,6 +305,7 @@ class OBSPackage(Package):
     self._files = self.distro._obsCache[self.dist][self.component][self.name]['files']
   
   def obsDir(self):
+    """Return the directory into which this package will be checked out."""
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))
 
   def commit(self, message):

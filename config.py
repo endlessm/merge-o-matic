@@ -80,17 +80,29 @@ class Blacklist(object):
     return ret
 
 class Source(object):
+  """A source of reference packages from which to merge. For instance,
+  a Debian derivative might have a Source representing Debian wheezy,
+  and a Source representing Debian wheezy-updates.
+  """
+
   def __init__(self, distro, dist):
+    """Constructor.
+
+    @param distro the name of a distribution, e.g. "debian", "ubuntu"
+    @param dist a release codename, e.g. "wheezy", "wheezy-updates", "precise"
+    """
     super(Source, self).__init__()
     self._distro = model.Distro.get(distro)
     self._dist = dist
 
   @property
   def distro(self):
+    """The Distro object, e.g. Distro.get("debian") or Distro.get("ubuntu")."""
     return self._distro
 
   @property
   def dist(self):
+    """The release codename, e.g. "wheezy" or "precise"."""
     return self._dist
 
   def __str__(self):
@@ -103,13 +115,23 @@ class Source(object):
     return self._distro == other._distro and self._dist == other._dist
 
 class SourceList(object):
+  """A named collection of one or more Source objects."""
+
   def __init__(self, name):
+    """Constructor.
+
+    @param name a source of packages: one of the keys in DISTRO_SOURCES,
+      e.g. "wheezy+updates"
+    """
     super(SourceList, self).__init__()
     self._name = name
     self._sources = map(lambda x:Source(x['distro'], x['dist']), get('DISTRO_SOURCES', self._name))
 
   @property
   def name(self):
+    """The name of this object, e.g. "wheezy-updates". It can be used
+    as a key in DISTRO_SOURCES.
+    """
     return self._name
 
   def __iter__(self):
@@ -133,44 +155,74 @@ class SourceList(object):
     raise model.error.PackageNotFound, name
 
 class Target(object):
+  """One of the components of a derived distribution, into which packages
+  are to be merged.
+
+  This corresponds to a (distribution, release codename, component) tuple;
+  for instance, if merging Debian into Ubuntu, one of the possible
+  Target objects is (ubuntu, precise, universe).
+  """
+
   def __init__(self, name):
+    """Constructor.
+
+    @param name the short name of the target, such as precise-universe;
+    a key from DISTRO_TARGETS in the configuration file
+    """
     super(Target, self).__init__()
     self._name = name
     self._blacklist = None
 
   @property
   def blacklist(self):
+    """Return a Blacklist object based on blacklist-NAME.txt."""
     if self._blacklist is None:
       files = ['/'.join((get("ROOT"), 'blacklist-%s.txt'%(self.name))),]
       self._blacklist = Blacklist(files=files)
     return self._blacklist
 
   def config(self, *args, **kwargs):
+    """Return the configuration item given by the args, kwargs parameters.
+    """
     args = (self._name,)+args
     return get('DISTRO_TARGETS', *args, **kwargs)
 
   @property
   def distro(self):
+    """Return the Distro for our "distro" configuration item."""
     return model.Distro.get(self.config('distro'))
 
   @property
   def dist(self):
+    """Return the release codename, such as "wheezy" or "precise"."""
     return self.config('dist')
 
   @property
   def component(self):
+    """Return the component (archive area), such as "main", "contrib"
+    or "universe".
+    """
     return self.config('component')
 
   @property
   def sources(self):
+    """Return a SourceList containing each Source that is merged into
+    this target.
+    """
     return map(SourceList, self.config('sources', default=[]))
 
   @property
   def committable(self):
+    """Return True if we can commit directly to this component's
+    OBS project."""
     return self.config('commit', default=False)
 
   @property
   def name(self):
+    """Return the short name of the distribution, such as
+    "precise-universe". This is a key from DISTRO_TARGETS in the
+    configuration file.
+    """
     return self._name
 
   def __str__(self):
@@ -256,6 +308,12 @@ class Target(object):
           continue
 
 def targets(names=[]):
+  """If names is non-empty, return a Target for each entry, or raise an
+  exception.
+
+  If names is empty, return a Target for each target configured in
+  DISTRO_TARGETS.
+  """
   if len(names) == 0:
     names = get('DISTRO_TARGETS').keys()
   else:
