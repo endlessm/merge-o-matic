@@ -19,6 +19,7 @@
 
 from momlib import *
 import config
+from deb.version import Version
 from model import Distro, OBSDistro
 import urllib2
 from util import run
@@ -84,17 +85,20 @@ def main(options, args):
           branch.sync(target.dist, target.component, [branchPkg,])
           logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
           if report['merged_is_right']:
+            srcDistro = Distro.get(report['right_distro'])
+
+            version = Version(report['right_version'])
+
             logging.debug('Copying updated upstream version %s from %r into %r',
-                    package.newestVersion(),
+                    version,
                     srcDistro,
                     target)
-            srcDistro = Distro.get(report['right_distro'])
             for upstream in target.sources:
               for src in upstream:
                 srcDistro = src.distro
                 try:
                   pkg = srcDistro.findPackage(package.name, searchDist=src.dist,
-                      version=package.newestVersion().version)[0]
+                      version=version)[0]
                   pfx = pkg.poolDirectory()
                   break
                 except model.error.PackageNotFound:
