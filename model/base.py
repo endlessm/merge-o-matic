@@ -74,7 +74,7 @@ class Distro(object):
     standard apt layout (MIRROR/dists/RELEASE/COMPONENT/source/Sources.gz).
     """
     if (dist, component) in self.config("sources_urls", default={}):
-      return self.config("sources_urls")
+      return self.config("sources_urls")[(dist, component)]
     mirror = self.mirrorURL(dist, component)
     url = mirror + "/dists"
     if dist is not None:
