@@ -129,6 +129,8 @@ class Distro(object):
     as PackageVersion objects. Raise PackageNotFound if there are no
     such versions.
 
+    The returned versions are in no particular order.
+
     @param name the name of a source package
     @param searchDist if not None, only search in this release codename,
     such as "precise"
