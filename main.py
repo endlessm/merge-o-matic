@@ -50,6 +50,9 @@ def main(options, args):
     codedir = os.path.dirname(__file__)
     unpackeddir = "%s/unpacked" % config.get('ROOT')
 
+    # Some modules assume we're already here
+    os.chdir(config.get('ROOT'))
+
     # Default options values referenced in various *.main() functions
     options.exclude = None
     options.include = None
