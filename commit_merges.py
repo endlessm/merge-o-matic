@@ -32,20 +32,30 @@ def options(parser):
     parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
 
 def main(options, args):
+    logging.debug('Committing merges...')
 
     for target in config.targets(args):
       d = target.distro
+
       if not isinstance(d, OBSDistro):
+        logging.debug('Skipping %r distro %r: not an OBSDistro', target, d)
         continue
+
       for source in d.newestSources(target.dist, target.component):
         if options.package and source['Package'] not in options.package:
+          logging.debug('Skipping package %s: not selected', source['Package'])
           continue
+
         if source['Package'] in target.blacklist:
+          logging.debug('Skipping package %s: blacklisted', source['Package'])
           continue
+
         try:
           output_dir = result_dir(target.name, source['Package'])
           report = read_report(output_dir)
         except ValueError:
+          logging.debug('Skipping package %s: unable to read report',
+                  source['Package'])
           continue
 
         package = d.package(target.dist, target.component, report['package'])
@@ -74,6 +84,10 @@ def main(options, args):
           branch.sync(target.dist, target.component, [branchPkg,])
           logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
           if report['merged_is_right']:
+            logging.debug('Copying updated upstream version %s from %r into %r',
+                    package.newestVersion(),
+                    srcDistro,
+                    target)
             srcDistro = Distro.get(report['right_distro'])
             for upstream in target.sources:
               for src in upstream:
@@ -86,6 +100,8 @@ def main(options, args):
                 except model.error.PackageNotFound:
                   pass
           else:
+            logging.debug('Copying merged version from %r into %r',
+                    branch, target)
             pfx = result_dir(target.name, package.name)
 
           for f in branchPkg.files:
@@ -107,6 +123,7 @@ def main(options, args):
               if f == "_link":
                 continue
               try:
+                logging.debug('deleting %s/%s', branchPkg.obsDir(), f)
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
                 filesUpdated = True
               except OSError:
@@ -114,9 +131,12 @@ def main(options, args):
             for f in filepaths:
               if f == "_link":
                 continue
+              logging.debug('copying %s/%s -> %s', pfx, f, branchPkg.obsDir())
               shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
               filesUpdated = True
             if filesUpdated:
+              logging.debug('Submitting request to merge %r from %r into %r',
+                      branchPkg, branch, target)
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
                 branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), comment)
