@@ -151,7 +151,6 @@ class Distro(object):
       for component in components:
         try:
           pkg = self.package(dist, component, name)
-          ret.extend(pkg.versions())
         except error.PackageNotFound:
           continue
         for v in pkg.versions():
