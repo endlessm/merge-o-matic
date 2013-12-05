@@ -304,6 +304,10 @@ class Target(object):
             if self._tryFetch(pkg.package, version):
               pkg.package.updatePoolSource()
               return
+        except model.error.PackageNotFound:
+          logging.debug('%s/%s not found in %r', package.name, version,
+                  src)
+          continue
         except IOError, e:
           logging.exception("Could not download %s_%s", pkg, version)
           continue
