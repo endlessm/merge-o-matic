@@ -100,7 +100,6 @@ def main(options, args):
             our_version = Version(options.version)
           else:
             our_version = pkg.newestVersion()
-          base = target.findNearestVersion(our_version)
           upstream = None
           for srclist in target.sources:
             for src in srclist:
@@ -128,10 +127,11 @@ def main(options, args):
             logging.debug("%s >= %s, skipping", our_version, upstream)
             cleanup(result_dir(target.name, pkg.name))
             continue
-          logging.info("local: %s, upstream: %s, base: %s", our_version,
-              upstream, base)
+
+          logging.info("local: %s, upstream: %s", our_version, upstream)
+
           try:
-            produce_merge(our_version, base, upstream, result_dir(target.name, pkg.name))
+            produce_merge(target, our_version, upstream, result_dir(target.name, pkg.name))
           except ValueError:
             logging.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
 
@@ -940,11 +940,62 @@ def read_package_list(filename):
 
     return packages
 
-def produce_merge(left, base, upstream, output_dir):
+def get_common_ancestor(target, downstream, downstream_versions, upstream,
+        upstream_versions):
+  logging.debug('looking for common ancestor of %s and %s',
+          downstream.version, upstream.version)
+  for downstream_version, downstream_text in downstream_versions:
+    if downstream_version is None:
+      # sometimes read_changelog gets confused
+      continue
+    for upstream_version, upstream_text in upstream_versions:
+      if downstream_version == upstream_version:
+        logging.debug('%s looks like a possibility', downstream_version)
+        for source_list in target.sources:
+          for source in source_list:
+            try:
+              package_version = source.distro.findPackage(
+                      downstream.package.name,
+                      searchDist=source.dist,
+                      version=downstream_version)[0]
+            except model.error.PackageNotFound:
+              continue
+            except Exception:
+              logging.debug('unable to find %s in %s:\n',
+                      downstream_version, source, exc_info=1)
+              continue
+
+            try:
+              target.fetchMissingVersion(package_version.package,
+                      package_version.version)
+              base_dir = unpack_source(package_version)
+            except Exception:
+              logging.exception('unable to unpack %s:\n', package_version)
+            else:
+              logging.debug('base version for %s and %s is %s',
+                      downstream, upstream, package_version)
+              return (package_version, base_dir)
+
+  raise Exception('unable to find a usable base version for %s and %s' %
+          (downstream, upstream))
+
+def produce_merge(target, left, upstream, output_dir):
 
   left_dir = unpack_source(left)
-  base_dir = unpack_source(base)
   upstream_dir = unpack_source(upstream)
+
+  # Try to find the newest common ancestor
+  try:
+    downstream_versions = read_changelog(left_dir + '/debian/changelog')
+    upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
+    base, base_dir = get_common_ancestor(target, left, downstream_versions,
+            upstream, upstream_versions)
+  except Exception:
+    logging.exception('error finding base version:\n')
+    cleanup(output_dir)
+    return
+
+  logging.info('base version: %s', base.version)
 
   merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
 
