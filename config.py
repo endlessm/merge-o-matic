@@ -309,7 +309,7 @@ class Target(object):
                   src)
           continue
         except IOError, e:
-          logging.exception("Could not download %s_%s", pkg, version)
+          logging.exception("Could not download %s_%s", package.name, version)
           continue
 
 def targets(names=[]):
