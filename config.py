@@ -299,7 +299,8 @@ class Target(object):
     for srclist in self.sources:
       for src in srclist:
         try:
-          for pkg in src.distro.findPackage(package.name):
+          for pkg in src.distro.findPackage(package.name, searchDist=src.dist,
+                  version=version):
             if self._tryFetch(pkg.package, version):
               pkg.package.updatePoolSource()
               return
