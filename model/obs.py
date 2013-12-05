@@ -31,6 +31,10 @@ class OBSDistro(Distro):
   # e.g. { "Debian:Wheezy:Main": ["hello", ...] }
   obsLists = {}
 
+  def __repr__(self):
+    return '<%s "%s" ("%s")>' % (self.__class__.__name__, self.name,
+            self.obsProject('*', '*'))
+
   def __init__(self, name, parent=None):
     super(OBSDistro, self).__init__(name, parent)
 
