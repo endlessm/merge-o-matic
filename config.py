@@ -206,7 +206,7 @@ class Target(object):
 
   @property
   def sources(self):
-    """Return a SourceList containing each Source that is merged into
+    """Return a list of SourceList containing each Source that is merged into
     this target.
     """
     return map(SourceList, self.config('sources', default=[]))
