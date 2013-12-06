@@ -49,3 +49,81 @@ Config files
 Under /srv/obs/merge-o-matic:
 comments.txt : comments, will be displayed in merges/*.html
 $TARGET.ignore.txt : packages in $TARGET distro that will be ignored by MoM.
+
+Terminology
+-----------
+
+Debian archive terminology can be quite confusing: "distribution" and
+"section" are ambiguous terms. Here's some disambiguation.
+
+We consider the top-level construct to be a *distro*, sometimes
+called an *archive*. For instance, Debian, Ubuntu, and the Debian
+derivative(s) you're managing with MoM are all "distros" in our
+terminology. Debian security updates operate from a separate package database
+with a different layout, so they're treated as a separate distro.
+
+Distros have one or more *suites*, confusingly often called
+*distributions* (in e.g. the Debian policy manual, Debian developer's
+reference, reprepro) or *dists* (on-disk layout, MoM source code),
+and occasionally *pockets* (which seems to be a more popular term in Ubuntu).
+These are either release codenames (wheezy, precise) or more abstract
+aliases for a codenamed release (stable, testing, unstable). MoM
+semi-consistently uses "dist" for these.
+
+Distros also have one or more *components* or *archive areas* (sometimes
+called sections). In Debian these are main, contrib and non-free; in
+Ubuntu they are main, restricted, universe and multiverse. MoM mostly uses
+"component" for these.
+
+The "Section" field in package metadata encodes a smaller *section*
+(e.g. libs) and sometimes also the component (e.g. contrib/libs).
+
+In /etc/apt/sources.list:
+
+    http://ftp.debian.org/debian wheezy main contrib non-free
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^ ^^^^^^^^^^^^^^^^^^^^^
+      (one mirror of) a distro   a suite     3 components
+
+    http://ftp.debian.org/debian wheezy-updates main contrib non-free
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^
+      same distro                different suite   same 3 components
+
+    http://security.debian.org wheezy/updates main contrib non-free
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^
+      different distro           suite           components
+
+In OBS, our derived distro(s) are represented by an OBS *project* for each
+(distro, suite, component) tuple. These projects are named
+PROJECT:SUITE:COMPONENT, where PROJECT is configurable (typically the
+name of the distro, but it could also be home:myuser:DISTRO),
+and SUITE and COMPONENT are the suite and component names. For instance,
+a derivative called dderivative with suites "alpha" and "beta", and
+components "main" and "proprietary", would have these OBS projects:
+
+    dderivative:alpha:main
+    dderivative:alpha:proprietary
+    dderivative:beta:main
+    dderivative:beta:proprietary
+
+When merging *upstream* distros (e.g. Debian, Ubuntu) into
+our *downstream* distro (e.g. a Debian derivative), we refer to each
+(downstream distro, suite, component) as a *target*. Each target
+has one or more *source lists*, each consisting of one or more
+(upstream distro, suite) pairs. We need to know the upstream distro's
+components in order to download package metadata, but we ignore the
+component for the purposes of merging.
+
+For instance, we might have:
+
+    downstream distro: dderivative
+      \- target: (dderivative, alpha, main)
+           \- source list: wheezy+updates
+              \- source: (debian, wheezy, main)
+              \- source: (debian, wheezy-updates, main)
+              \- source: (debian-security, wheezy/updates, main)
+              \- source: (debian, wheezy, contrib)
+              [etc.]
+      \- target: (dderivative, beta, main)
+           \- source list: testing+unstable
+              \- source: (debian, testing, main)
+              \- source: (debian, unstable, main)
