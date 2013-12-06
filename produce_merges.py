@@ -629,10 +629,12 @@ def add_changelog(package, merged_version, left_distro, left_dist,
 
     os.rename(changelog_file + ".new", changelog_file)
 
-def copy_in(output_dir, source, distro):
+def copy_in(output_dir, pkgver):
     """Make a copy of the source files."""
 
-    pkg = Distro.get(distro).findPackage(source['Package'])[0]
+    source = pkgver.getSources()
+    pkg = pkgver.package
+
     for md5sum, size, name in files(source):
         src = "%s/%s/%s" % (ROOT, pkg.poolDirectory(), name)
         dest = "%s/%s" % (output_dir, name)
@@ -644,7 +646,7 @@ def copy_in(output_dir, source, distro):
         except OSError, e:
           logging.exception("File not found: %s", src)
 
-    patch = patch_file(distro, source)
+    patch = patch_file(pkg.distro, source)
     if os.path.isfile(patch):
         output = "%s/%s" % (output_dir, os.path.basename(patch))
         if not os.path.exists(output):
@@ -1036,9 +1038,9 @@ def produce_merge(target, left, upstream, output_dir):
     return
   cleanup(output_dir)
   os.makedirs(output_dir)
-  copy_in(output_dir, base.getSources(), base.package.distro.name)
-  left_patch = copy_in(output_dir, left.getSources(), left.package.distro.name)
-  right_patch = copy_in(output_dir, upstream.getSources(), upstream.package.distro.name)
+  copy_in(output_dir, base)
+  left_patch = copy_in(output_dir, left)
+  right_patch = copy_in(output_dir, upstream)
 
   patch_file = None
   build_metadata_changed = False
