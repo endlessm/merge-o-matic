@@ -740,7 +740,7 @@ def create_patch(package, version, output_dir, merged_dir,
         tree.remove(parent)
 
 def write_report(package, left_source, left_distro, left_patch, base_source,
-                 right_source, right_distro, right_patch,
+                 tried_bases, right_source, right_distro, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
                  merged_dir, merged_is_right, build_metadata_changed):
     """Write the merge report."""
@@ -780,9 +780,14 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
         print >>report
 
         # Base version and files
-        if base_source is None:
-            print >>report, "missing base: %s" % get_base(left_source)
-        else:
+        if tried_bases:
+            # We print this even if base_source is not None: we want to
+            # record the better base versions we tried and failed to find
+            print >>report, "missing base version(s):"
+            for v in tried_bases:
+                print >>report, " %s" % v
+
+        if base_source is not None:
             print >>report, "base: %s" % base_source["Version"]
             for md5sum, size, name in files(base_source):
                 print >>report, "    %s" % name
@@ -814,12 +819,12 @@ def write_report(package, left_source, left_distro, left_patch, base_source,
         print >>report, "================"
         print >>report
         if base_source is None:
-            print >>report, fill("Failed to merge because the base version (%s) "
+            print >>report, fill("Failed to merge because the base version "
                                  "required for a 3-way diff is missing from %s pool. "
                                  "You will need to either merge manually; or add the "
                                  "missing base version sources to '%s/%s/*/%s/' and run "
                                  "update_sources.py."
-                                 % (get_base(left_source), right_distro, ROOT, right_distro, package))
+                                 % (right_distro, ROOT, right_distro, package))
             print >>report
         elif merged_is_right:
             print >>report, fill("The %s version supercedes the %s version "
@@ -945,6 +950,7 @@ def read_package_list(filename):
 
 def get_common_ancestor(target, downstream, downstream_versions, upstream,
         upstream_versions):
+  tried_bases = set()
   logging.debug('looking for common ancestor of %s and %s',
           downstream.version, upstream.version)
   for downstream_version, downstream_text in downstream_versions:
@@ -964,6 +970,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
             except model.error.PackageNotFound:
               continue
             except Exception:
+              tried_bases.add(downstream_version)
               logging.debug('unable to find %s in %s:\n',
                       downstream_version, source, exc_info=1)
               continue
@@ -973,11 +980,14 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
                       package_version.version)
               base_dir = unpack_source(package_version)
             except Exception:
+              tried_bases.add(downstream_version)
               logging.exception('unable to unpack %s:\n', package_version)
             else:
               logging.debug('base version for %s and %s is %s',
                       downstream, upstream, package_version)
-              return (package_version, base_dir)
+              return (package_version, base_dir,
+                  sorted(tried_bases, reverse=True))
+        tried_bases.add(downstream_version)
 
   raise Exception('unable to find a usable base version for %s and %s' %
           (downstream, upstream))
@@ -991,8 +1001,8 @@ def produce_merge(target, left, upstream, output_dir):
   try:
     downstream_versions = read_changelog(left_dir + '/debian/changelog')
     upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
-    base, base_dir = get_common_ancestor(target, left, downstream_versions,
-            upstream, upstream_versions)
+    base, base_dir, tried_bases = get_common_ancestor(target,
+            left, downstream_versions, upstream, upstream_versions)
   except Exception:
     logging.exception('error finding base version:\n')
     cleanup(output_dir)
@@ -1013,7 +1023,7 @@ def produce_merge(target, left, upstream, output_dir):
     logging.info("Syncing %s to %s", left, upstream)
     cleanup(output_dir)
     write_report(left.package.name, left.getSources(), left.package.distro.name,
-        None, base.getSources(), upstream.getSources(),
+        None, base.getSources(), tried_bases, upstream.getSources(),
         upstream.package.distro.name, None,
         merged_version, None, None, None,
         output_dir, None, True, False)
@@ -1054,7 +1064,7 @@ def produce_merge(target, left, upstream, output_dir):
       patch_file = create_patch(left.package.name, merged_version,
                                 output_dir, merged_dir,
                                 upstream.getSources(), upstream_dir)
-  write_report(left.package.name, left.getSources(), left.package.distro.name, left_patch, base.getSources(),
+  write_report(left.package.name, left.getSources(), left.package.distro.name, left_patch, base.getSources(), tried_bases,
                upstream.getSources(), upstream.package.distro.name, right_patch,
                merged_version, conflicts, src_file, patch_file,
                output_dir, merged_dir, False, build_metadata_changed)
