@@ -38,7 +38,23 @@ def main(options, args):
         for source in d.getSources(our_dist, our_component):
             if options.package and source['Package'] not in options.package:
                 continue
-            base = get_base(source)
+
+            try:
+                output_dir = result_dir(target, source['Package'])
+                report = read_report(output_dir)
+                base = report["base_version"]
+            except ValueError:
+                logging.debug('Skipping package %s: unable to read merge report',
+                        source['Package'])
+                continue
+
+            if base is None:
+                # If there's no suitable base for merges, we don't
+                # automatically expire any versions.
+                logging.debug('Skipping package %s: no base version found',
+                        source['Package'])
+                continue
+
             logging.debug("%s %s", source["Package"], source["Version"])
             logging.debug("base is %s", base)
 
