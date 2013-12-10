@@ -740,11 +740,24 @@ def create_patch(package, version, output_dir, merged_dir,
     finally:
         tree.remove(parent)
 
-def write_report(package, left_source, left_distro, left_patch, base_source,
-                 tried_bases, right_source, right_distro, right_patch,
+def write_report(left, left_patch,
+                 base, tried_bases,
+                 right, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
                  merged_dir, merged_is_right, build_metadata_changed):
     """Write the merge report."""
+
+    package = left.package.name
+    assert package == right.package.name, (package, right.package.name)
+    assert isinstance(left, PackageVersion)
+    left_source = left.getSources()
+    left_distro = left.package.distro.name
+    assert isinstance(base, PackageVersion)
+    base_source = base.getSources()
+    assert isinstance(right, PackageVersion)
+    right_source = right.getSources()
+    right_distro = right.package.distro.name
+
     filename = "%s/REPORT" % output_dir
     tree.ensure(filename)
     with open(filename, "w") as report:
@@ -1028,9 +1041,9 @@ def produce_merge(target, left, upstream, output_dir):
   if base.version == left.version:
     logging.info("Syncing %s to %s", left, upstream)
     cleanup(output_dir)
-    write_report(left.package.name, left.getSources(), left.package.distro.name,
-        None, base.getSources(), tried_bases, upstream.getSources(),
-        upstream.package.distro.name, None,
+    write_report(left, None,
+        base, tried_bases,
+        upstream, None,
         merged_version, None, None, None,
         output_dir, None, True, False)
     return
@@ -1070,8 +1083,9 @@ def produce_merge(target, left, upstream, output_dir):
       patch_file = create_patch(left.package.name, merged_version,
                                 output_dir, merged_dir,
                                 upstream.getSources(), upstream_dir)
-  write_report(left.package.name, left.getSources(), left.package.distro.name, left_patch, base.getSources(), tried_bases,
-               upstream.getSources(), upstream.package.distro.name, right_patch,
+  write_report(left, left_patch,
+               base, tried_bases,
+               upstream, right_patch,
                merged_version, conflicts, src_file, patch_file,
                output_dir, merged_dir, False, build_metadata_changed)
   logging.info("Wrote output to %s", src_file)
