@@ -749,11 +749,17 @@ def write_report(left, left_patch,
 
     package = left.package.name
     assert package == right.package.name, (package, right.package.name)
+
     assert isinstance(left, PackageVersion)
     left_source = left.getSources()
     left_distro = left.package.distro.name
-    assert isinstance(base, PackageVersion)
-    base_source = base.getSources()
+
+    if base is None:
+        base_source = None
+    else:
+        assert isinstance(base, PackageVersion)
+        base_source = base.getSources()
+
     assert isinstance(right, PackageVersion)
     right_source = right.getSources()
     right_distro = right.package.distro.name
