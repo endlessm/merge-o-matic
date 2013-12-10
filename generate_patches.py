@@ -27,101 +27,8 @@ from model import Distro
 import model.error
 import config
 
-
-def options(parser):
-    parser.add_option("-f", "--force", action="store_true",
-                      help="Force creation of patches")
-
-    parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
-                      default=None,
-                      help="Source distribution")
-    parser.add_option("-S", "--source-suite", type="string", metavar="SUITE",
-                      default=None,
-                      help="Source suite (aka distrorelease)")
-
-    parser.add_option("-t", "--target", type="string", metavar="TARGET",
-                      default=None,
-                      help="Distribution target to use")
-
-def main(options, args):
-    # For latest version of each package in the destination distribution, locate the latest in
-    # the source distribution; calculate the base from the destination and
-    # create patches from that to both
-    for target in config.targets(args):
-        d = target.distro
-        our_distro = d.name
-        our_dist = target.dist
-        our_component = target.component
-        for our_source in d.newestSources(our_dist, our_component):
-            if options.package is not None \
-                and our_source["Package"] not in options.package:
-                continue
-            if our_source['Package'] in target.blacklist:
-              logging.debug("%s is blacklisted, skipping.", our_source['Package'])
-              continue
-
-            if search(".*build[0-9]+$", our_source["Version"]):
-                continue
-
-            try:
-                package = d.package(our_dist, our_component, our_source['Package'])
-                our_version = package.newestVersion().version
-                our_pool_source = package.getSources()
-                logging.debug("%s: %s is %s", package, our_distro, our_version)
-            except model.error.PackageNotFound:
-                logging.exception("FIXME: Spooky stuff going on with %s.", d)
-                continue
-
-            try:
-                if options.source_distro is None:
-                    (src_source, src_version, src_pool_source, src_distro, src_dist) \
-                                = PACKAGELISTS.find_in_source_distros(target.name, package)
-                else:
-                    src_distro = options.source_distro
-                    src_d = Distro.get(src_distro)
-                    src_dist = options.source_suite
-                    (src_source, src_version, src_pool_source) \
-                                = src_d.getSameSource(src_dist, package)
-
-                logging.debug("%s: %s is %s", package, src_d, src_version)
-            except model.error.PackageNotFound:
-                continue
-
-            try:
-                base = get_base(our_source)
-                make_patches(our_distro, our_pool_source,
-                            src_distro, src_pool_source, base,
-                            force=options.force)
-
-                slip_base = get_base(our_source, slip=True)
-                if slip_base != base:
-                    make_patches(our_distro, our_pool_source,
-                                src_distro, src_pool_source, slip_base, True,
-                                force=options.force)
-            finally:
-                cleanup_source(our_pool_source)
-                cleanup_source(src_pool_source)
-
-def make_patches(our_distro, our_source, src_distro, src_source, base,
-                 slipped=False, force=False):
-    """Make sets of patches from the given base."""
-    package = our_source["Package"]
-    try:
-        base_source,base_distro = get_nearest_source(our_distro, src_distro, package, base)
-        base_version = Version(base_source["Version"])
-        logging.debug("%s: base is %s (%s wanted)",
-                      package, base_version, base)
-    except IndexError:
-        return
-
-    try:
-        generate_patch(base, our_distro, ours, slipped, force)
-        generate_patch(base, src_distro, src, slipped, force)
-    finally:
-        cleanup_source(base.getSources())
-
 def generate_patch(base, distro, ours,
-                   slipped=False, force=False):
+                   slipped=False, force=False, unpacked=False):
     """Generate a patch file for the given comparison."""
     base_source = base.getSources()
     our_source = ours.getSources()
@@ -154,15 +61,11 @@ def generate_patch(base, distro, ours,
             return
 
     if not os.path.exists(filename):
-        unpack_source(base)
-        unpack_source(ours)
+        if not unpacked:
+            unpack_source(base)
+            unpack_source(ours)
 
         tree.ensure(filename)
         save_patch_file(filename, base_source, our_source)
         save_basis(filename, base_version)
         logging.info("Saved patch file: %s", tree.subdir(ROOT, filename))
-
-
-if __name__ == "__main__":
-    run(main, options, usage="%prog",
-        description="generate patches between distributions")

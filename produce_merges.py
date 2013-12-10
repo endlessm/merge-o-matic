@@ -31,6 +31,7 @@ from textwrap import fill
 from momlib import *
 from deb.controlfile import ControlFile
 from deb.version import Version
+from generate_patches import generate_patch
 from util import tree, shell, run
 from model import Distro, PackageVersion
 import config
@@ -1009,6 +1010,11 @@ def produce_merge(target, left, upstream, output_dir):
     return
 
   logging.info('base version: %s', base.version)
+
+  generate_patch(base, left.package.distro, left, slipped=False, force=False,
+          unpacked=True)
+  generate_patch(base, upstream.package.distro, upstream, slipped=False,
+          force=False, unpacked=True)
 
   merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
 

@@ -27,7 +27,6 @@ import config
 import update_sources
 import get_missing_bases
 import generate_diffs
-import generate_patches
 import generate_dpatches
 import publish_patches
 import syndicate
@@ -83,7 +82,6 @@ def main(options, args):
 
         # Generate changes, diffs and patches
         generate_diffs.main(options, args)
-        generate_patches.main(options, args)
         generate_dpatches.main(options, args)
 
         # Publish the patches
