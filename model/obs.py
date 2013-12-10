@@ -305,9 +305,26 @@ class OBSPackage(Package):
 
   def _updateOBSCache(self):
     self.distro.updateOBSCache(self.dist, self.component, self.name)
-    self._obsName = self.distro._obsCache[self.dist][self.component][self.name]['obs-name']
-    self._files = self.distro._obsCache[self.dist][self.component][self.name]['files']
-  
+
+    if self.distro.parent:
+      self.distro.parent.updateOBSCache(self.dist, self.component, self.name)
+
+    try:
+      self._obsName = self.distro._obsCache[self.dist][self.component][self.name]['obs-name']
+    except KeyError:
+      if self.distro.parent:
+        self._obsName = self.distro.parent._obsCache[self.dist][self.component][self.name]['obs-name']
+      else:
+        raise
+
+    try:
+      self._files = self.distro._obsCache[self.dist][self.component][self.name]['files']
+    except KeyError:
+      if self.distro.parent:
+        self._files = self.distro.parent._obsCache[self.dist][self.component][self.name]['files']
+      else:
+        raise
+
   def obsDir(self):
     """Return the directory into which this package will be checked out."""
     return '/'.join((self.distro.oscDirectory(), self.distro.obsProject(self.dist, self.component), self.obsName))
@@ -329,7 +346,10 @@ class OBSPackage(Package):
           pkg.delete_file(filename)
           logging.info('D: %s', os.path.join(pkg.dir, filename))
     pkg.commit(message)
-    del self.distro._obsCache[self.dist][self.component][self.name]
+    try:
+      del self.distro._obsCache[self.dist][self.component][self.name]
+    except KeyError:
+      pass
 
   def submitMergeRequest(self, upstreamDistro, msg):
     reqs = osccore.get_request_list(self.distro.config('obs', 'url'),
