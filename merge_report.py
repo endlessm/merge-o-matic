@@ -59,6 +59,7 @@ def read_report(output_dir):
     """Read the report to determine the versions that went into it."""
 
     report = {
+        "result": MergeResult.UNKNOWN,
         "source_package": None,
         "base_version": None,
         "base_files": [],
@@ -84,6 +85,12 @@ def read_report(output_dir):
         _read_report_text(output_dir, filename, report)
     else:
         raise ValueError, "No report exists"
+
+    try:
+        report["result"] = MergeResult(report["result"])
+    except ValueError:
+        report["unparsed-result"] = report["result"]
+        report["result"] = MergeResult.UNKNOWN
 
     if (report['source_package'] is None or
             report["left_version"] is None or report["right_version"] is None or
@@ -149,6 +156,21 @@ def _read_report_text(output_dir, filename, report):
                 report["build_metadata_changed"] = False
             elif line.startswith("Merge committed: YES"):
                 report["committed"] = True
+            elif line.startswith("  C  ") or line.startswith("  C* "):
+                report["conflicts"].append(line[5:].strip())
+
+    # Try to synthesize a meaningful result from those fields
+    if report.get("base_version") is None:
+        report["result"] = MergeResult.NO_BASE
+    elif report.get("merged_is_right"):
+        report["result"] = MergeResult.SYNC_THEIRS
+    elif report.get("merged_files"):
+        report["result"] = MergeResult.MERGED
+    elif report["conflicts"]:
+        report["result"] = MergeResult.CONFLICTS
+    else:
+        # doesn't look good... assume FAILED
+        report["result"] = MergeResult.FAILED
 
     return report
 
