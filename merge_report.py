@@ -69,7 +69,6 @@ def read_report(output_dir):
         "right_distro": None,
         "right_version": None,
         "right_files": [],
-        "merged_is_right": False,
         "merged_dir": None,
         "merged_files": [],
         "build_metadata_changed": True,
@@ -98,7 +97,7 @@ def read_report(output_dir):
         raise AttributeError("Insufficient detail in report")
 
     # this logic is a bit weird but whatever
-    if report["merged_is_right"]:
+    if report["result"] == MergeResult.SYNC_THEIRS:
         report["merged_dir"] = ""
         report["merged_files"] = report["right_files"]
     else:
@@ -116,6 +115,8 @@ def read_report(output_dir):
 
 def _read_report_text(output_dir, filename, report):
     """Read an old-style semi-human-readable REPORT."""
+
+    merged_is_right = False
 
     with open(filename) as r:
         report["source_package"] = next(r).strip()
@@ -151,7 +152,7 @@ def _read_report_text(output_dir, filename, report):
             elif line.startswith("generated:"):
                 in_list = "merged"
             elif line.startswith("Merged without changes: YES"):
-                report["merged_is_right"] = True
+                merged_is_right = True
             elif line.startswith("Build-time metadata changed: NO"):
                 report["build_metadata_changed"] = False
             elif line.startswith("Merge committed: YES"):
@@ -162,7 +163,7 @@ def _read_report_text(output_dir, filename, report):
     # Try to synthesize a meaningful result from those fields
     if report.get("base_version") is None:
         report["result"] = MergeResult.NO_BASE
-    elif report.get("merged_is_right"):
+    elif merged_is_right:
         report["result"] = MergeResult.SYNC_THEIRS
     elif report.get("merged_files"):
         report["result"] = MergeResult.MERGED

@@ -101,7 +101,7 @@ def main(options, args):
           branch = branchPkg.distro
           branch.sync(target.dist, target.component, [branchPkg,])
           logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
-          if report['merged_is_right']:
+          if report['result'] == MergeResult.SYNC_THEIRS:
             srcDistro = Distro.get(report['right_distro'])
 
             version = Version(report['right_version'])
