@@ -97,7 +97,6 @@ def main(options, args):
         stats.main(options, args)
         stats_graphs.main(options, args)
         merge_status.main(options, args)
-        # manual_status.main(options, args)
 
         # Expire any old packages from the pool
         expire_pool.main(options, args)

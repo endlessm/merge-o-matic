@@ -17,7 +17,6 @@ main_exe_files = \
 	get_missing_bases.py \
 	grab-merge.sh \
 	mail_bugs.py \
-	manual_status.py \
 	merge_status.py \
 	main.py \
 	pack-archive.sh \
