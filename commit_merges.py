@@ -60,7 +60,8 @@ def main(options, args):
                   source['Package'])
           continue
 
-        package = d.package(target.dist, target.component, report['package'])
+        package = d.package(target.dist, target.component,
+                report.source_package)
 
         if report['committed']:
           logging.debug("%s already committed, skipping!", package)

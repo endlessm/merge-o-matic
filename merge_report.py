@@ -19,6 +19,7 @@
 from __future__ import with_statement
 
 import json
+import logging
 import os
 import re
 import time
@@ -31,6 +32,8 @@ from deb.version import (Version)
 from model import (Distro, PackageVersion)
 from momlib import files
 from util import tree
+
+logger = logging.getLogger('merge_report')
 
 class MergeResult(str):
     def __new__(cls, s):
@@ -67,59 +70,27 @@ MergeResult.CONFLICTS.message = "3-way merge encountered conflicts"
 def read_report(output_dir):
     """Read the report to determine the versions that went into it."""
 
-    report = {
-        "result": MergeResult.UNKNOWN,
-        "source_package": None,
-        "base_version": None,
-        "base_files": [],
-        "left_distro": None,
-        "left_version": None,
-        "left_files": [],
-        "right_distro": None,
-        "right_version": None,
-        "right_files": [],
-        "merged_dir": None,
-        "merged_files": [],
-        "build_metadata_changed": True,
-        "committed": False
-    }
+    report = MergeReport()
 
     filename = "%s/REPORT" % output_dir
 
     if os.path.isfile(filename + '.json'):
         with open(filename + '.json') as r:
-            report.update(json.load(r))
+            for (k, v) in json.load(r).iteritems():
+                if k.startswith('#'):
+                    continue
+
+                try:
+                    report[k] = v
+                except KeyError:
+                    logger.exception('ignoring unknown key in JSON %r:',
+                            filename)
     elif os.path.isfile(filename):
         _read_report_text(output_dir, filename, report)
     else:
         raise ValueError, "No report exists"
 
-    try:
-        report["result"] = MergeResult(report["result"])
-    except ValueError:
-        report["unparsed-result"] = report["result"]
-        report["result"] = MergeResult.UNKNOWN
-
-    if (report['source_package'] is None or
-            report["left_version"] is None or report["right_version"] is None or
-            report["left_distro"] is None or report["right_distro"] is None):
-        raise AttributeError("Insufficient detail in report")
-
-    # this logic is a bit weird but whatever
-    if report["result"] == MergeResult.SYNC_THEIRS:
-        report["merged_dir"] = ""
-        report["merged_files"] = report["right_files"]
-    else:
-        report["merged_dir"] = output_dir
-
-    # promote versions to Version objects
-    for k in ("left_version", "right_version", "base_version",
-            "merged_version"):
-        if report.get(k) is not None:
-            report[k] = Version(report[k])
-
-    # backwards compat
-    report["package"] = report["source_package"]
+    report.check()
     return report
 
 def _read_report_text(output_dir, filename, report):
