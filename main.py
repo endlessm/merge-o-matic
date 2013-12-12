@@ -31,6 +31,7 @@ import generate_dpatches
 import publish_patches
 import produce_merges
 import commit_merges
+import notify_action_needed
 import stats
 import stats_graphs
 import merge_status
@@ -92,6 +93,7 @@ def main(options, args):
 
         # Commit committable changes to OBS
         commit_merges.main(options, args)
+        notify_action_needed.main(options, args)
 
         # Produce pretty reports
         stats.main(options, args)
