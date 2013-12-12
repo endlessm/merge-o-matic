@@ -30,6 +30,7 @@ import config
 from deb.controlfile import ControlFile
 from deb.version import (Version)
 from model import (Distro, PackageVersion)
+from model.obs import (OBSDistro)
 from momlib import files
 from util import tree
 
@@ -161,6 +162,8 @@ class MergeReport(object):
             'merge_date',
             'result',
             'message',
+            'obs_project',
+            'obs_package',
             'left_version',
             'left_distro',
             'left_suite',
@@ -228,6 +231,12 @@ class MergeReport(object):
             self.left_component = left.package.component
             self.left_version = left.version
             self.left_files = [f[2] for f in files(left.getSources())]
+
+            if isinstance(left.package.distro, OBSDistro):
+                self.obs_project = left.package.distro.obsProject(
+                        left.package.dist,
+                        left.package.component)
+                self.obs_package = left.package.obsName
 
     def __setitem__(self, k, v):
         if k not in self.__slots__:
