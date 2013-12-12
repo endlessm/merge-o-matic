@@ -877,10 +877,13 @@ def produce_merge(target, left, upstream, output_dir):
   if base.version == left.version:
     logging.info("Syncing %s to %s", left, upstream)
     cleanup(output_dir)
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    right_patch = copy_in(output_dir, upstream)
     write_report(left, None,
         base, tried_bases,
-        upstream, None,
-        merged_version, None, None, None,
+        upstream, right_patch,
+        merged_version, None, None, right_patch,
         output_dir, None, True, False)
     return
 

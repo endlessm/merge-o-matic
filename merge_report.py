@@ -588,8 +588,6 @@ def write_report(left, left_patch,
                         multi_para=False, signed=True).para
         report["result"] = MergeResult.MERGED
         report["merged_files"] = [f[2] for f in files(dsc)]
-        if patch_file is not None:
-            report["merged_patch"] = patch_file
         report["build_metadata_changed"] = bool(build_metadata_changed)
     else:
         report["merge_failure_tarball"] = src_file
@@ -598,6 +596,9 @@ def write_report(left, left_patch,
             report["result"] = MergeResult.CONFLICTS
         else:
             report["result"] = MergeResult.FAILED
+
+    if patch_file is not None:
+        report["merged_patch"] = patch_file
 
     if conflicts:
         report["conflicts"] = sorted(conflicts)
