@@ -31,6 +31,7 @@ DISTROS = {
     "dderivative": {
         "obs": {
             "url": "https://%s:444" % _OBS_SERVER,
+            "web": "https://%s" % _OBS_SERVER,
             # The OBS projects are expected to be something like
             # dderivative:alpha:main
             "project": "dderivative",
@@ -44,6 +45,7 @@ DISTROS = {
     "uderivative": {
         "obs": {
             "url": "https://%s:444" % _OBS_SERVER,
+            "web": "https://%s" % _OBS_SERVER,
             # The OBS projects are expected to be something like
             # home:somebody:uderivative:aardvark:misc
             "project": "home:somebody:uderivative",

@@ -22,12 +22,12 @@ from __future__ import with_statement
 import os
 import bz2
 import re
-
 from rfc822 import parseaddr
+
+import config
 from momlib import *
 from model import Distro, OBSDistro
 from util import run
-
 
 # Order of priorities
 PRIORITY = [ "unknown", "required", "important", "standard", "optional",
@@ -210,7 +210,16 @@ def write_status_page(target, merges, our_distro, obsProject):
 
 def do_table(status, merges, comments, our_distro, target, obsProject):
     """Output a table."""
+
+    target_object = config.targets([target])[0]
+    web_ui = target_object.distro.config('obs', 'web')
+
+    if web_ui is None:
+        # not really human-usable but it's the best we can do
+        web_ui = target_object.distro.config('obs', 'url')
+
     default_src_distro =DISTRO_SOURCES[DISTRO_TARGETS[target]["sources"][0]][0]["distro"]
+
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
     print >>status, "<td rowspan=2><b>Package</b></td>"
@@ -232,8 +241,8 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
               "+source/%s\">LP</a></sup>" % package
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \
               "%s\">PTS</a></sup>" % package
-        print >>status, " <sup><a href=\"https://SERVER/package/show?package=%s" \
-              "&project=%s\">OBS</a></sup></td>" % (package, obsProject)
+        print >>status, " <sup><a href=\"%s/package/show?package=%s" \
+              "&project=%s\">OBS</a></sup></td>" % (web_ui, package, obsProject)
         print >>status, "<td rowspan=2>%s</td>" % (comments[package] if package in comments else "")
         print >>status, "</tr>"
         print >>status, "<tr bgcolor=%s>" % COLOURS[priority]
