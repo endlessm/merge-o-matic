@@ -35,7 +35,7 @@ Output files
 ------------
 
 Under /srv/obs/merge-o-matic:
-merges/$NAME.html (e.g. singularity-alphacentauri-core.html) : main report
+merges/$NAME.html (e.g. dderivative-alpha-main.html) : main report
 $TARGET.list.txt : list of packages in $TARGET distro that come from the
 default source distro group (i.e. Ubuntu precise and precise-updates by
 default); packages not in this list will not be downloaded from the default

@@ -10,7 +10,7 @@ DISTROS = {
   "live-test": {
     "obs": {
       "url": "https://obs:444/",
-      "project": "singularity:alphacentauri:core"
+      "project": "dderivative:alpha:main"
     }
   }
 }
