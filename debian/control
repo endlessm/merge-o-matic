@@ -1,7 +1,9 @@
 Source: merge-o-matic
 Section: utils
 Priority: extra
-Maintainer: Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>
+Maintainer: Singularity <singularity@lists.collabora.co.uk>
+Uploaders: Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>,
+           Simon McVittie <simon.mcvittie@collabora.co.uk>
 Build-Depends: debhelper (>= 9), python (>=2.7)
 Standards-Version: 3.9.3
 Vcs-Git: git+ssh://git.internal.collabora.co.uk/git/singularity/merge-o-matic.git
