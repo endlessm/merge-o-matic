@@ -211,6 +211,40 @@ class Target(object):
     """
     return map(SourceList, self.config('sources', default=[]))
 
+  def getAllSourceLists(self):
+    """Return the union of self.sources and all possible results of
+    self.getSourceLists.
+    """
+    ret = set(self.config('sources', default=[]))
+
+    for (p, s) in self.config('sources_per_package', default={}).iteritems():
+      if isinstance(s, str):
+        ret.add(s)
+      else:
+        ret.update(s)
+
+    return map(SourceList, ret)
+
+  def getSourceLists(self, packageName=None):
+    """Return a list of SourceList containing each Source that is merged into
+    the given package in this target. For instance, this is useful
+    if you want to take most packages from Debian stable, but some
+    subset of packages from backports, testing or unstable; or
+    most packages from unstable, but some from experimental.
+    """
+    if packageName is None:
+      return self.sources
+
+    spp = self.config('sources_per_package', default={})
+    ret = spp.get(packageName, None)
+
+    if ret is None:
+      return self.sources
+    elif isinstance(ret, str):
+      return [SourceList(ret)]
+    else:
+      return map(SourceList, ret)
+
   @property
   def committable(self):
     """Return True if we can commit directly to this component's
@@ -235,7 +269,7 @@ class Target(object):
     assert(isinstance(version, model.PackageVersion))
     base = version.version.base()
     sources = []
-    for srclist in self.sources:
+    for srclist in self.getSourceLists(version.package.name):
       for src in srclist:
         try:
           for pkg in  src.distro.findPackage(version.package.name,
@@ -296,7 +330,7 @@ class Target(object):
     return True
   
   def fetchMissingVersion(self, package, version):
-    for srclist in self.sources:
+    for srclist in self.getSourceLists(package.name):
       for src in srclist:
         try:
           for pkg in src.distro.findPackage(package.name, searchDist=src.dist,

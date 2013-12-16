@@ -93,7 +93,7 @@ def main(options, args):
                     version,
                     srcDistro,
                     target)
-            for upstream in target.sources:
+            for upstream in target.getSourceLists(package.name):
               for src in upstream:
                 srcDistro = src.distro
                 try:

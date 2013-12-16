@@ -42,7 +42,7 @@ def main(options, args):
       except model.error.PackageNotFound:
         continue
       our_version = pkg.newestVersion()
-      for srclist in target.sources:
+      for srclist in target.getSourceLists(pkg.name):
         upstream = None
         for src in srclist:
           try:

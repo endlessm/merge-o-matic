@@ -41,24 +41,29 @@ DISTROS = {
         "components": [ "main", "restricted", "universe", "multiverse" ],
         "expire": True,
         },
-#    "debian": {
-#        "mirror": "http://ftp.uk.debian.org/debian",
-#        "dists": [ "unstable", "testing", "testing-proposed-updates", "experimental" ],
-#        "components": [ "main", "contrib", "non-free" ],
-#        "expire": True,
-#        },
+    "debian": {
+        "mirror": "http://ftp.uk.debian.org/debian",
+        "dists": [ "unstable", "testing", "testing-proposed-updates", "experimental" ],
+        "components": [ "main", "contrib", "non-free" ],
+        "expire": True,
+        },
   }
   
 DISTRO_SOURCES = {
     'raring+updates': [
         { "distro": "ubuntu", "dist": "raring-updates" },
         { "distro": "ubuntu", "dist": "raring-security" },
-        { "distro": "ubuntu", "dist": "raring" } ],
-    }
+        { "distro": "ubuntu", "dist": "raring" },
+    ],
+    'unstable': [
+        { "distro": "debian", "dist": "unstable" },
+    ],
+}
 
 DISTRO_TARGETS = {}
 
-def defineDist(distro, name, upstream, commitable):
+def defineDist(distro, name, upstreams, commitable,
+        sources_per_package=None):
   """Adds an entry to DISTRO_TARGETS.
 
      @param name The name of the distro
@@ -66,16 +71,23 @@ def defineDist(distro, name, upstream, commitable):
      @param commitable Whether or not you want to be able to commit to OBS, or submit merge requests.
      @param distro The distro to use
   """
+  if sources_per_package is None:
+    sources_per_package = {}
+
   for component in DISTROS[distro]['components']:
     DISTRO_TARGETS["%s-%s"%(name, component)] = {
       'distro': distro,
       'dist': name,
       'component': component,
       'sources': [ upstream, ],
-      'commit': commitable
+      'commit': commitable,
+      'sources_per_package': sources_per_package,
     }
 
-defineDist('singularity','alphacentauri', 'raring+updates', False)
+defineDist('singularity','alphacentauri', 'raring+updates', False,
+      'sources_per_package': {
+        'miscfiles': [ 'unstable' ],
+      })
 defineDist('DISTRO','SUITE', 'raring+updates', False)
 
 # Time format for RSS feeds

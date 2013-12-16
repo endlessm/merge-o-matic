@@ -101,7 +101,8 @@ def main(options, args):
           else:
             our_version = pkg.newestVersion()
           upstream = None
-          for srclist in target.sources:
+
+          for srclist in target.getSourceLists(pkg.name):
             for src in srclist:
               try:
                 possible = src.distro.findPackage(pkg.name,
@@ -951,7 +952,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
     for upstream_version, upstream_text in upstream_versions:
       if downstream_version == upstream_version:
         logging.debug('%s looks like a possibility', downstream_version)
-        for source_list in target.sources:
+        for source_list in target.getSourceLists(downstream.package.name):
           for source in source_list:
             try:
               package_version = source.distro.findPackage(

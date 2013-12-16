@@ -33,7 +33,7 @@ def main(options, args):
       logging.info("Updating sources for %s", target)
       d = target.distro
       d.updateSources(target.dist, target.component)
-      for upstreamList in target.sources:
+      for upstreamList in target.getAllSourceLists():
         for source in upstreamList:
           if source not in upstreamSources:
             for component in source.distro.components():
@@ -45,7 +45,7 @@ def main(options, args):
           continue
         packages.append(package)
 
-        for upstreamList in target.sources:
+        for upstreamList in target.getSourceLists(package.name):
           for source in upstreamList:
             try:
               upstreamPkgs = source.distro.findPackage(package.name, searchDist=source.dist)

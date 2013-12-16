@@ -62,7 +62,7 @@ def main(options, args):
         stats['total'] += 1
 
         upstream = None
-        for srclist in target.sources:
+        for srclist in target.getSourceLists(pkg.name):
           for src in srclist:
             try:
               possible = src.distro.findPackage(pkg.name,
