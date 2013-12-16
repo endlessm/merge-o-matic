@@ -26,6 +26,11 @@ case "$1" in
             --no-create-home mom
         /usr/sbin/usermod -c "Merge-o-Matic" mom
     fi
+    # If OBS creates this directory, it'll be owned by obsrun,
+    # and we don't want to override that; so only create it if it
+    # doesn't exist.
+    test -d /srv/obs || install -d -m755 /srv/obs
+    install -d -m755 -omom -gmom /srv/obs/merge-o-matic
     ;;
 
     abort-upgrade)
