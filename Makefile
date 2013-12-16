@@ -25,7 +25,6 @@ main_exe_files = \
 	publish_patches.py \
 	stats_graphs.py \
 	stats.py \
-	syndicate.py \
 	update_sources.py
 
 main_nonexe_files = \

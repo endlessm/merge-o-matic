@@ -29,7 +29,6 @@ import get_missing_bases
 import generate_diffs
 import generate_dpatches
 import publish_patches
-import syndicate
 import produce_merges
 import commit_merges
 import stats
@@ -86,7 +85,6 @@ def main(options, args):
 
         # Publish the patches
         publish_patches.main(options, args)
-        # syndicate.main(options, args)
         # mail_bugs.main(options, args)
 
         # Run the merge tool
