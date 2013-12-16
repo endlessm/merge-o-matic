@@ -4,6 +4,8 @@ Priority: extra
 Maintainer: Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>
 Build-Depends: debhelper (>= 9), python (>=2.7)
 Standards-Version: 3.9.3
+Vcs-Git: git+ssh://git.internal.collabora.co.uk/git/singularity/merge-o-matic.git
+Vcs-Browser: https://git.internal.collabora.co.uk/git/singularity/merge-o-matic.git/
 
 Package: merge-o-matic
 Architecture: all
