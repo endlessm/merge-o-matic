@@ -1,4 +1,4 @@
-merge-o-matic (2013.12.16) UNRELEASED; urgency=medium
+merge-o-matic (2013.12.16.1) unstable; urgency=low
 
   * merge_status: cope with unknown priorities such as "source" (SIN: #377)
   * merge_status: cope with non-OBSDistro (SIN: #375)
@@ -28,8 +28,9 @@ merge-o-matic (2013.12.16) UNRELEASED; urgency=medium
   * Install a copy of momsettings.py as an example as well as the conffile
   * debian/source/format: be a native package
   * debian/clean: clean *.pyc
+  * merge_status: let users configure the URL of the OBS web UI for a distro
 
- -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Mon, 16 Dec 2013 15:06:23 +0000
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Mon, 16 Dec 2013 20:15:52 +0000
 
 merge-o-matic (2013.07.03-0co1) unstable; urgency=low
 
