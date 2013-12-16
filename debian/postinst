@@ -26,5 +26,5 @@ fi
 # Set log file permissions
 if [ -d "/srv/obs/log/" ]; then
     touch /srv/obs/log/mom.log
-    chown mom.mom /srv/obs/log/mom.log
+    chown mom:mom /srv/obs/log/mom.log
 fi
