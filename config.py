@@ -91,6 +91,9 @@ class Source(object):
     @param distro the name of a distribution, e.g. "debian", "ubuntu"
     @param dist a release codename, e.g. "wheezy", "wheezy-updates", "precise"
     """
+    assert isinstance(distro, str), distro
+    assert dist is None or isinstance(dist, str), dist
+
     super(Source, self).__init__()
     self._distro = model.Distro.get(distro)
     self._dist = dist
@@ -123,6 +126,9 @@ class SourceList(object):
     @param name a source of packages: one of the keys in DISTRO_SOURCES,
       e.g. "wheezy+updates"
     """
+    assert isinstance(name, str), name
+    assert name in get('DISTRO_SOURCES'), name
+
     super(SourceList, self).__init__()
     self._name = name
     self._sources = map(lambda x:Source(x['distro'], x['dist']), get('DISTRO_SOURCES', self._name))
@@ -169,6 +175,9 @@ class Target(object):
     @param name the short name of the target, such as precise-universe;
     a key from DISTRO_TARGETS in the configuration file
     """
+    assert isinstance(name, str), name
+    assert name in get('DISTRO_TARGETS'), name
+
     super(Target, self).__init__()
     self._name = name
     self._blacklist = None
