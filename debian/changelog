@@ -1,3 +1,36 @@
+merge-o-matic (2013.12.16) UNRELEASED; urgency=medium
+
+  * merge_status: cope with unknown priorities such as "source" (SIN: #377)
+  * merge_status: cope with non-OBSDistro (SIN: #375)
+  * OBSDistro: respect config("obs", "project") (SIN: #381)
+  * model: add more doc-comments (SIN: #382)
+  * main: chdir to the ROOT before we start (SIN: #384)
+  * model.base: make sources_urls work as apparently intended (SIN: #385)
+  * Distro.findPackage: filter versions correctly (SIN: #383)
+  * commit_merges: when updating to an upstream version, use that version
+    (SIN: #389)
+  * fetchMissingVersion: only fetch what we actually want
+  * fetchMissingVersion: cope with PackageNotFound
+  * fetchMissingVersion: fix exception in exception handling
+  * produce_merges: read changelogs to find the common ancestor (SIN: #29)
+  * Allow selection of different upstreams for different packages (SIN: #390)
+  * produce_merges: record the base versions we tried in the REPORT
+  * expire_pool: read merge reports to determine which base versions to keep
+  * generate_patches: fold into produce_merges, and use better base version
+  * OBSPackage: fall back to parent distro to get obsName, files
+  * momsettings: expand examples and use imaginary derived distributions
+    (SIN: #265)
+  * merge-o-matic.spec.in: remove
+  * syndicate.py: remove
+  * Remove query.py
+  * debian/preinst: create MoM's home directory (SIN: #374)
+  * Use the Singularity mailing list as MoM's maintainer
+  * Install a copy of momsettings.py as an example as well as the conffile
+  * debian/source/format: be a native package
+  * debian/clean: clean *.pyc
+
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Mon, 16 Dec 2013 15:06:23 +0000
+
 merge-o-matic (2013.07.03-0co1) unstable; urgency=low
 
   [ Héctor Orón Martínez ]
