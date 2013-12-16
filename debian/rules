@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE=1
+
+%:
+	dh $@
+
+override_dh_install:
+	dh_install
+	cp merge-o-matic.logrotate \
+	   debian/merge-o-matic/etc/logrotate.d/merge-o-matic
+	cp cron.d \
+	   debian/merge-o-matic/etc/cron.d/merge-o-matic

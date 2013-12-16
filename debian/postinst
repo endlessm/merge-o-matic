@@ -1,0 +1,30 @@
+#!/bin/sh
+
+set -e
+
+#DEBHELPER#
+
+reload_apache()
+{
+	if apache2ctl configtest 2>/dev/null; then
+		invoke-rc.d apache2 $1 || true
+	else
+		echo "Your apache2 configuration is broken, so we're not restarting it for you."
+	fi
+}
+
+if [ "$1" != "configure" ]; then
+    exit 0
+fi
+
+# Only enable mom.conf if apache2 is installed
+if [ -x "/usr/sbin/a2ensite" ]; then
+    a2ensite mom.conf > /dev/null || true
+    reload_apache force-reload
+fi
+
+# Set log file permissions
+if [ -d "/srv/obs/log/" ]; then
+    touch /srv/obs/log/mom.log
+    chown mom.mom /srv/obs/log/mom.log
+fi

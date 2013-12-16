@@ -1,0 +1,18 @@
+Source: merge-o-matic
+Section: utils
+Priority: extra
+Maintainer: Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>
+Build-Depends: debhelper (>= 9), python (>=2.7)
+Standards-Version: 3.9.3
+
+Package: merge-o-matic
+Architecture: all
+Depends:
+ ${shlibs:Depends}, ${misc:Depends}, apache2 | httpd, cron, logrotate, osc,
+ python-pychart, python (>=2.7)
+Description: Merge-o-Matic
+ Merge-o-Matic is an automated merge system (also known as "mom").
+ .
+ It produces automated merges of the differences between source packages
+ in two distributions, as well as collections of useful patches to aid
+ manual merging or review.

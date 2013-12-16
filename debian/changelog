@@ -1,0 +1,39 @@
+merge-o-matic (2013.07.03-0co1) unstable; urgency=low
+
+  [ Héctor Orón Martínez ]
+  * Update cron.d file: drop merge-o-matic-run
+  * Update momsettings to singularity
+  * Release 2013.07.03
+  * Update configs for singularity
+
+  [ Andrew Lee (李健秋) ]
+  * Release debian version 2013.07.03-0co1.
+
+ -- Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>  Thu, 04 Jul 2013 03:55:10 +0800
+
+merge-o-matic (2013.03.22-0co4) unstable; urgency=low
+
+  * debian/postinst: enable apache2 mom.conf site and set log file 
+    permissions. (SIN: #24, #26)
+
+ -- Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>  Mon, 03 Jun 2013 20:49:10 +0800
+
+merge-o-matic (2013.03.22-0co3) unstable; urgency=low
+
+  * debian/preinst: correct a typo for homedir.
+  * debian/dirs: drop /srv/obs/merge-o-matic.
+
+ -- Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>  Fri, 24 May 2013 22:56:16 +0800
+
+merge-o-matic (2013.03.22-0co2) unstable; urgency=low
+
+  * debian/control: depends on apache2 | httpd. (SIN: #16)
+  * Package renamed to merge-o-matic. (SIN: #17)
+
+ -- Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>  Tue, 21 May 2013 19:17:24 +0800
+
+merge-o-matic (2013.03.22-0co1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Andrew Lee (李健秋) <andrew.lee@collabora.co.uk>  Tue, 07 May 2013 23:56:30 +0800
