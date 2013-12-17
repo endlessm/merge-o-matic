@@ -17,6 +17,7 @@
 
 import logging
 import os
+from smtplib import SMTP
 
 from email.MIMEMultipart import (MIMEMultipart)
 from email.MIMEText import (MIMEText)
@@ -176,9 +177,15 @@ Regards,
 
     all_ok = True
 
-    for x in config.get('RECIPIENTS', default=[]):
-        # FIXME: actually try to send the mail
-        all_ok = False
+    smtp = SMTP('localhost')
+    for addr in config.get('RECIPIENTS', default=[]):
+        message.replace_header('To', addr)
+        try:
+            smtp.sendmail(MOM_EMAIL, addr, message.as_string())
+        except:
+            logging.exception('sending to %s failed:', addr)
+            all_ok = False
+            smtp = SMTP('localhost')
 
     # If all emails succeeded,
     if all_ok:
