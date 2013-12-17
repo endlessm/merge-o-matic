@@ -32,7 +32,7 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
-from merge_report import (MergeResult, read_report, write_report)
+from merge_report import (MergeResult, MergeReport, read_report, write_report)
 import config
 import model.error
 
@@ -124,13 +124,20 @@ def main(options, args):
                   upstream = possible
               except model.error.PackageNotFound:
                 pass
+
+          output_dir = result_dir(target.name, pkg.name)
+
           if upstream is None:
-            logging.info("%s not available upstream, skipping", our_version)
-            cleanup(result_dir(target.name, pkg.name))
+            logging.debug("%s not available upstream, skipping", our_version)
+            cleanup(output_dir)
+            report = MergeReport(left=our_version)
+            report.result = MergeResult.KEEP_OURS
+            report.merged_version = our_version.version
+            report.write_report(output_dir)
             continue
 
           try:
-            report = read_report(result_dir(target.name, pkg.name))
+            report = read_report(output_dir)
             if (Version(report['right_version']) == upstream.version and
                     Version(report['left_version']) == our_version.version and
                     # we'll retry the merge if there was an unexpected
@@ -140,21 +147,29 @@ def main(options, args):
                         MergeResult.CONFLICTS)):
               logging.debug("%s already produced, skipping run", pkg)
               continue
-          except (AttributeError, ValueError):
+          except (AttributeError, ValueError, KeyError):
             pass
 
           if our_version >= upstream:
-            logging.info("our version %s >= their version %s, skipping",
-                    our_version, upstream)
-            cleanup(result_dir(target.name, pkg.name))
+            logging.debug("%s >= %s, skipping", our_version, upstream)
+            cleanup(output_dir)
+            report = MergeReport(left=our_version, right=upstream)
+            report.result = MergeResult.KEEP_OURS
+            report.merged_version = our_version.version
+            report.write_report(output_dir)
             continue
 
           logging.info("local: %s, upstream: %s", our_version, upstream)
 
           try:
-            produce_merge(target, our_version, upstream, result_dir(target.name, pkg.name))
-          except ValueError:
+            produce_merge(target, our_version, upstream, output_dir)
+          except ValueError as e:
             logging.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
+            report = MergeReport(left=our_version, right=upstream)
+            report.result = MergeResult.FAILED
+            report.message = 'Could not produce merge: %s' % e
+            report.write_report(output_dir)
+            continue
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""
@@ -775,8 +790,7 @@ def read_package_list(filename):
     return packages
 
 def get_common_ancestor(target, downstream, downstream_versions, upstream,
-        upstream_versions):
-  tried_bases = set()
+        upstream_versions, tried_bases):
   logging.debug('looking for common ancestor of %s and %s',
           downstream.version, upstream.version)
   for downstream_version, downstream_text in downstream_versions:
@@ -811,8 +825,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
             else:
               logging.debug('base version for %s and %s is %s',
                       downstream, upstream, package_version)
-              return (package_version, base_dir,
-                  sorted(tried_bases, reverse=True))
+              return (package_version, base_dir)
         tried_bases.add(downstream_version)
 
   raise Exception('unable to find a usable base version for %s and %s' %
@@ -824,15 +837,22 @@ def produce_merge(target, left, upstream, output_dir):
   upstream_dir = unpack_source(upstream)
 
   # Try to find the newest common ancestor
+  tried_bases = set()
   try:
     downstream_versions = read_changelog(left_dir + '/debian/changelog')
     upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
-    base, base_dir, tried_bases = get_common_ancestor(target,
-            left, downstream_versions, upstream, upstream_versions)
+    base, base_dir = get_common_ancestor(target,
+            left, downstream_versions, upstream, upstream_versions, tried_bases)
   except Exception:
     logging.exception('error finding base version:\n')
     cleanup(output_dir)
+    report = MergeReport(left=left, right=upstream)
+    report.result = MergeResult.NO_BASE
+    report.bases_not_found = sorted(tried_bases, reverse=True)
+    report.write_report(output_dir)
     return
+
+  tried_bases = sorted(tried_bases, reverse=True)
 
   logging.info('base version: %s', base.version)
 
@@ -846,6 +866,10 @@ def produce_merge(target, left, upstream, output_dir):
   if base >= upstream:
     logging.info("Nothing to be done: %s >= %s", base, upstream)
     cleanup(output_dir)
+    report = MergeReport(left=left, right=upstream, base=base)
+    report.result = MergeResult.KEEP_OURS
+    report.bases_not_found = tried_bases
+    report.write_report(output_dir)
     return
 
   merged_dir = work_dir(left.package.name, merged_version)
@@ -866,16 +890,26 @@ def produce_merge(target, left, upstream, output_dir):
     conflicts = do_merge(left_dir, left.package.name, left.package.distro.name, base_dir,
                          upstream_dir, upstream.package.name, upstream.package.distro.name,
                          merged_dir)
-  except OSError:
+  except OSError as e:
     cleanup(merged_dir)
     logging.exception("Could not merge %s, probably bad files?", left)
+    report = MergeReport(left=left, right=upstream, base=base)
+    report.result = MergeResult.FAILED
+    report.message = 'Could not merge: %s' % e
+    report.bases_not_found = tried_bases
+    report.write_report(output_dir)
     return
 
   try:
     add_changelog(left.package.name, merged_version, left.package.distro.name, left.package.dist,
                   upstream.package.distro.name, upstream.package.dist, merged_dir)
-  except IOError:
+  except IOError as e:
     logging.exception("Could not update changelog for %s!", left)
+    report = MergeReport(left=left, right=upstream, base=base)
+    report.result = MergeResult.FAILED
+    report.message = 'Could not update changelog: %s' % e
+    report.bases_not_found = tried_bases
+    report.write_report(output_dir)
     return
   cleanup(output_dir)
   os.makedirs(output_dir)

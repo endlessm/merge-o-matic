@@ -48,12 +48,21 @@ class MergeResult(str):
 # we're ensuring that there are constants in MergeResult.__dict__ so
 # that MergeResult.__new__ will work :-)
 MergeResult.UNKNOWN = str.__new__(MergeResult, 'UNKNOWN')
+MergeResult.UNKNOWN.message = "???"
 MergeResult.NO_BASE = str.__new__(MergeResult, 'NO_BASE')
+MergeResult.NO_BASE.message = ("Failed to merge because the base version " +
+        "required for a 3-way merge is missing from the pool")
 MergeResult.SYNC_THEIRS = str.__new__(MergeResult, 'SYNC_THEIRS')
+MergeResult.SYNC_THEIRS.message = ("Version in 'right' distro supersedes the "
+        "'left' version")
 MergeResult.KEEP_OURS = str.__new__(MergeResult, 'KEEP_OURS')
+MergeResult.KEEP_OURS.message = "Version in 'left' distro is up-to-date"
 MergeResult.FAILED = str.__new__(MergeResult, 'FAILED')
+MergeResult.FAILED.message = "Unexpected failure"
 MergeResult.MERGED = str.__new__(MergeResult, 'MERGED')
+MergeResult.MERGED.message = "Merge appears to have been successful"
 MergeResult.CONFLICTS = str.__new__(MergeResult, 'CONFLICTS')
+MergeResult.CONFLICTS.message = "3-way merge encountered conflicts"
 
 def read_report(output_dir):
     """Read the report to determine the versions that went into it."""
@@ -174,6 +183,193 @@ def _read_report_text(output_dir, filename, report):
         report["result"] = MergeResult.FAILED
 
     return report
+
+class MergeReport(object):
+    __slots__ = (
+            'source_package',
+            'merge_date',
+            'result',
+            'message',
+            'left_version',
+            'left_distro',
+            'left_suite',
+            'left_component',
+            'left_files',
+            'left_patch',
+            'base_version',
+            'bases_not_found',
+            'base_distro',
+            'base_suite',
+            'base_component',
+            'base_files',
+            'right_version',
+            'right_distro',
+            'right_suite',
+            'right_component',
+            'right_files',
+            'right_patch',
+            'merged_version',
+            'merged_dir',
+            'merged_files',
+            'merged_patch',
+            'build_metadata_changed',
+            'merge_failure_tarball',
+            'conflicts',
+            'genchanges',
+            'committed',
+            )
+
+    def __init__(self, left=None, right=None, base=None):
+        # Defaults
+        for f in self.__slots__:
+            setattr(self, f, None)
+        self.bases_not_found = []
+        self.left_files = []
+        self.base_files = []
+        self.right_files = []
+        self.merged_files = []
+        self.build_metadata_changed = True
+        self.conflicts = []
+        self.committed = False
+        self.result = MergeResult.UNKNOWN
+
+        if base is not None:
+            self.source_package = base.package.name
+            self.base_version = base.version
+            self.base_distro = base.package.distro.name
+            self.base_suite = base.package.dist
+            self.base_component = base.package.component
+            self.base_files = [f[2] for f in files(base.getSources())]
+
+        if right is not None:
+            self.source_package = right.package.name
+            self.right_distro = right.package.distro.name
+            self.right_suite = right.package.dist
+            self.right_component = right.package.component
+            self.right_version = right.version
+            self.right_files = [f[2] for f in files(right.getSources())]
+
+        if left is not None:
+            self.source_package = left.package.name
+            self.left_distro = left.package.distro.name
+            self.left_suite = left.package.dist
+            self.left_component = left.package.component
+            self.left_version = left.version
+            self.left_files = [f[2] for f in files(left.getSources())]
+
+    def __setitem__(self, k, v):
+        if k not in self.__slots__:
+            raise KeyError('%r not allowed in MergeReport' % str(k))
+
+        setattr(self, k, v)
+
+    def __getitem__(self, k):
+        if k not in self.__slots__:
+            raise KeyError('%r not in MergeReport' % str(k))
+
+        return getattr(self, k)
+
+    def check(self):
+        try:
+            self.result = MergeResult(self.result)
+        except ValueError:
+            self.message = 'unparsed result %s: %s' % (
+                    self.result, self.message)
+            self.result = MergeResult.UNKNOWN
+
+        if (self.source_package is None or
+                self.left_version is None or
+                self.right_version is None or
+                self.left_distro is None or
+                self.right_distro is None):
+            raise AttributeError("Insufficient detail in report")
+
+        # promote versions to Version objects
+        for k in ("left_version", "right_version", "base_version",
+                "merged_version"):
+            v = getattr(self, k)
+
+            if v is not None:
+                setattr(self, k, Version(v))
+
+        if self.result == MergeResult.NO_BASE:
+            assert self.base_version is None, self.base_version
+        elif self.result == MergeResult.SYNC_THEIRS:
+            assert not self.conflicts, self.conflicts
+            self.merged_dir = ""
+            self.merged_files = self.right_files
+        elif self.result == MergeResult.KEEP_OURS:
+            assert not self.conflicts, self.conflicts
+            self.merged_dir = ""
+            self.merged_files = self.left_files
+        elif self.result == MergeResult.FAILED:
+            pass
+        elif self.result == MergeResult.MERGED:
+            assert not self.conflicts, self.conflicts
+        elif self.result == MergeResult.CONFLICTS:
+            assert self.conflicts
+
+        if self.result in (MergeResult.CONFLICTS, MergeResult.FAILED,
+                MergeResult.MERGED):
+            if (self.merged_version is None or
+                    (self.merged_version.revision is not None and
+                        self.left_version.upstream !=
+                        self.merged_version.upstream)):
+                maybe_sa = ' -sa'
+            else:
+                maybe_sa = ''
+            self["genchanges"] = "-S -v%s%s" % (self.left_version, maybe_sa)
+
+    def to_dict(self):
+        # Use an OrderedDict to make the report more human-readable, and
+        # provide pseudo-comments to clarify
+        report = OrderedDict()
+        comments = dict(
+            result=self.result.message,
+            left_version="'our' version",
+            left_patch="diff(base version ... left version)",
+            base_version="common ancestor of 'left' and 'right'",
+            bases_not_found="these common ancestors could not be found",
+            right_version="'their' version",
+            right_patch="diff(base version ... right version)",
+            merged_patch="diff(left version ... merged version) for review",
+            genchanges=("Pass these arguments to dpkg-genchanges, " +
+                "dpkg-buildpackage or debuild when you have completed the " +
+                "merge"),
+        )
+        for f in self.__slots__:
+            if f in ('left_version', 'right_version', 'merged_version',
+                    'base_version'):
+                # each of these is a Version, which we can't serialize directly
+                v = getattr(self, f)
+                if v is not None:
+                    if f in comments:
+                        report['#' + f] = comments[f]
+                    report[f] = str(v)
+            elif f == 'bases_not_found':
+                v = getattr(self, f)
+                if v:
+                    report['#' + f] = comments[f]
+                    # each of these is a Version
+                    report[f] = [str(x) for x in v]
+            else:
+                v = getattr(self, f)
+                if v is not None:
+                    if f in comments:
+                        report['#' + f] = comments[f]
+                    report[f] = v
+
+        return report
+
+    def write_report(self, output_dir):
+        self.check()
+        report = self.to_dict()
+
+        filename = "%s/REPORT.json" % output_dir
+        tree.ensure(filename)
+        with open(filename + '.tmp', "w") as fh:
+            json.dump(report, fh, indent=2, sort_keys=False)
+        os.rename(filename + '.tmp', filename)
 
 def write_report(left, left_patch,
                  base, tried_bases,
@@ -387,61 +583,30 @@ def write_report(left, left_patch,
             print >>report, "  $ dpkg-genchanges -S -v%s%s" \
                 % (left_source["Version"], sa_arg)
 
-    # Use an OrderedDict to make the report more human-readable, and
-    # provide pseudo-comments to clarify
-    report = OrderedDict()
-    report["source_package"] = package
+    report = MergeReport(left=left, right=right, base=base)
     report["merge_date"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-    # reserve slots here for the result: we'll override it later
-    report["#result"] = "???"
-    report["result"] = MergeResult.UNKNOWN
 
-    report["#left"] = "'our' version"
-    report["left_distro"] = left_distro
-    report["left_component"] = left.package.component
-    report["left_version"] = str(left.version)
-    report["left_files"] = [f[2] for f in files(left_source)]
     if left_patch is not None:
-        report["#left_patch"] = "diff(base version ... left version)"
         report["left_patch"] = left_patch
 
     if tried_bases:
-        report["#bases_not_found"] = "these common ancestors were unavailable"
         report["bases_not_found"] = tried_bases
-    report["#base"] = "common ancestor of 'left' and 'right'"
-    if base is not None:
-        report["base_version"] = str(base.version)
-        report["base_distro"] = base.package.distro.name
-        report["base_files"] = [f[2] for f in files(base_source)]
 
-    report["#right"] = "'their' version"
-    report["right_distro"] = right_distro
-    report["right_component"] = right.package.component
-    report["right_version"] = str(right.version)
-    report["right_files"] = [f[2] for f in files(right_source)]
     if right_patch is not None:
-        report["#right_patch"] = "diff(base version ... right version)"
         report["right_patch"] = right_patch
 
     if merged_version is not None:
-        report["merged_version"] = str(merged_version)
+        report["merged_version"] = merged_version
 
     report["merged_dir"] = output_dir
 
     if base is None:
-        # this replaces the earlier result, and goes in the same position
-        report["#result"] = ("Failed to merge because the base version " +
-                "required for a 3-way merge is missing from the pool.")
         report["result"] = MergeResult.NO_BASE
 
     elif merged_is_right:
         assert not conflicts
-        report["#result"] = ("Right version supersedes the left version " +
-                "and can be added to the left (target) distro with no " +
-                "changes.")
         report["result"] = MergeResult.SYNC_THEIRS
     elif src_file is None:
-        report["#result"] = "Unexpected failure, no output"
         report["result"] = MergeResult.FAILED
         report["merged_files"] = report["right_files"]
         report["merged_dir"] = ""
@@ -449,43 +614,22 @@ def write_report(left, left_patch,
         assert not conflicts
         dsc = ControlFile("%s/%s" % (output_dir, src_file),
                         multi_para=False, signed=True).para
-        report["#result"] = "Merge appears to have been successful"
         report["result"] = MergeResult.MERGED
         report["merged_files"] = [f[2] for f in files(dsc)]
         if patch_file is not None:
-            report["#merged_patch"] = "diff(left ... merged) for review"
             report["merged_patch"] = patch_file
         report["build_metadata_changed"] = bool(build_metadata_changed)
     else:
         report["merge_failure_tarball"] = src_file
 
         if conflicts:
-            report["#result"] = "3-way merge encountered conflicts"
             report["result"] = MergeResult.CONFLICTS
         else:
-            report["#result"] = "merge failed somehow, a tarball was produced"
             report["result"] = MergeResult.FAILED
 
     if conflicts:
         report["conflicts"] = sorted(conflicts)
 
-    if report["result"] in (MergeResult.CONFLICTS, MergeResult.FAILED,
-            MergeResult.MERGED):
-        report["#genchanges"] = ("Pass these arguments to dpkg-genchanges, " +
-                "dpkg-buildpackage or debuild when you have completed " +
-                "the merge")
-        if (merged_version is None or
-                (merged_version.revision is not None and
-                    left.version.upstream != merged_version.upstream)):
-            maybe_sa = ' -sa'
-        else:
-            maybe_sa = ''
-        report["genchanges"] = "-S -v%s%s" % (left.version, maybe_sa)
-
     report["committed"] = False
 
-    filename = "%s/REPORT.json" % output_dir
-    tree.ensure(filename)
-    with open(filename + '.tmp', "w") as fh:
-        json.dump(report, fh, indent=2, sort_keys=False)
-    os.rename(filename + '.tmp', filename)
+    report.write_report(output_dir)
