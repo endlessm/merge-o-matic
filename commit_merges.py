@@ -20,6 +20,7 @@
 from momlib import *
 import config
 from deb.version import Version
+from merge_report import read_report
 from model import Distro, OBSDistro
 import urllib2
 from util import run

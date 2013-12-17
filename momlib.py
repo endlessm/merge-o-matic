@@ -19,7 +19,6 @@
 
 from __future__ import with_statement
 
-import json
 import os
 import re
 import sys
@@ -616,108 +615,6 @@ def save_patch_file(filename, last, this):
     with open(filename, "w") as diff:
         shell.run(("diff", "-pruN", lastdir, thisdir),
                   chdir=diffdir, stdout=diff, okstatus=(0, 1, 2))
-
-
-# --------------------------------------------------------------------------- #
-# Merge data handling
-# --------------------------------------------------------------------------- #
-
-def read_report(output_dir):
-    """Read the report to determine the versions that went into it."""
-
-    report = {
-        "source_package": None,
-        "base_version": None,
-        "base_files": [],
-        "left_distro": None,
-        "left_version": None,
-        "left_files": [],
-        "right_distro": None,
-        "right_version": None,
-        "right_files": [],
-        "merged_is_right": False,
-        "merged_dir": None,
-        "merged_files": [],
-        "build_metadata_changed": True,
-        "committed": False
-    }
-
-    filename = "%s/REPORT" % output_dir
-
-    if os.path.isfile(filename + '.json'):
-        with open(filename + '.json') as r:
-            report.update(json.load(r))
-    elif os.path.isfile(filename):
-        _read_report_text(output_dir, filename, report)
-    else:
-        raise ValueError, "No report exists"
-
-    if (report['source_package'] is None or
-            report["left_version"] is None or report["right_version"] is None or
-            report["left_distro"] is None or report["right_distro"] is None):
-        raise AttributeError("Insufficient detail in report")
-
-    # this logic is a bit weird but whatever
-    if report["merged_is_right"]:
-        report["merged_dir"] = ""
-        report["merged_files"] = report["right_files"]
-    else:
-        report["merged_dir"] = output_dir
-
-    # promote versions to Version objects
-    for k in ("left_version", "right_version", "base_version",
-            "merged_version"):
-        if report.get(k) is not None:
-            report[k] = Version(report[k])
-
-    # backwards compat
-    report["package"] = report["source_package"]
-    return report
-
-def _read_report_text(output_dir, filename, report):
-    """Read an old-style semi-human-readable REPORT."""
-
-    with open(filename) as r:
-        report["source_package"] = next(r).strip()
-        in_list = None
-        for line in r:
-            if line.startswith("    "):
-                if in_list == "base":
-                    report["base_files"].append(line.strip())
-                elif in_list == "left":
-                    report["left_files"].append(line.strip())
-                elif in_list == "right":
-                    report["right_files"].append(line.strip())
-                elif in_list == "merged":
-                    report["merged_files"].append(line.strip())
-            else:
-                in_list = None
-
-            if line.startswith("base:"):
-                report["base_version"] = Version(line[5:].strip())
-                in_list = "base"
-            elif line.startswith("our distro "):
-                m = re.match("our distro \(([^)]+)\): (.+)", line)
-                if m:
-                    report["left_distro"] = m.group(1)
-                    report["left_version"] = Version(m.group(2).strip())
-                    in_list = "left"
-            elif line.startswith("source distro "):
-                m = re.match("source distro \(([^)]+)\): (.+)", line)
-                if m:
-                    report["right_distro"] = m.group(1)
-                    report["right_version"] = Version(m.group(2).strip())
-                    in_list = "right"
-            elif line.startswith("generated:"):
-                in_list = "merged"
-            elif line.startswith("Merged without changes: YES"):
-                report["merged_is_right"] = True
-            elif line.startswith("Build-time metadata changed: NO"):
-                report["build_metadata_changed"] = False
-            elif line.startswith("Merge committed: YES"):
-                report["committed"] = True
-
-    return report
 
 # --------------------------------------------------------------------------- #
 # Blacklist and whitelist handling

@@ -25,6 +25,7 @@ import re
 from rfc822 import parseaddr
 
 import config
+from merge_report import read_report
 from momlib import *
 from model import Distro, OBSDistro
 from util import run

@@ -21,6 +21,7 @@ import logging
 
 from momlib import *
 from util import tree, run
+from merge_report import read_report
 from model import Distro
 
 

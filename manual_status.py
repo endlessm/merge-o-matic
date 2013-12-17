@@ -24,6 +24,8 @@ import bz2
 import re
 
 from rfc822 import parseaddr
+
+from merge_report import read_report
 from momlib import *
 from model import Distro
 
