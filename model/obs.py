@@ -361,6 +361,15 @@ class OBSPackage(Package):
     for req in oldreqs:
       osccore.change_request_state(self.distro.config('obs', 'url'), req.reqid,
           'superseded', 'superseded by %s' % result, result)
+    return result
+
+  def webMergeRequest(self, reqid):
+    url = self.distro.config('obs', 'web')
+
+    if url is None:
+      url = self.distro.config('obs', 'url')
+
+    return '%s/request/show/%s' % (url, reqid)
 
   def branch(self, projectBranch):
     branch = self.distro.branch(projectBranch)

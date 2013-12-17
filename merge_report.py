@@ -192,6 +192,7 @@ class MergeReport(object):
             'genchanges',
             'committed',
             'commit_detail',
+            'obs_request_url',
             )
 
     def __init__(self, left=None, right=None, base=None):
