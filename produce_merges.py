@@ -19,12 +19,14 @@
 
 from __future__ import with_statement
 
+import json
 import os
 import re
 import time
 import logging
 import tempfile
 
+from collections import OrderedDict
 from stat import *
 from textwrap import fill
 
@@ -33,10 +35,10 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
+from merge_report import MergeResult
 from model import Distro, PackageVersion
 import config
 import model.error
-
 
 # Regular expression for top of debian/changelog
 CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
@@ -136,7 +138,7 @@ def main(options, args):
             if Version(report['right_version']) == upstream.version and Version(report['left_version']) == our_version.version:
               logging.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
               continue
-          except ValueError:
+          except (AttributeError, ValueError):
             pass
 
           if our_version >= upstream:
@@ -967,6 +969,108 @@ def write_report(left, left_patch,
             print >>report, "  $ dpkg-genchanges -S -v%s%s" \
                 % (left_source["Version"], sa_arg)
 
+    # Use an OrderedDict to make the report more human-readable, and
+    # provide pseudo-comments to clarify
+    report = OrderedDict()
+    report["source_package"] = package
+    report["merge_date"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    # reserve slots here for the result: we'll override it later
+    report["#result"] = "???"
+    report["result"] = MergeResult.UNKNOWN
+
+    report["#left"] = "'our' version"
+    report["left_distro"] = left_distro
+    report["left_component"] = left.package.component
+    report["left_version"] = str(left.version)
+    report["left_files"] = [f[2] for f in files(left_source)]
+    if left_patch is not None:
+        report["#left_patch"] = "diff(base version ... left version)"
+        report["left_patch"] = left_patch
+
+    if tried_bases:
+        report["#bases_not_found"] = "these common ancestors were unavailable"
+        report["bases_not_found"] = tried_bases
+    report["#base"] = "common ancestor of 'left' and 'right'"
+    if base is not None:
+        report["base_version"] = str(base.version)
+        report["base_distro"] = base.package.distro.name
+        report["base_files"] = [f[2] for f in files(base_source)]
+
+    report["#right"] = "'their' version"
+    report["right_distro"] = right_distro
+    report["right_component"] = right.package.component
+    report["right_version"] = str(right.version)
+    report["right_files"] = [f[2] for f in files(right_source)]
+    if right_patch is not None:
+        report["#right_patch"] = "diff(base version ... right version)"
+        report["right_patch"] = right_patch
+
+    if merged_version is not None:
+        report["merged_version"] = str(merged_version)
+
+    report["merged_dir"] = output_dir
+
+    if base is None:
+        # this replaces the earlier result, and goes in the same position
+        report["#result"] = ("Failed to merge because the base version " +
+                "required for a 3-way merge is missing from the pool.")
+        report["result"] = MergeResult.NO_BASE
+
+    elif merged_is_right:
+        assert not conflicts
+        report["#result"] = ("Right version supersedes the left version " +
+                "and can be added to the left (target) distro with no " +
+                "changes.")
+        report["result"] = MergeResult.SYNC_THEIRS
+    elif src_file is None:
+        report["#result"] = "Unexpected failure, no output"
+        report["result"] = MergeResult.FAILED
+        report["merged_files"] = report["right_files"]
+        report["merged_dir"] = ""
+    elif src_file.endswith(".dsc"):
+        assert not conflicts
+        dsc = ControlFile("%s/%s" % (output_dir, src_file),
+                        multi_para=False, signed=True).para
+        report["#result"] = "Merge appears to have been successful"
+        report["result"] = MergeResult.MERGED
+        report["merged_files"] = [f[2] for f in files(dsc)]
+        if patch_file is not None:
+            report["#merged_patch"] = "diff(left ... merged) for review"
+            report["merged_patch"] = patch_file
+        report["build_metadata_changed"] = bool(build_metadata_changed)
+    else:
+        report["merge_failure_tarball"] = src_file
+
+        if conflicts:
+            report["#result"] = "3-way merge encountered conflicts"
+            report["result"] = MergeResult.CONFLICTS
+        else:
+            report["#result"] = "merge failed somehow, a tarball was produced"
+            report["result"] = MergeResult.FAILED
+
+    if conflicts:
+        report["conflicts"] = sorted(conflicts)
+
+    if report["result"] in (MergeResult.CONFLICTS, MergeResult.FAILED,
+            MergeResult.MERGED):
+        report["#genchanges"] = ("Pass these arguments to dpkg-genchanges, " +
+                "dpkg-buildpackage or debuild when you have completed " +
+                "the merge")
+        if (merged_version is None or
+                (merged_version.revision is not None and
+                    left.version.upstream != merged_version.upstream)):
+            maybe_sa = ' -sa'
+        else:
+            maybe_sa = ''
+        report["genchanges"] = "-S -v%s%s" % (left.version, maybe_sa)
+
+    report["committed"] = False
+
+    filename = "%s/REPORT.json" % output_dir
+    tree.ensure(filename)
+    with open(filename + '.tmp', "w") as fh:
+        json.dump(report, fh, indent=2, sort_keys=False)
+    os.rename(filename + '.tmp', filename)
 
 def read_package_list(filename):
     """Read a list of packages from the given file."""

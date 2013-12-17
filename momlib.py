@@ -19,6 +19,7 @@
 
 from __future__ import with_statement
 
+import json
 import os
 import re
 import sys
@@ -623,12 +624,9 @@ def save_patch_file(filename, last, this):
 
 def read_report(output_dir):
     """Read the report to determine the versions that went into it."""
-    filename = "%s/REPORT" % output_dir
-    if not os.path.isfile(filename):
-        raise ValueError, "No report exists"
 
     report = {
-        "package": None,
+        "source_package": None,
         "base_version": None,
         "base_files": [],
         "left_distro": None,
@@ -644,8 +642,43 @@ def read_report(output_dir):
         "committed": False
     }
 
+    filename = "%s/REPORT" % output_dir
+
+    if os.path.isfile(filename + '.json'):
+        with open(filename + '.json') as r:
+            report.update(json.load(r))
+    elif os.path.isfile(filename):
+        _read_report_text(output_dir, filename, report)
+    else:
+        raise ValueError, "No report exists"
+
+    if (report['source_package'] is None or
+            report["left_version"] is None or report["right_version"] is None or
+            report["left_distro"] is None or report["right_distro"] is None):
+        raise AttributeError("Insufficient detail in report")
+
+    # this logic is a bit weird but whatever
+    if report["merged_is_right"]:
+        report["merged_dir"] = ""
+        report["merged_files"] = report["right_files"]
+    else:
+        report["merged_dir"] = output_dir
+
+    # promote versions to Version objects
+    for k in ("left_version", "right_version", "base_version",
+            "merged_version"):
+        if report.get(k) is not None:
+            report[k] = Version(report[k])
+
+    # backwards compat
+    report["package"] = report["source_package"]
+    return report
+
+def _read_report_text(output_dir, filename, report):
+    """Read an old-style semi-human-readable REPORT."""
+
     with open(filename) as r:
-        report["package"] = next(r).strip()
+        report["source_package"] = next(r).strip()
         in_list = None
         for line in r:
             if line.startswith("    "):
@@ -684,16 +717,6 @@ def read_report(output_dir):
             elif line.startswith("Merge committed: YES"):
                 report["committed"] = True
 
-    if report["left_version"] is None or report["right_version"] is None:
-        raise AttributeError, "Insufficient detail in report"
-
-    if report["merged_is_right"]:
-        if report["right_distro"] is None:
-            raise AttributeError, "Insufficient detail in report (source distro not specified)"
-        report["merged_dir"] = ""
-        report["merged_files"] = report["right_files"]
-    else:
-        report["merged_dir"] = output_dir
     return report
 
 # --------------------------------------------------------------------------- #
