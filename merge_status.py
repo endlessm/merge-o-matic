@@ -25,7 +25,7 @@ import re
 from rfc822 import parseaddr
 
 import config
-from merge_report import read_report
+from merge_report import (read_report, MergeResult)
 from momlib import *
 from model import Distro, OBSDistro
 from util import run
@@ -80,6 +80,11 @@ def main(options, args):
                 output_dir = result_dir(target, source["Package"])
                 report = read_report(output_dir)
             except ValueError:
+                continue
+
+            if report['result'] == MergeResult.KEEP_OURS:
+                logging.debug('Skipping merge status for %s: result=%s',
+                        source['Package'], report['result'])
                 continue
 
             try:

@@ -21,7 +21,7 @@ import logging
 
 from momlib import *
 from util import tree, run
-from merge_report import read_report
+from merge_report import (read_report, MergeResult)
 from model import Distro
 
 
@@ -54,6 +54,13 @@ def main(options, args):
                 # automatically expire any versions.
                 logging.debug('Skipping package %s: no base version found',
                         source['Package'])
+                continue
+
+            if report['result'] not in (MergeResult.SYNC_THEIRS,
+                    MergeResult.KEEP_OURS, MergeResult.MERGED,
+                    MergeResult.CONFLICTS):
+                logging.debug('Skipping expiry for package %s: result=%s',
+                        source['Package'], report['result'])
                 continue
 
             logging.debug("%s %s", source["Package"], source["Version"])

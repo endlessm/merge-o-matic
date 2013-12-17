@@ -20,7 +20,7 @@
 from momlib import *
 import config
 from deb.version import Version
-from merge_report import read_report
+from merge_report import (read_report, MergeResult)
 from model import Distro, OBSDistro
 import urllib2
 from util import run
@@ -65,6 +65,12 @@ def main(options, args):
         if report['committed']:
           logging.debug("%s already committed, skipping!", package)
           continue
+
+        if report['result'] not in (MergeResult.MERGED,
+                MergeResult.SYNC_THEIRS):
+            logging.debug("%s has nothing to commit: result=%s",
+                    package, report['result'])
+            continue
 
         filepaths = report['merged_files']
         if filepaths == []:

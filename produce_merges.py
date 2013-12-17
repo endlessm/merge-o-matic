@@ -131,8 +131,14 @@ def main(options, args):
 
           try:
             report = read_report(result_dir(target.name, pkg.name))
-            if Version(report['right_version']) == upstream.version and Version(report['left_version']) == our_version.version:
-              logging.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
+            if (Version(report['right_version']) == upstream.version and
+                    Version(report['left_version']) == our_version.version and
+                    # we'll retry the merge if there was an unexpected
+                    # failure, a missing base or an unknown result last time
+                    report['result'] in (MergeResult.KEEP_OURS,
+                        MergeResult.SYNC_THEIRS, MergeResult.MERGED,
+                        MergeResult.CONFLICTS)):
+              logging.debug("%s already produced, skipping run", pkg)
               continue
           except (AttributeError, ValueError):
             pass
