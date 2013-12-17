@@ -188,6 +188,7 @@ class MergeReport(object):
             'conflicts',
             'genchanges',
             'committed',
+            'commit_detail',
             )
 
     def __init__(self, left=None, right=None, base=None):

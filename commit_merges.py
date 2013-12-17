@@ -162,13 +162,13 @@ def main(options, args):
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
                 branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), comment)
-                update_report(output_dir, True)
+                update_report(report, output_dir, True)
               except xml.etree.cElementTree.ParseError:
                 logging.exception("Failed to commit %s", branchPkg)
-                update_report(output_dir, False, "OBS API Error")
+                update_report(report, output_dir, False, "OBS API Error")
               except urllib2.HTTPError:
                 logging.exception("Failed to commit %s", branchPkg)
-                update_report(output_dir, False, "http error")
+                update_report(report, output_dir, False, "http error")
           else:
             logging.info("Not committing, due to --dry-run")
 
@@ -176,7 +176,11 @@ def main(options, args):
           logging.exception('Failed to branch %s: HTTP error %s at <%s>:',
               package, e.code, e.geturl())
 
-def update_report(output_dir, committed, message=None):
+def update_report(report, output_dir, committed, message=None):
+  report.committed = committed
+  report.commit_detail = message
+  report.write_report(output_dir)
+
   with open("%s/REPORT" % output_dir, "a") as r:
     print >>r
     if committed:
