@@ -69,64 +69,79 @@ def options(parser):
                       help="Only process packages listed in this file")
 
 def main(options, args):
+    logging.info('producing merges')
 
     excludes = []
     if options.exclude is not None:
         for filename in options.exclude:
+            logging.info('excluding packages from %s', filename)
             excludes.extend(read_package_list(filename))
 
     includes = []
     if options.include is not None:
         for filename in options.include:
+            logging.info('including packages from %s', filename)
             includes.extend(read_package_list(filename))
 
     # For each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination and
     # produce a merge combining both sets of changes
     for target in config.targets(args):
+        logging.info('considering target %s', target)
         our_dist = target.dist
         our_component = target.component
         d = target.distro
         for pkg in d.packages(target.dist, target.component):
           if options.package is not None and pkg.name not in options.package:
+            logging.info('skipping package %s: not the selected package',
+                    pkg.name)
             continue
           if len(includes) and pkg.name not in includes:
+            logging.info('skipping package %s: not in include list', pkg.name)
             continue
           if len(excludes) and pkg.name in excludes:
+            logging.info('skipping package %s: in exclude list', pkg.name)
             continue
           if pkg.name in target.blacklist:
-            logging.debug("%s is blacklisted, skipping", pkg)
+            logging.info("%s is blacklisted, skipping", pkg.name)
             continue
+          logging.info('considering package %s', pkg.name)
           if options.version:
             our_version = Version(options.version)
+            logging.debug('our version: %s (from command line)', our_version)
           else:
             our_version = pkg.newestVersion()
+            logging.debug('our version: %s', our_version)
           upstream = None
 
           for srclist in target.getSourceLists(pkg.name):
             for src in srclist:
+              logging.debug('considering source %s', src)
               try:
                 possible = src.distro.findPackage(pkg.name,
                     searchDist=src.dist)[0]
+                logging.debug('- contains version %s', possible)
                 if upstream is None or possible > upstream:
+                  logging.debug('  - that version is the best yet seen')
                   upstream = possible
               except model.error.PackageNotFound:
                 pass
           if upstream is None:
-            logging.debug("%s not available upstream, skipping", our_version)
+            logging.info("%s not available upstream, skipping", our_version)
             cleanup(result_dir(target.name, pkg.name))
             continue
 
           try:
             report = read_report(result_dir(target.name, pkg.name))
             if Version(report['right_version']) == upstream.version and Version(report['left_version']) == our_version.version:
-              logging.debug("%s already produced, skipping run", pkg)
+              logging.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
               continue
           except ValueError:
             pass
 
           if our_version >= upstream:
-            logging.debug("%s >= %s, skipping", our_version, upstream)
+            logging.info("our version %s >= their version %s, skipping",
+                    our_version, upstream)
             cleanup(result_dir(target.name, pkg.name))
             continue
 
