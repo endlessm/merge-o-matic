@@ -800,7 +800,14 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
     for upstream_version, upstream_text in upstream_versions:
       if downstream_version == upstream_version:
         logging.debug('%s looks like a possibility', downstream_version)
-        for source_list in target.getSourceLists(downstream.package.name):
+
+        try:
+          package_version = target.distro.findPackage(
+                  downstream.package.name, searchDist=target.dist,
+                  version=downstream_version)[0]
+        except model.error.PackageNotFound:
+          source_lists = target.getSourceLists(downstream.package.name)
+          sources = [source for source in s for s in source_lists]
           for source in source_list:
             try:
               package_version = source.distro.findPackage(
@@ -813,19 +820,33 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
               tried_bases.add(downstream_version)
               logging.debug('unable to find %s in %s:\n',
                       downstream_version, source, exc_info=1)
+              # go to next source
               continue
-
-            try:
-              target.fetchMissingVersion(package_version.package,
-                      package_version.version)
-              base_dir = unpack_source(package_version)
-            except Exception:
-              tried_bases.add(downstream_version)
-              logging.exception('unable to unpack %s:\n', package_version)
             else:
-              logging.debug('base version for %s and %s is %s',
-                      downstream, upstream, package_version)
-              return (package_version, base_dir)
+              # no error finding it in this source
+              logging.debug('found %s in source distro', downstream_version)
+              break
+          else:
+            # run out of sources
+            logging.debug('unable to find %s in any source distro',
+                downstream_version)
+            # go to next version
+            continue
+        else:
+          # no error finding it in the target
+          logging.debug('found %s in target distro', downstream_version)
+
+        try:
+          target.fetchMissingVersion(package_version.package,
+                  package_version.version)
+          base_dir = unpack_source(package_version)
+        except Exception:
+          logging.exception('unable to unpack %s:\n', package_version)
+        else:
+          logging.debug('base version for %s and %s is %s',
+                  downstream, upstream, package_version)
+          return (package_version, base_dir)
+
         tried_bases.add(downstream_version)
 
   raise Exception('unable to find a usable base version for %s and %s' %
