@@ -259,12 +259,26 @@ class MergeReport(object):
                     self.result, self.message)
             self.result = MergeResult.UNKNOWN
 
-        if (self.source_package is None or
-                self.left_version is None or
-                self.right_version is None or
-                self.left_distro is None or
-                self.right_distro is None):
-            raise AttributeError("Insufficient detail in report")
+        if self.source_package is None:
+            raise AttributeError('Insufficient detail in report: no '
+                    'source package')
+
+        if self.left_version is None:
+            raise AttributeError('Insufficient detail in report: our '
+                    'version is missing')
+
+        if self.left_distro is None:
+            raise AttributeError('Insufficient detail in report: our '
+                    'distro is missing')
+
+        if self.result != MergeResult.KEEP_OURS:
+            if self.right_version is None:
+                raise AttributeError('Insufficient detail in report: '
+                        'their version is missing')
+
+            if self.right_distro is None:
+                raise AttributeError('Insufficient detail in report: '
+                        'their distro is missing')
 
         # promote versions to Version objects
         for k in ("left_version", "right_version", "base_version",
