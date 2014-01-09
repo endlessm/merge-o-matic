@@ -116,12 +116,12 @@ def main(options, args):
             for src in srclist:
               logging.debug('considering source %s', src)
               try:
-                possible = src.distro.findPackage(pkg.name,
-                    searchDist=src.dist)[0]
-                logging.debug('- contains version %s', possible)
-                if upstream is None or possible > upstream:
-                  logging.debug('  - that version is the best yet seen')
-                  upstream = possible
+                for possible in src.distro.findPackage(pkg.name,
+                    searchDist=src.dist):
+                  logging.debug('- contains version %s', possible)
+                  if upstream is None or possible > upstream:
+                    logging.debug('  - that version is the best yet seen')
+                    upstream = possible
               except model.error.PackageNotFound:
                 pass
 

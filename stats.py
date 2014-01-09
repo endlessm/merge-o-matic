@@ -65,10 +65,10 @@ def main(options, args):
         for srclist in target.getSourceLists(pkg.name):
           for src in srclist:
             try:
-              possible = src.distro.findPackage(pkg.name,
-                  searchDist=src.dist)[0]
-              if upstream is None or possible > upstream:
-                upstream = possible
+              for possible in src.distro.findPackage(pkg.name,
+                      searchDist=src.dist):
+                if upstream is None or possible > upstream:
+                  upstream = possible
             except model.error.PackageNotFound:
               pass
 
