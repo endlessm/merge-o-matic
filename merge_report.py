@@ -365,6 +365,7 @@ class MergeReport(object):
         tree.ensure(filename)
         with open(filename + '.tmp', "w") as fh:
             json.dump(report, fh, indent=2, sort_keys=False)
+            fh.write('\n')
         os.rename(filename + '.tmp', filename)
 
 def write_report(left, left_patch,
