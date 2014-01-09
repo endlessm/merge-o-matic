@@ -49,17 +49,18 @@ def main(options, args):
                         source['Package'])
                 continue
 
-            if base is None:
-                # If there's no suitable base for merges, we don't
-                # automatically expire any versions.
-                logging.debug('Skipping package %s: no base version found',
-                        source['Package'])
-                continue
-
             if report['result'] not in (MergeResult.SYNC_THEIRS,
                     MergeResult.KEEP_OURS, MergeResult.MERGED,
                     MergeResult.CONFLICTS):
                 logging.debug('Skipping expiry for package %s: result=%s',
+                        source['Package'], report['result'])
+                continue
+
+            if base is None:
+                # If there's no suitable base for merges, we don't
+                # automatically expire any versions.
+                logging.debug('Skipping expiry for package %s: '
+                        'no base version found (result=%s)',
                         source['Package'], report['result'])
                 continue
 
