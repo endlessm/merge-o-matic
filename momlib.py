@@ -418,16 +418,6 @@ def get_pool_distros():
 
     return distros
 
-def update_pool_sources(distro, package):
-    """Update the Sources files in the pool."""
-    pooldir = pool_directory(distro, package)
-    filename = pool_sources_file(distro, package)
-
-    logging.info("Updating %s", tree.subdir(ROOT, filename))
-    with open(filename, "w") as sources:
-        shell.run(("apt-ftparchive", "sources", pooldir), chdir=ROOT,
-                  stdout=sources)
-
 def get_pool_sources(distro, package):
     """Parse the Sources file for a package in the pool."""
     for component in DISTROS[distro]['components']:
@@ -439,72 +429,9 @@ def get_pool_sources(distro, package):
         pass
     return []
 
-def get_pool_source(distro, component,package, version=None):
-    """Return the source for a particular version of a package."""
-    sources = get_pool_sources(distro, package)
-    if version is None:
-        version_sort(sources)
-        return sources.pop()
-
-    for source in sources:
-        if version == source["Version"]:
-            return source
-    else:
-        raise IndexError
-
-def get_nearest_source(our_distro, src_distro, package, base):
-    """Return the base source or nearest to it."""
-    pkg = Distro.get(our_distro).findPackage(package)
-    srcPkg = Distro.get(src_distro).findPackage(package)
-    try:
-        sources = map(lambda x:{'distro': src_distro, 'src': x}, srcPkg.getPoolSources())
-        sources.extend(map(lambda x:{'distro': our_distro, 'src': x}, pkg.getPoolSources()))
-    except IOError:
-        sources = []
-
-    bases = []
-    for source in sources:
-        if base == source['src']["Version"]:
-            return (source['src'], source['distro'])
-        elif Version(base) >= Version(re.sub("build[0-9]+$", "", source['src']["Version"])):
-            bases.append(source)
-    else:
-        try:
-            return (pkg.getPoolSource(base), our_distro)
-        except model.error.PackageVersionNotFound:
-            bases.sort(key=lambda x: Version(x['src']['Version']))
-            b = bases.pop()
-            return (b['src'], b['distro'])
-
 # --------------------------------------------------------------------------- #
 # Source meta-data handling
 # --------------------------------------------------------------------------- #
-
-def get_base(source, slip=False):
-    """Get the base version from the given source."""
-    def strip_suffix(text, suffix):
-        try:
-            idx = text.rindex(suffix)
-        except ValueError:
-            return text
-
-        for char in text[idx+len(suffix):]:
-            if not (char.isdigit() or char == '.'):
-                return text
-
-        return text[:idx]
-
-    version = source["Version"]
-    version = strip_suffix(version, "build")
-    version = strip_suffix(version, "co")
-
-    if version.endswith("-"):
-        version += "0"
-
-    if slip and version.endswith("-0"):
-        version = version[:-2] + "-1"
-
-    return Version(version)
 
 def version_sort(sources):
     """Sort the source list by version number."""
@@ -732,44 +659,6 @@ class PackageLists(object):
             return found and package not in self.exclude[target]
         else:
             return src_is_default and package not in self.exclude[target]
-
-    def check_any_distro(self, distro, dist, package):
-        """If distro/dist is a target, return self.check(package, distro);
-        if distro/dist is part of a source, return True if self.check(package, target, source) is true for some target"""
-        for target in DISTRO_TARGETS:
-            if distro == DISTRO_TARGETS[target]["distro"] and dist == DISTRO_TARGETS[target]["dist"]:
-                return self.check_target(target, None, package)
-        for target in DISTRO_TARGETS:
-            for src in DISTRO_TARGETS[target]["sources"]:
-                for sub_src in DISTRO_SOURCES[src]:
-                    if distro == sub_src["distro"] and dist == sub_src["dist"] and self.check_target(target, src, package):
-                        return True
-        return False
-
-    def find_in_source_distros(self, target, package):
-        """Searches for package in the target's source groups, and returns the found
-        (source, version, pool_source, src_distro, src_dist); ignores the blacklist"""
-        for src in DISTRO_TARGETS[target]["sources"]:
-            if package not in self.include[target][src]:
-                continue
-            best = None
-            for sub_src in DISTRO_SOURCES[src]:
-                distro = sub_src["distro"]
-                dist = sub_src["dist"]
-                d = Distro.get(distro)
-                try:
-                    pkg = d.findPackage(package, searchDist=dist)
-                    source = pkg.getSources()[0]
-                    pool_source = pkg.getPoolSource()
-                    version = pkg.version
-                except model.error.PackageNotFound:
-                    continue
-                if best is None or version > best[1]:
-                    best = (source, version, pool_source, distro, dist)
-            if best is not None:
-                return best
-        else:
-            raise model.error.PackageNotFound(package)
 
     def add(self, target, src, package):
         """If src is None, the default source group is used"""
