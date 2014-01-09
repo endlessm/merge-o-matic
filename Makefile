@@ -17,8 +17,10 @@ main_exe_files = \
 	get_missing_bases.py \
 	grab-merge.sh \
 	mail_bugs.py \
-	merge_status.py \
 	main.py \
+	merge_report.py \
+	merge_status.py \
+	notify_action_needed.py \
 	pack-archive.sh \
 	produce_merges.py \
 	publish_patches.py \
