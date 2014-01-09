@@ -175,16 +175,16 @@ class OBSDistro(Distro):
       except ValueError:
         logging.warning("Cache is corrupted. Rebuilding from scratch.")
     finished = False
-    if not dist in self._obsCache:
+    if dist not in self._obsCache:
       self._obsCache[dist] = {}
-    if not component in self._obsCache[dist]:
+    if component not in self._obsCache[dist]:
       self._obsCache[dist][component] = {}
     if package in self._obsCache[dist][component] or (len(self._obsCache[dist][component]) > 0 and package is None):
       return
 
     logging.debug("Updating cache for %s/%s", self.obsProject(dist, component), package)
     unknownPackages = []
-    if not self.obsProject(dist, component) in OBSDistro.obsLists:
+    if self.obsProject(dist, component) not in OBSDistro.obsLists:
       OBSDistro.obsLists[self.obsProject(dist, component)] = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
     obsPackageList = OBSDistro.obsLists[self.obsProject(dist, component)]
     foundPackages = map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues())
