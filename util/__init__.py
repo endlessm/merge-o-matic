@@ -37,7 +37,7 @@ def pathhash(path):
 def run(main_func, options_func=None, usage=None, description=None):
     """Run the given main function after initialising options."""
     logging.Formatter.converter = time.gmtime
-    logging.basicConfig(format="%(asctime)s  %(message)s", datefmt="%a, %d %b %Y %H:%M:%S +0000") # RFC 2822
+    logging.basicConfig(format="%(asctime)s  %(name)s.%(levelname)s: %(message)s", datefmt="%a, %d %b %Y %H:%M:%S +0000") # RFC 2822
     logging.getLogger().setLevel(logging.INFO)
 
     parser = OptionParser(usage=usage, description=description)
