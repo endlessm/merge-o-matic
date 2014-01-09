@@ -71,16 +71,26 @@ def main(options, args):
             continue
 
         if target.committable:
+          # we can commit directly to the target distribution
+          # FIXME: is this still a supported configuration? I wouldn't
+          # want to commit automated merges without some sort of manual
+          # check on the debdiff...
           logging.info("Committing changes to %s", package)
           if not options.dry_run:
             try:
               package.commit('Automatic update by Merge-O-Matic')
               pass
-            except urllib2.HTTPError:
-              logging.exception("Failed to commit %s", package)
-        else:
+            except urllib2.HTTPError as e:
+              logging.exception('Failed to commit %s: HTTP error %s at <%s>:',
+                  package, e.code, e.geturl())
+          continue
+
+        # else we need to branch it and commit to the branch
+        try:
           logging.debug("Branching %s", package)
+
           branchPkg = package.branch("home:%s:branches"%(d.obsUser))
+
           branch = branchPkg.distro
           branch.sync(target.dist, target.component, [branchPkg,])
           logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
@@ -153,6 +163,10 @@ def main(options, args):
                 update_report(output_dir, False, "http error")
           else:
             logging.info("Not committing, due to --dry-run")
+
+        except urllib2.HTTPError as e:
+          logging.exception('Failed to branch %s: HTTP error %s at <%s>:',
+              package, e.code, e.geturl())
 
 def update_report(output_dir, committed, message=None):
   with open("%s/REPORT" % output_dir, "a") as r:
