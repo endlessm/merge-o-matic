@@ -807,8 +807,12 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
                   version=downstream_version)[0]
         except model.error.PackageNotFound:
           source_lists = target.getSourceLists(downstream.package.name)
-          sources = [source for source in s for s in source_lists]
-          for source in source_list:
+          sources = []
+          for sl in source_lists:
+            for source in sl:
+              sources.append(source)
+
+          for source in sources:
             try:
               package_version = source.distro.findPackage(
                       downstream.package.name,
