@@ -1,3 +1,20 @@
+merge-o-matic (2014.01.10) experimental; urgency=low
+
+  * Read and write merge reports using JSON (SIN: #392)
+  * produce_merges: include the merged_patch in SYNC_THEIRS merges
+  * notify_action_needed.py: add email notification (SIN: #391)
+  * produce_merges: improve logging
+  * model.obs: use a less confusing syntax for dict membership
+  * Catch HTTP errors when branching/committing packages (mitigates SIN: #419)
+  * expire_pool: avoid a somewhat misleading debug message
+  * Include logger and severity in log messages
+  * produce_merges: look for common ancestor in target, not only sources
+    (SIN: #418, #422, #423)
+  * Be more careful with findPackage returning a list (SIN: #420)
+  * Remove some unused functions
+
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Fri, 10 Jan 2014 17:04:54 +0000
+
 merge-o-matic (2013.12.16.1) unstable; urgency=low
 
   * merge_status: cope with unknown priorities such as "source" (SIN: #377)
