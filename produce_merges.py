@@ -832,6 +832,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
               break
           else:
             # run out of sources
+            tried_bases.add(downstream_version)
             logging.debug('unable to find %s in any source distro',
                 downstream_version)
             # go to next version
