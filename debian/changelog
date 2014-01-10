@@ -1,4 +1,4 @@
-merge-o-matic (2014.01.10) experimental; urgency=low
+merge-o-matic (2014.01.10) UNRELEASED; urgency=low
 
   * Read and write merge reports using JSON (SIN: #392)
   * produce_merges: include the merged_patch in SYNC_THEIRS merges
