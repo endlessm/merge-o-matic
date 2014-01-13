@@ -271,6 +271,8 @@ class Distro(object):
     """
     return "%s/%s"%(self.config('pool', default=self.name), component)
 
+  def shouldExpire(self):
+    return self.config('expire', default=False)
 
 class Package(object):
   """A Debian source package in a distribution."""

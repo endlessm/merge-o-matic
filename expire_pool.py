@@ -28,9 +28,9 @@ logger = logging.getLogger('expire_pool')
 
 def main(options, args):
     if len(args):
-        distros = args
+        distros = [Distro.get(a) for a in args]
     else:
-        distros = get_pool_distros()
+        distros = Distro.all()
 
     # Run through our default distribution and use that for the base
     # package names.  Expire from all distributions.
@@ -69,8 +69,8 @@ def main(options, args):
             logger.debug("base is %s", base)
 
             for distro in distros:
-                if DISTROS[distro]["expire"]:
-                    for component in DISTROS[distro]['components']:
+                if distro.shouldExpire():
+                    for component in distro.components():
                       expire_pool_sources(distro, component, source["Package"], base)
 
 
@@ -80,9 +80,9 @@ def expire_pool_sources(distro, component, package, base):
     If the base doesn't exist, then the newest source that is older is also
     kept.
     """
-    pooldir = pool_directory(distro, component, package)
+    pooldir = pool_directory(distro.name, component, package)
     try:
-        sources = get_pool_sources(distro, package)
+        sources = get_pool_sources(distro.name, package)
     except IOError:
         return
 
