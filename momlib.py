@@ -89,18 +89,6 @@ def md5sum(filename):
 # Location functions
 # --------------------------------------------------------------------------- #
 
-def uncompressed_sources_file(distro, dist, component):
-    """Return the location of a local Sources file."""
-    path = "%s/dists/%s" % (ROOT, distro)
-    if dist is not None:
-        path = "%s-%s" % (path, dist)
-    if component is not None:
-        path = "%s/%s" % (path, component)
-    return path + "/source/Sources"
-
-def sources_file(distro, dist, component):
-    return uncompressed_sources_file(distro, dist, component) + ".gz"
-
 def pool_directory(distro, component, package):
     """Return the pool directory for a source"""
     return "pool/%s/%s/%s/%s" % (pool_name(distro), component, pathhash(package), package)
@@ -161,20 +149,6 @@ def patch_list_file():
     """Return the location of the patch list."""
     return "%s/published/PATCHES" % ROOT
 
-def patch_rss_file(distro=None, source=None):
-    """Return the location of the patch rss feed."""
-    if distro is None or source is None:
-        return "%s/published/patches.xml" % ROOT
-    else:
-        return "%s/patches.xml" % patch_directory(distro, source)
-
-def diff_rss_file(distro=None, source=None):
-    """Return the location of the diff rss feed."""
-    if distro is None or source is None:
-        return "%s/diffs/patches.xml" % ROOT
-    else:
-        return "%s/patches.xml" % diff_directory(distro, source)
-
 def work_dir(package, version):
     """Return the directory to produce the merge result."""
     return "%s/work/%s/%s/%s" % (ROOT, pathhash(package), package, version)
@@ -182,12 +156,6 @@ def work_dir(package, version):
 def result_dir(target, package):
     """Return the directory to store the result in."""
     return "%s/merges/%s/%s/%s" % (ROOT, target, pathhash(package), package)
-
-def component_string(distro=None, component=None):
-    """Return the short name for a given distro/dist/component for printing"""
-    if component:
-        return component
-    return distro
 
 # --------------------------------------------------------------------------- #
 # Pool handling
@@ -512,85 +480,6 @@ def get_target_distro_dist_component(target):
     return (distro, dist, component)
 
 # --------------------------------------------------------------------------- #
-# RSS feed handling
-# --------------------------------------------------------------------------- #
-
-def read_rss(filename, title, link, description):
-    """Read an RSS feed, or generate a new one."""
-    rss = ElementTree.Element("rss", version="2.0")
-
-    channel = ElementTree.SubElement(rss, "channel")
-
-    e = ElementTree.SubElement(channel, "title")
-    e.text = title
-
-    e = ElementTree.SubElement(channel, "link")
-    e.text = link
-
-    e = ElementTree.SubElement(channel, "description")
-    e.text = description
-
-    now = time.gmtime()
-
-    e = ElementTree.SubElement(channel, "pubDate")
-    e.text = time.strftime(RSS_TIME_FORMAT, now)
-
-    e = ElementTree.SubElement(channel, "lastBuildDate")
-    e.text = time.strftime(RSS_TIME_FORMAT, now)
-
-    e = ElementTree.SubElement(channel, "generator")
-    e.text = "Merge-o-Matic"
-
-
-    if os.path.isfile(filename):
-        cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=7)
-
-        tree = ElementTree.parse(filename)
-        for i, item in enumerate(tree.find("channel").findall("item")):
-            dt = datetime.datetime(*time.strptime(item.findtext("pubDate"),
-                                                  RSS_TIME_FORMAT)[:6])
-            if dt > cutoff or i < 10:
-                channel.append(item)
-
-    return rss
-
-def write_rss(filename, rss):
-    """Write out an RSS feed."""
-    tree.ensure(filename)
-    etree = ElementTree.ElementTree(rss)
-    etree.write(filename + ".new")
-    os.rename(filename + ".new", filename)
-
-def append_rss(rss, title, link, author=None, filename=None):
-    """Append an element to an RSS feed."""
-    item = ElementTree.Element("item")
-
-    e = ElementTree.SubElement(item, "title")
-    e.text = title
-
-    e = ElementTree.SubElement(item, "link")
-    e.text = link
-
-    if author is not None:
-        e = ElementTree.SubElement(item, "author")
-        e.text = author
-
-    if filename is not None:
-        e = ElementTree.SubElement(item, "pubDate")
-        e.text = time.strftime(RSS_TIME_FORMAT,
-                               time.gmtime(os.stat(filename).st_mtime))
-
-
-    channel = rss.find("channel")
-    for i, e in enumerate(channel):
-        if e.tag == "item":
-            channel.insert (i, item)
-            break
-    else:
-        channel.append(item)
-
-
-# --------------------------------------------------------------------------- #
 # Comments handling
 # --------------------------------------------------------------------------- #
 
@@ -646,22 +535,3 @@ def remove_old_comments(status_file, merges):
 
         for line in new_lines:
             file_comments.write(line)
-
-def gen_buglink_from_comment(comment):
-    """Return an HTML formatted Debian/Ubuntu bug link from comment"""
-    debian = re.search(".*Debian bug #([0-9]{1,6}).*", comment, re.I)
-    ubuntu = re.search(".*bug #([0-9]{1,6}).*", comment, re.I)
-
-    html = ""
-    if debian:
-        html += "<img src=\".img/debian.png\" alt=\"Debian\" />"
-        html += "<a href=\"http://bugs.debian.org/%s\">#%s</a>" \
-            % (debian.group(1), debian.group(1))
-    elif ubuntu:
-        html += "<img src=\".img/ubuntu.png\" alt=\"Ubuntu\" />"
-        html += "<a href=\"https://launchpad.net/bugs/%s\">#%s</a>" \
-            % (ubuntu.group(1), ubuntu.group(1))
-    else:
-        html += "&nbsp;"
-
-    return html
