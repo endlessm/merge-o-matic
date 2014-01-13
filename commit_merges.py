@@ -177,6 +177,9 @@ def main(options, args):
           logging.exception('Failed to branch %s: HTTP error %s at <%s>:',
               package, e.code, e.geturl())
 
+        except Exception as e:
+          logging.exception('Failed to branch %s:', package)
+
 def update_report(report, output_dir, committed, message=None,
         request_url=None):
   report.committed = committed

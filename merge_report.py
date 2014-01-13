@@ -237,7 +237,14 @@ class MergeReport(object):
                 self.obs_project = left.package.distro.obsProject(
                         left.package.dist,
                         left.package.component)
-                self.obs_package = left.package.obsName
+
+                # this requires a just-in-time-populated cache of stuff from
+                # OBS, so it isn't 100% reliable yet
+                try:
+                    self.obs_package = left.package.obsName
+                except Exception:
+                    logger.exception('ignoring error getting obsName for %s:',
+                            left.package)
 
     def __setitem__(self, k, v):
         if k not in self.__slots__:
