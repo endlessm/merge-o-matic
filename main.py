@@ -97,7 +97,6 @@ def main(options, args):
 
         # Publish the patches
         publish_patches.main(options, args)
-        # mail_bugs.main(options, args)
 
         # Run the merge tool
         produce_merges.main(options, args)
