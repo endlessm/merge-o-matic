@@ -24,9 +24,7 @@ class Distro(object):
     These correspond to the keys of DISTROS in the configuration file."""
     ret = []
     for k in config.get("DISTROS").iterkeys():
-      # FIXME: shouldn't this return a DebianDistro or an OBSDistro,
-      # as appropriate?
-      ret.append(Distro(k))
+      ret.append(Distro.get(k))
     return ret
 
   def __unicode__(self):
