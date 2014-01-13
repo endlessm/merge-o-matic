@@ -157,9 +157,6 @@ defineDist('uderivative', 'badger', 'raring+updates', False,
             'systemd': [ 'unstable' ],
         })
 
-# Time format for RSS feeds
-RSS_TIME_FORMAT = "%a, %d %b %Y %H:%M:%S %Z"
-
 # Debian packaging revision suffix for the first derived version; for instance
 # Ubuntu's patched hello_1.2-3 package would be hello_1.2-3ubuntu1,
 # hello_1.2-3ubuntu2, etc., so they would use "ubuntu1" in their
