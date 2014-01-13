@@ -130,7 +130,10 @@ def main(options, args):
                     branch, target)
             pfx = result_dir(target.name, package.name)
 
-          for f in branchPkg.files:
+          # this might raise an error
+          obsFiles = branchPkg.getOBSFiles()
+
+          for f in obsFiles:
             if f.endswith(".dsc"):
               oldDsc = '%s/%s'%(branchPkg.obsDir(), f)
               break
@@ -145,7 +148,7 @@ def main(options, args):
           comment = "Merge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT')))
           if not options.dry_run:
             filesUpdated = False
-            for f in branchPkg.files:
+            for f in obsFiles:
               if f == "_link":
                 continue
               try:

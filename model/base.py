@@ -297,10 +297,6 @@ class Package(object):
   def __eq__(self, other):
     return self.distro == other.distro and self.name == other.name and self.dist == other.dist and self.component == other.component
 
-  @property
-  def files(self):
-    return []
-
   def __unicode__(self):
     return '/'.join((str(self.distro), self.dist, self.component, self.name))
 

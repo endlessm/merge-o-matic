@@ -255,6 +255,10 @@ class OBSDistro(Distro):
     except KeyError:
       raise error.PackageNotFound(name, dist, component)
 
+  def getPackageFiles(self, dist, component, obsPkg):
+    return osccore.meta_get_filelist(self.config("obs", "url"),
+        self.obsProject(dist, component), obsPkg)
+
   def obsProject(self, dist, component):
     """
     Return the OBS project for the given release and component
@@ -296,13 +300,11 @@ class OBSPackage(Package):
     self._updateOBSCache()
     return self._obsName
 
-  @property
-  def files(self):
+  def getOBSFiles(self):
     """Return the filenames of this package's .dsc file and
-    related source files.
+    related source files in OBS.
     """
-    self._updateOBSCache()
-    return self._files
+    return self.distro.getPackageFiles(self.dist, self.component, self.obsName)
 
   def _updateOBSCache(self):
     self.distro.updateOBSCache(self.dist, self.component, self.name)
@@ -315,14 +317,6 @@ class OBSPackage(Package):
     except KeyError:
       if self.distro.parent:
         self._obsName = self.distro.parent._obsCache[self.dist][self.component][self.name]['obs-name']
-      else:
-        raise
-
-    try:
-      self._files = self.distro._obsCache[self.dist][self.component][self.name]['files']
-    except KeyError:
-      if self.distro.parent:
-        self._files = self.distro.parent._obsCache[self.dist][self.component][self.name]['files']
       else:
         raise
 
