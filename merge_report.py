@@ -142,11 +142,11 @@ def _read_report_text(output_dir, filename, report):
                 report["conflicts"].append(line[5:].strip())
 
     # Try to synthesize a meaningful result from those fields
-    if report.get("base_version") is None:
+    if report["base_version"] is None:
         report["result"] = MergeResult.NO_BASE
     elif merged_is_right:
         report["result"] = MergeResult.SYNC_THEIRS
-    elif report.get("merged_files"):
+    elif report["merged_files"]:
         report["result"] = MergeResult.MERGED
     elif report["conflicts"]:
         report["result"] = MergeResult.CONFLICTS
