@@ -22,6 +22,7 @@ import os
 
 import osc.core
 
+from deb.version import Version
 from model import Distro
 from model.obs import OBSDistro
 import config
@@ -40,12 +41,29 @@ def main(options, args):
       logger.info("Updating sources for %s", target)
       d = target.distro
       d.updateSources(target.dist, target.component)
+
+      pairs = []
+      for stanza in d.getSources(target.dist, target.component):
+        pairs.append((stanza.get('Package'), Version(stanza.get('Version'))))
+      logger.debug('Packages in %s:', target)
+      for pair in sorted(pairs):
+        logger.debug('- %s/%s', pair[0], pair[1])
+
       for upstreamList in target.getAllSourceLists():
         for source in upstreamList:
           if source not in upstreamSources:
             for component in source.distro.components():
               logger.info("Updating upstream sources for %s/%s", source, component)
               source.distro.updateSources(source.dist, component)
+
+              pairs = []
+              for stanza in source.distro.getSources(source.dist, component):
+                pairs.append((stanza.get('Package'),
+                    Version(stanza.get('Version'))))
+              logger.debug('Packages in %s/%s:', source, component)
+              for pair in sorted(pairs):
+                logger.debug('- %s/%s', pair[0], pair[1])
+
             upstreamSources.append(source)
 
       package_names = set()
