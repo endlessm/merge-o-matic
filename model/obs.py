@@ -24,31 +24,12 @@ logger = logging.getLogger('model.obs')
 class OBSDistro(Distro):
   """A distro with OBS integration."""
 
-  # global dict { distro.name: distro._obsCache }
-  # e.g. { "debian": ... }
-  masterCache = {}
-
-  # global dict { OBS project name: list of packages }
-  # e.g. { "Debian:Wheezy:Main": ["hello", ...] }
-  obsLists = {}
-
   def __repr__(self):
     return '<%s "%s" ("%s")>' % (self.__class__.__name__, self.name,
             self.obsProject('*', '*'))
 
   def __init__(self, name, parent=None):
     super(OBSDistro, self).__init__(name, parent)
-
-    # { release codename, e.g. "precise": {
-    #     Debian source package name, e.g. "hello": {
-    #       "name": Debian source package name,
-    #       "obs-name": package name in OBS,
-    #       "files": ["hello[...].dsc", "hello[...].tar.gz"],
-    #       "version": version as a string
-    #     }
-    #   }
-    # }
-    self._obsCache = {}
 
   @property
   def obsUser(self):
@@ -160,92 +141,6 @@ class OBSDistro(Distro):
     logger.debug("Attempting update of %s/%s", self, packages)
     self.update(dist, component, packages)
 
-  def updateOBSCache(self, dist, component, package=None):
-    tree.ensure(os.path.expanduser("~/.mom-cache/"))
-    cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
-    expireTime = time.time()-3600
-
-    if self.name in OBSDistro.masterCache and len(self._obsCache) == 0:
-      self._obsCache = OBSDistro.masterCache[self.name]
-
-    if os.path.isfile(cacheFile) and os.stat(cacheFile).st_mtime > expireTime and len(self._obsCache) == 0:
-      try:
-        cache = json.load(open(cacheFile, 'r'))
-        self._obsCache = cache['data']
-        OBSDistro.masterCache[self.name] = self._obsCache
-      except ValueError:
-        logger.warning("Cache is corrupted. Rebuilding from scratch.")
-    finished = False
-    if dist not in self._obsCache:
-      self._obsCache[dist] = {}
-    if component not in self._obsCache[dist]:
-      self._obsCache[dist][component] = {}
-    if package in self._obsCache[dist][component] or (len(self._obsCache[dist][component]) > 0 and package is None):
-      return
-
-    logger.debug("Updating cache for %s/%s", self.obsProject(dist, component), package)
-    unknownPackages = []
-    if self.obsProject(dist, component) not in OBSDistro.obsLists:
-      OBSDistro.obsLists[self.obsProject(dist, component)] = osccore.meta_get_packagelist(self.config("obs", "url"), self.obsProject(dist, component))
-    obsPackageList = OBSDistro.obsLists[self.obsProject(dist, component)]
-    foundPackages = map(lambda x:x['obs-name'], self._obsCache[dist][component].itervalues())
-    for pkg in obsPackageList:
-      if pkg not in foundPackages:
-        unknownPackages.append(pkg)
-
-    modified = False
-    for obsPkg in unknownPackages:
-      if package in foundPackages:
-        continue
-      logger.debug("Downloading metadata for %s/%s", self.obsProject(dist, component), obsPkg)
-      source = None
-      files = []
-      filelist = []
-      while True:
-        try:
-          filelist = osccore.meta_get_filelist(self.config("obs", "url"), self.obsProject(dist, component), obsPkg)
-          break
-        except KeyboardInterrupt, e:
-          raise e
-        except:
-          continue
-      for filename in filelist:
-        files.append(filename)
-        if filename[-4:] == ".dsc":
-          tmpHandle, tmpName = tempfile.mkstemp()
-          os.close(tmpHandle)
-          logger.debug("Downloading %s to %s", filename, tmpName)
-          while True:
-            osccore.get_source_file(self.config("obs", "url"), self.obsProject(dist, component), obsPkg, filename, targetfilename=tmpName)
-            if os.stat(tmpName).st_size == 0:
-              logger.warn("Couldn't download %s. Retrying.", filename)
-            else:
-              break
-          source = ControlFile(tmpName, multi_para=False, signed=True)
-          os.unlink(tmpName)
-      if source is None:
-        logger.error("%s/%s did not have a .dsc file.", self.obsProject(dist, component), obsPkg)
-      else:
-        logger.debug("%s -> %s", obsPkg, source.para["Source"])
-        self._obsCache[dist][component][source.para["Source"]] = {
-          "name": source.para["Source"],
-          "obs-name": obsPkg,
-          "files": files,
-          "version": source.para['Version']
-        }
-        self._saveCache()
-
-  def _saveCache(self):
-    logger.debug("Flushing cache to disk")
-    tree.ensure(os.path.expanduser("~/.mom-cache/"))
-    cacheFile = os.path.expanduser("~/.mom-cache/%s"%(self.name))
-    tmpCache = cacheFile+"~"
-    fh = open(tmpCache, 'w')
-    json.dump({'complete': True, 'data': self._obsCache}, fh)
-    fh.close()
-    os.rename(tmpCache, cacheFile)
-    OBSDistro.masterCache[self.name] = self._obsCache
-
   def package(self, dist, component, name):
     try:
       for s in self.getSources(dist, component):
@@ -294,31 +189,16 @@ class OBSPackage(Package):
 
   @property
   def obsName(self):
-    """Return the name of this package in OBS, usually the same as
-    its Debian package name.
+    """Return the name of this package in OBS. This is currently assumed
+    to be the same as its Debian package name.
     """
-    self._updateOBSCache()
-    return self._obsName
+    return self.name
 
   def getOBSFiles(self):
     """Return the filenames of this package's .dsc file and
     related source files in OBS.
     """
     return self.distro.getPackageFiles(self.dist, self.component, self.obsName)
-
-  def _updateOBSCache(self):
-    self.distro.updateOBSCache(self.dist, self.component, self.name)
-
-    if self.distro.parent:
-      self.distro.parent.updateOBSCache(self.dist, self.component, self.name)
-
-    try:
-      self._obsName = self.distro._obsCache[self.dist][self.component][self.name]['obs-name']
-    except KeyError:
-      if self.distro.parent:
-        self._obsName = self.distro.parent._obsCache[self.dist][self.component][self.name]['obs-name']
-      else:
-        raise
 
   def obsDir(self):
     """Return the directory into which this package will be checked out."""
@@ -341,10 +221,6 @@ class OBSPackage(Package):
           pkg.delete_file(filename)
           logger.info('D: %s', os.path.join(pkg.dir, filename))
     pkg.commit(message)
-    try:
-      del self.distro._obsCache[self.dist][self.component][self.name]
-    except KeyError:
-      pass
 
   def submitMergeRequest(self, upstreamDistro, msg):
     reqs = osccore.get_request_list(self.distro.config('obs', 'url'),
@@ -369,7 +245,5 @@ class OBSPackage(Package):
   def branch(self, projectBranch):
     branch = self.distro.branch(projectBranch)
     osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component), nodevelproject=False, msg='Branch for %s'%(str(self)), force=False, return_existing=True)
-    if branch.obsProject(self.dist, self.component) in OBSDistro.obsLists:
-      del OBSDistro.obsLists[branch.obsProject(self.dist, self.component)]
     return branch.package(self.dist, self.component, self.name)
 
