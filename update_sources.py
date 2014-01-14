@@ -85,16 +85,20 @@ def main(options, args):
               pass
 
       if isinstance(d, OBSDistro):
-        project = d.obsProject(target.dist, target.component)
-        logger.debug('Checking packages in %s', project)
-        obs_packages = set(
-            osc.core.meta_get_packagelist(d.config('obs', 'url'),
-              project))
-        for p in package_names:
-          if p not in obs_packages:
-            logger.warning('Debian source package "%s" does not seem '
-                'to correspond to an OBS package. Please rename the OBS '
-                'package to match "Source" in the .dsc file', p)
+        try:
+          project = d.obsProject(target.dist, target.component)
+          logger.debug('Checking packages in %s', project)
+          obs_packages = set(
+              osc.core.meta_get_packagelist(d.config('obs', 'url'),
+                project))
+          for p in package_names:
+            if p not in obs_packages:
+              logger.warning('Debian source package "%s" does not seem '
+                  'to correspond to an OBS package. Please rename the OBS '
+                  'package to match "Source" in the .dsc file', p)
+        except:
+          logger.warning('Unable to check packages in %s', project,
+              exc_info=1)
 
     logger.info("%d packages considered for updating", len(packages))
     for pkg in packages:
