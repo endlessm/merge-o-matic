@@ -21,6 +21,7 @@ from __future__ import with_statement
 
 import calendar
 import datetime
+import logging
 from contextlib import closing
 
 from pychart import *
@@ -28,6 +29,7 @@ from pychart import *
 from momlib import *
 from util import run
 
+logger = logging.getLogger('stats_graphs')
 
 # Order of stats we pick out
 ORDER = [ "needs-merge", "modified", "unmodified",
@@ -70,6 +72,8 @@ def options(parser):
                       help="Distribution target to generate stats for")
 
 def main(options, args):
+    logger.info('Drawing graphs...')
+
     if options.target:
         targets = [options.target]
     else:

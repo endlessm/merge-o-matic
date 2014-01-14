@@ -30,6 +30,7 @@ import config
 
 import model.error
 
+logger = logging.getLogger('stats')
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
@@ -47,8 +48,11 @@ def main(options, args):
     # For latest version of each package in the destination distribution, locate the latest in
     # the source distribution; calculate the base from the destination
     if options.package:
-      logging.info("Skipping stats since -p was specified.")
+      logger.info("Skipping stats since -p was specified.")
       return
+
+    logger.info('Collecting stats...')
+
     for target in config.targets(args):
       stats = {}
       stats["total"] = 0
@@ -73,32 +77,32 @@ def main(options, args):
               pass
 
         our_version = pkg.newestVersion()
-        logging.debug("%s: %s, upstream: %s", target.distro,
+        logger.debug("%s: %s, upstream: %s", target.distro,
             our_version, upstream)
         if upstream is None:
-          logging.debug("%s: locally packaged", pkg)
+          logger.debug("%s: locally packaged", pkg)
           stats["local"] += 1
           continue
 
         base = target.findNearestVersion(our_version)
 
         if our_version.version == upstream.version:
-          logging.debug("%s: unmodified", pkg)
+          logger.debug("%s: unmodified", pkg)
           stats["unmodified"] += 1
         elif base > upstream:
-          logging.debug("%s: locally repackaged", pkg)
+          logger.debug("%s: locally repackaged", pkg)
           stats["repackaged"] += 1
         elif our_version.version == base.version:
-          logging.debug("%s: needs sync", pkg)
+          logger.debug("%s: needs sync", pkg)
           stats["needs-sync"] += 1
         elif our_version.version < upstream.version:
-          logging.debug("%s: needs merge", pkg)
+          logger.debug("%s: needs merge", pkg)
           stats["needs-merge"] += 1
         elif "-0co" in str(our_version.version):
-          logging.debug("%s: locally repackaged", pkg)
+          logger.debug("%s: locally repackaged", pkg)
           stats["repackaged"] += 1
         else:
-          logging.debug("%s: modified", pkg)
+          logger.debug("%s: modified", pkg)
           stats["modified"] += 1
 
       write_stats(target.name, stats)

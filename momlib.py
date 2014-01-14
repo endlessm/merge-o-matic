@@ -54,11 +54,12 @@ try:
 except ImportError:
     from elementtree import ElementTree
 
-
 MOM_CONFIG_PATH = "/etc/merge-o-matic"
 sys.path.insert(1, MOM_CONFIG_PATH)
 from momsettings import *
 sys.path.remove(MOM_CONFIG_PATH)
+
+logger = logging.getLogger('momlib')
 
 # Cache of mappings of Debian package names to OBS package names
 OBS_CACHE = {}
@@ -321,7 +322,7 @@ def obs_update_pool(distro, package=None):
                 is_pooldir = True
             fullname = "%s/%s" % (dirname, filename)
             if not os.path.exists(fullname):
-                logging.info("Unlinking stale %s", tree.subdir(ROOT, fullname))
+                logger.info("Unlinking stale %s", tree.subdir(ROOT, fullname))
                 os.unlink(fullname)    
 
     if distro not in OBS_CACHE:
@@ -336,7 +337,7 @@ def obs_update_pool(distro, package=None):
     os.path.walk("%s/pool/%s" % (ROOT, pool_name(distro)), walker, None)
 
     sources_filename = sources_file(distro, None, None)
-    logging.info("Updating %s", tree.subdir(ROOT, sources_filename))
+    logger.info("Updating %s", tree.subdir(ROOT, sources_filename))
     if not os.path.isdir(os.path.dirname(sources_filename)):
         os.makedirs(os.path.dirname(sources_filename))
 
@@ -357,38 +358,38 @@ def obs_commit_files(distro, package, files):
 
     d = obs_directory(distro, package)
     if shell.get(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "diff"), chdir=d, stderr=sys.stderr):
-        logging.warning("Failed to commit updated %s to %s OBS: our osc checkout os out of date")
+        logger.warning("Failed to commit updated %s to %s OBS: our osc checkout os out of date")
         return False
 
 
-    logging.info("Committing changes to %s" % d)
+    logger.info("Committing changes to %s" % d)
     if DISTROS[distro]["obs"]["commit"]:
         for filename in OBS_CACHE[distro][package]["files"]:
-            logging.debug("Removing %s/%s" % (d, filename))
+            logger.debug("Removing %s/%s" % (d, filename))
             os.unlink("%s/%s" % (obs_directory(distro, package), filename))
         for filepath in files:
-            logging.debug("Adding %s to %s" % (filepath, d))
+            logger.debug("Adding %s to %s" % (filepath, d))
             shutil.copy2(filepath, d)
         shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
         shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "commit", "-m", "Automatic update by Merge-o-Matic"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
     else:
-        logging.info("Comitting disabled, branching and submitting request")
+        logger.info("Comitting disabled, branching and submitting request")
         branchDir = obs_directory(distro, package, homeBranch=True)
         try:
             shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "branch"), chdir=d, stdout=sys.stdout, stderr=sys.stderr)
         except:
-            logging.info("A branch already exists. Reusing.")
+            logger.info("A branch already exists. Reusing.")
         obs_checkout_or_update(distro, package, True)
         print "updated"
         for filename in OBS_CACHE[distro][package]["files"]:
-            logging.debug("Removing %s/%s" % (branchDir, filename))
+            logger.debug("Removing %s/%s" % (branchDir, filename))
             try:
                 os.unlink("%s/%s" % (obs_directory(distro, package, homeBranch=True), filename))
             except:
-                logging.info("Could not remove file, probably already branched and worked on?")
+                logger.info("Could not remove file, probably already branched and worked on?")
                 return False
         for filepath in files:
-            logging.debug("Adding %s to %s" % (filepath, branchDir))
+            logger.debug("Adding %s to %s" % (filepath, branchDir))
             shutil.copy2(filepath, branchDir)
         print branchDir
         shell.run(("osc", "--traceback", "-A", DISTROS[distro]["obs"]["url"], "addremove"), chdir=branchDir, stdout=sys.stdout, stderr=sys.stderr)
@@ -481,7 +482,7 @@ def unpack_source(pv):
     else:
         raise ValueError, "Missing dsc file"
 
-    logging.info("Unpacking %s from %s/%s", pv, srcdir, dsc_file)
+    logger.info("Unpacking %s from %s/%s", pv, srcdir, dsc_file)
 
     tree.ensure(destdir)
     try:
@@ -605,7 +606,7 @@ class PackageList(object):
 
     def save_if_modified(self):
         if self.modified:
-            logging.debug("Writing %s", self.filename)
+            logger.debug("Writing %s", self.filename)
             with open(self.filename, "w") as f:
                 for line in self._lines:
                     f.write(line)

@@ -19,6 +19,7 @@
 
 from __future__ import with_statement
 
+import logging
 import os
 import bz2
 import re
@@ -38,6 +39,7 @@ COLOURS =  [ "#fffd80", "#ffb580", "#ffea80", "#dfff80", "#abff80", "#80ff8b" ]
 # Sections
 SECTIONS = [ "outstanding", "new", "committed" ]
 
+logger = logging.getLogger('merge_status')
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
@@ -52,6 +54,8 @@ def options(parser):
                       help="Distribution target to use")
 
 def main(options, args):
+    logger.info('Summarizing merge status...')
+
     if options.target:
         targets = [options.target]
     else:
@@ -71,11 +75,13 @@ def main(options, args):
     # For each package in the destination distribution, find out whether
     # there's an open merge, and if so add an entry to the table for it.
     for target in targets:
+        logger.info('Considering target %s', target)
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
         merges = []
 
         d = Distro.get(our_distro)
         for source in d.getSources(our_dist, our_component):
+            logger.debug('Considering package %s', source["Package"])
             try:
                 output_dir = result_dir(target, source["Package"])
                 report = read_report(output_dir)
@@ -83,7 +89,7 @@ def main(options, args):
                 continue
 
             if report['result'] == MergeResult.KEEP_OURS:
-                logging.debug('Skipping merge status for %s: result=%s',
+                logger.debug('Skipping merge status for %s: result=%s',
                         source['Package'], report['result'])
                 continue
 

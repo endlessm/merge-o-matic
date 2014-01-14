@@ -10,6 +10,8 @@ import gzip
 
 import error
 
+logger = logging.getLogger('model.base')
+
 class Distro(object):
   """Base class for distributions corresponding to the keys of DISTROS,
   such as "debian" or "ubuntu", and for temporary distribution branches.
@@ -115,17 +117,17 @@ class Distro(object):
 
           if os.path.isfile(filename):
               if os.path.getsize(filename) == int(size):
-                  logging.debug("Skipping %s, already downloaded.", filename)
+                  logger.debug("Skipping %s, already downloaded.", filename)
                   continue
 
-          logging.debug("Downloading %s", url)
+          logger.debug("Downloading %s", url)
           tree.ensure(filename)
           try:
               urllib.URLopener().retrieve(url, filename)
           except IOError:
-              logging.error("Downloading %s failed", url)
+              logger.error("Downloading %s failed", url)
               raise
-          logging.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
+          logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
 
   def findPackage(self, name, searchDist=None, searchComponent=None, version=None):
     """Return a list of the available versions of the given package
@@ -250,17 +252,17 @@ class Distro(object):
     url = self.sourcesURL(dist, component)
     filename = self.sourcesFile(dist, component)
 
-    logging.debug("Downloading %s", url)
+    logger.debug("Downloading %s", url)
 
     try:
         if not os.path.isdir(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
         urllib.URLopener().retrieve(url, filename)
     except IOError:
-        logging.error("Downloading %s failed", url)
+        logger.error("Downloading %s failed", url)
         raise
 
-    logging.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
+    logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
     with gzip.open(self.sourcesFile(dist, component)) as gzf:
         with open(self.sourcesFile(dist, component, False), "wb") as f:
             f.write(gzf.read())
@@ -416,7 +418,7 @@ class Package(object):
       needsUpdate = True
 
     if needsUpdate:
-      logging.debug("Updating %s", filename)
+      logger.debug("Updating %s", filename)
       with open(filename, "w") as sources:
         shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
           stdout=sources)

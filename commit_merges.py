@@ -17,15 +17,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import urllib2
+import xml.etree.cElementTree
+
 from momlib import *
 import config
 from deb.version import Version
 from merge_report import (read_report, MergeResult)
 from model import Distro, OBSDistro
-import urllib2
 from util import run
 from util.tree import subdir
-import xml.etree.cElementTree
+
+logger = logging.getLogger('commit_merges')
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -34,29 +38,29 @@ def options(parser):
     parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
 
 def main(options, args):
-    logging.debug('Committing merges...')
+    logger.debug('Committing merges...')
 
     for target in config.targets(args):
       d = target.distro
 
       if not isinstance(d, OBSDistro):
-        logging.debug('Skipping %r distro %r: not an OBSDistro', target, d)
+        logger.debug('Skipping %r distro %r: not an OBSDistro', target, d)
         continue
 
       for source in d.newestSources(target.dist, target.component):
         if options.package and source['Package'] not in options.package:
-          logging.debug('Skipping package %s: not selected', source['Package'])
+          logger.debug('Skipping package %s: not selected', source['Package'])
           continue
 
         if source['Package'] in target.blacklist:
-          logging.debug('Skipping package %s: blacklisted', source['Package'])
+          logger.debug('Skipping package %s: blacklisted', source['Package'])
           continue
 
         try:
           output_dir = result_dir(target.name, source['Package'])
           report = read_report(output_dir)
         except ValueError:
-          logging.debug('Skipping package %s: unable to read report',
+          logger.debug('Skipping package %s: unable to read report',
                   source['Package'])
           continue
 
@@ -64,18 +68,18 @@ def main(options, args):
                 report.source_package)
 
         if report['committed']:
-          logging.debug("%s already committed, skipping!", package)
+          logger.debug("%s already committed, skipping!", package)
           continue
 
         if report['result'] not in (MergeResult.MERGED,
                 MergeResult.SYNC_THEIRS):
-            logging.debug("%s has nothing to commit: result=%s",
+            logger.debug("%s has nothing to commit: result=%s",
                     package, report['result'])
             continue
 
         filepaths = report['merged_files']
         if filepaths == []:
-            logging.warning("Empty merged file list in %s/REPORT" % output_dir)
+            logger.warning("Empty merged file list in %s/REPORT" % output_dir)
             continue
 
         if target.committable:
@@ -83,31 +87,31 @@ def main(options, args):
           # FIXME: is this still a supported configuration? I wouldn't
           # want to commit automated merges without some sort of manual
           # check on the debdiff...
-          logging.info("Committing changes to %s", package)
+          logger.info("Committing changes to %s", package)
           if not options.dry_run:
             try:
               package.commit('Automatic update by Merge-O-Matic')
               pass
             except urllib2.HTTPError as e:
-              logging.exception('Failed to commit %s: HTTP error %s at <%s>:',
+              logger.exception('Failed to commit %s: HTTP error %s at <%s>:',
                   package, e.code, e.geturl())
           continue
 
         # else we need to branch it and commit to the branch
         try:
-          logging.debug("Branching %s", package)
+          logger.debug("Branching %s", package)
 
           branchPkg = package.branch("home:%s:branches"%(d.obsUser))
 
           branch = branchPkg.distro
           branch.sync(target.dist, target.component, [branchPkg,])
-          logging.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
+          logger.info("Committing changes to %s, and submitting merge request to %s", branchPkg, package)
           if report['result'] == MergeResult.SYNC_THEIRS:
             srcDistro = Distro.get(report['right_distro'])
 
             version = Version(report['right_version'])
 
-            logging.debug('Copying updated upstream version %s from %r into %r',
+            logger.debug('Copying updated upstream version %s from %r into %r',
                     version,
                     srcDistro,
                     target)
@@ -122,7 +126,7 @@ def main(options, args):
                 except model.error.PackageNotFound:
                   pass
           else:
-            logging.debug('Copying merged version from %r into %r',
+            logger.debug('Copying merged version from %r into %r',
                     branch, target)
             pfx = result_dir(target.name, package.name)
 
@@ -135,7 +139,7 @@ def main(options, args):
               newDsc = '%s/%s'%(pfx, f)
               break
 
-          #logging.debug("Running debdiff on %s and %s", oldDsc, newDsc)
+          #logger.debug("Running debdiff on %s and %s", oldDsc, newDsc)
           #comment = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
           # FIXME: Debdiff needs implemented in OBS, as large merge descriptions break clucene.
           comment = "Merge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT')))
@@ -145,7 +149,7 @@ def main(options, args):
               if f == "_link":
                 continue
               try:
-                logging.debug('deleting %s/%s', branchPkg.obsDir(), f)
+                logger.debug('deleting %s/%s', branchPkg.obsDir(), f)
                 os.unlink('%s/%s'%(branchPkg.obsDir(), f))
                 filesUpdated = True
               except OSError:
@@ -153,11 +157,11 @@ def main(options, args):
             for f in filepaths:
               if f == "_link":
                 continue
-              logging.debug('copying %s/%s -> %s', pfx, f, branchPkg.obsDir())
+              logger.debug('copying %s/%s -> %s', pfx, f, branchPkg.obsDir())
               shutil.copy2("%s/%s"%(pfx, f), branchPkg.obsDir())
               filesUpdated = True
             if filesUpdated:
-              logging.debug('Submitting request to merge %r from %r into %r',
+              logger.debug('Submitting request to merge %r from %r into %r',
                       branchPkg, branch, target)
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
@@ -165,20 +169,20 @@ def main(options, args):
                 update_report(report, output_dir, True,
                         request_url=branchPkg.webMergeRequest(reqid))
               except xml.etree.cElementTree.ParseError:
-                logging.exception("Failed to commit %s", branchPkg)
+                logger.exception("Failed to commit %s", branchPkg)
                 update_report(report, output_dir, False, "OBS API Error")
               except urllib2.HTTPError:
-                logging.exception("Failed to commit %s", branchPkg)
+                logger.exception("Failed to commit %s", branchPkg)
                 update_report(report, output_dir, False, "http error")
           else:
-            logging.info("Not committing, due to --dry-run")
+            logger.info("Not committing, due to --dry-run")
 
         except urllib2.HTTPError as e:
-          logging.exception('Failed to branch %s: HTTP error %s at <%s>:',
+          logger.exception('Failed to branch %s: HTTP error %s at <%s>:',
               package, e.code, e.geturl())
 
         except Exception as e:
-          logging.exception('Failed to branch %s:', package)
+          logger.exception('Failed to branch %s:', package)
 
 def update_report(report, output_dir, committed, message=None,
         request_url=None):

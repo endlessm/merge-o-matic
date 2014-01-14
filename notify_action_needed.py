@@ -183,7 +183,7 @@ Regards,
         try:
             smtp.sendmail(MOM_EMAIL, addr, message.as_string())
         except:
-            logging.exception('sending to %s failed:', addr)
+            logger.exception('sending to %s failed:', addr)
             all_ok = False
             smtp = SMTP('localhost')
 

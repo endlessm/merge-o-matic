@@ -27,6 +27,8 @@ import model.error
 from util import tree, run
 import config
 
+logger = logging.getLogger('update_sources')
+
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
@@ -39,6 +41,8 @@ def options(parser):
                       help="Source suite (aka distrorelease)")
 
 def main(options, args):
+    logger.info('Trying to download missing base versions for 3-way merge...')
+
     for target in config.targets(args):
       distro = target.distro
       for pkg in distro.packages(target.dist, target.component):
@@ -50,7 +54,7 @@ def main(options, args):
           if base > pkg.newestVersion():
             raise IndexError
         except IndexError:
-          logging.debug("Attempting to fetch missing base %s for %s",
+          logger.debug("Attempting to fetch missing base %s for %s",
               pkg.newestVersion().version.base(), pkg.newestVersion())
           target.fetchMissingVersion(pkg, pkg.newestVersion().version.base())
 

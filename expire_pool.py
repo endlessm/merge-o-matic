@@ -24,6 +24,7 @@ from util import tree, run
 from merge_report import (read_report, MergeResult)
 from model import Distro
 
+logger = logging.getLogger('expire_pool')
 
 def main(options, args):
     if len(args):
@@ -45,27 +46,27 @@ def main(options, args):
                 report = read_report(output_dir)
                 base = report["base_version"]
             except ValueError:
-                logging.debug('Skipping package %s: unable to read merge report',
+                logger.debug('Skipping package %s: unable to read merge report',
                         source['Package'])
                 continue
 
             if report['result'] not in (MergeResult.SYNC_THEIRS,
                     MergeResult.KEEP_OURS, MergeResult.MERGED,
                     MergeResult.CONFLICTS):
-                logging.debug('Skipping expiry for package %s: result=%s',
+                logger.debug('Skipping expiry for package %s: result=%s',
                         source['Package'], report['result'])
                 continue
 
             if base is None:
                 # If there's no suitable base for merges, we don't
                 # automatically expire any versions.
-                logging.debug('Skipping expiry for package %s: '
+                logger.debug('Skipping expiry for package %s: '
                         'no base version found (result=%s)',
                         source['Package'], report['result'])
                 continue
 
-            logging.debug("%s %s", source["Package"], source["Version"])
-            logging.debug("base is %s", base)
+            logger.debug("%s %s", source["Package"], source["Version"])
+            logger.debug("base is %s", base)
 
             for distro in distros:
                 if DISTROS[distro]["expire"]:
@@ -95,10 +96,10 @@ def expire_pool_sources(distro, component, package, base):
         else:
             if base == source["Version"]:
                 base_found = True
-                logging.info("Leaving %s %s %s (is base)", distro, package,
+                logger.info("Leaving %s %s %s (is base)", distro, package,
                              source["Version"])
             else:
-                logging.info("Leaving %s %s %s (is newer)", distro, package,
+                logger.info("Leaving %s %s %s (is newer)", distro, package,
                              source["Version"])
 
             keep.append(source)
@@ -107,7 +108,7 @@ def expire_pool_sources(distro, component, package, base):
     if not base_found and len(bases):
         version_sort(bases)
         source = bases.pop()
-        logging.info("Leaving %s %s %s (is newest before base)",
+        logger.info("Leaving %s %s %s (is newest before base)",
                      distro, package, source["Version"])
 
         keep.append(source)
@@ -122,15 +123,15 @@ def expire_pool_sources(distro, component, package, base):
     # Expire the older packages
     need_update = False
     for source in bases:
-        logging.info("Expiring %s %s %s", distro, package, source["Version"])
+        logger.info("Expiring %s %s %s", distro, package, source["Version"])
 
         for md5sum, size, name in files(source):
             if name in keep_files:
-                logging.debug("Not removing %s/%s", pooldir, name)
+                logger.debug("Not removing %s/%s", pooldir, name)
                 continue
 
             tree.remove("%s/%s/%s" % (ROOT, pooldir, name))
-            logging.debug("Removed %s/%s", pooldir, name)
+            logger.debug("Removed %s/%s", pooldir, name)
             need_update = True
 
 

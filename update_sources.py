@@ -26,18 +26,22 @@ import model.error
 import logging
 from util import run
 
+logger = logging.getLogger('update_sources')
+
 def main(options, args):
+    logger.info('Updating source packages in target and source distros...')
+
     upstreamSources = []
     packages = []
     for target in config.targets(args):
-      logging.info("Updating sources for %s", target)
+      logger.info("Updating sources for %s", target)
       d = target.distro
       d.updateSources(target.dist, target.component)
       for upstreamList in target.getAllSourceLists():
         for source in upstreamList:
           if source not in upstreamSources:
             for component in source.distro.components():
-              logging.info("Updating upstream sources for %s/%s", source, component)
+              logger.info("Updating upstream sources for %s/%s", source, component)
               source.distro.updateSources(source.dist, component)
             upstreamSources.append(source)
       for package in target.distro.packages(target.dist, target.component):
@@ -53,15 +57,15 @@ def main(options, args):
                 if upstreamPkg.package not in packages:
                   packages.append(upstreamPkg.package)
             except model.error.PackageNotFound:
-              logging.debug("%s not found in %s, skipping.", package, source)
+              logger.debug("%s not found in %s, skipping.", package, source)
               pass
 
-    logging.info("%d packages considered for updating", len(packages))
+    logger.info("%d packages considered for updating", len(packages))
     for pkg in packages:
-      logging.info("Updating %s", pkg)
+      logger.info("Updating %s", pkg)
       pkg.updatePool()
       pkg.updatePoolSource()
-      logging.info("Updated %s to %s", pkg, pkg.newestVersion())
+      logger.info("Updated %s to %s", pkg, pkg.newestVersion())
 
 if __name__ == "__main__":
     run(main, usage="%prog [DISTRO...]",

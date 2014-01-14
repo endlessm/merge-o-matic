@@ -31,7 +31,11 @@ def options(parser):
                       default=None,
                       help="Process only this distribution target")
 
+logger = logging.getLogger('generate_diffs')
+
 def main(options, args):
+    logger.info('Comparing current and previous versions in source distros...')
+
     # For latest version of each package in the given distributions, iterate the pool in order
     # and generate a diff from the previous version and a changes file
     for target in config.targets(args):
@@ -40,12 +44,12 @@ def main(options, args):
         if options.package and source['Package'] not in options.package:
           continue
         if source['Package'] in target.blacklist:
-          logging.debug("%s is blacklisted, skipping", source['Package'])
+          logger.debug("%s is blacklisted, skipping", source['Package'])
           continue
         try:
           pkg = d.package(target.dist, target.component, source['Package'])
         except model.error.PackageNotFound, e:
-          logging.exception("Spooky stuff going on with %s.", d)
+          logger.exception("Spooky stuff going on with %s.", d)
           continue
         sources = pkg.getSources()
         version_sort(sources)
@@ -56,9 +60,9 @@ def main(options, args):
             try:
               generate_diff(last, version)
             except model.error.PackageNotFound:
-              logging.exception("Could not find a package to diff against.")
+              logger.exception("Could not find a package to diff against.")
             except ValueError:
-              logging.exception("Could not find a .dsc file, perhaps it moved components?")
+              logger.exception("Could not find a .dsc file, perhaps it moved components?")
             finally:
               if last is not None:
                 cleanup_source(last.getSources())
@@ -79,18 +83,18 @@ def generate_diff(last, this):
         try:
           unpack_source(this)
         except ValueError:
-          logging.exception("Couldn't unpack %s.", this)
+          logger.exception("Couldn't unpack %s.", this)
           return
         try:
             save_changes_file(changes_filename, this.getSources(),
                 last.getSources())
-            logging.info("Saved changes file: %s",
+            logger.info("Saved changes file: %s",
                           tree.subdir(ROOT, changes_filename))
         except (ValueError, OSError):
-            logging.error("dpkg-genchanges for %s failed",
+            logger.error("dpkg-genchanges for %s failed",
                           tree.subdir(ROOT, changes_filename))
 
-    logging.debug("Producing diff from %s to %s", this, last)
+    logger.debug("Producing diff from %s to %s", this, last)
     diff_filename = diff_file(this.package.distro.name, this.getSources())
     if not os.path.isfile(diff_filename) \
             and not os.path.isfile(diff_filename + ".bz2"):
@@ -98,7 +102,7 @@ def generate_diff(last, this):
         unpack_source(last)
         save_patch_file(diff_filename, last.getSources(), this.getSources())
         save_basis(diff_filename, last.getSources()["Version"])
-        logging.info("Saved diff file: %s", tree.subdir(ROOT, diff_filename))
+        logger.info("Saved diff file: %s", tree.subdir(ROOT, diff_filename))
 
 
 if __name__ == "__main__":

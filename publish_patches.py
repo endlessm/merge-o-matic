@@ -24,6 +24,7 @@ from momlib import *
 from util import tree, run
 from model import Distro
 
+logger = logging.getLogger('publish_patches')
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -31,6 +32,8 @@ def options(parser):
                       help="Distribution target to publish patches for")
 
 def main(options, args):
+    logger.info('Comparing target packages with source distros...')
+
     if options.target:
         targets = [options.target]
     else:
@@ -80,7 +83,7 @@ def publish_patch(distro, source, filename, list_file):
         os.unlink(publish_filename)
     os.link(filename, publish_filename)
 
-    logging.info("Published %s", tree.subdir(ROOT, publish_filename))
+    logger.info("Published %s", tree.subdir(ROOT, publish_filename))
     print >>list_file, "%s %s" % (source["Package"],
                                   tree.subdir("%s/published" % ROOT,
                                               publish_filename))
@@ -106,7 +109,7 @@ def publish_patch(distro, source, filename, list_file):
             src_filename = "%s/%s" % (dpatch_dir, dpatch)
             dest_filename = "%s/%s" % (output, dpatch)
 
-            logging.info("Published %s", tree.subdir(ROOT, dest_filename))
+            logger.info("Published %s", tree.subdir(ROOT, dest_filename))
             tree.ensure(dest_filename)
             tree.copyfile(src_filename, dest_filename)
 

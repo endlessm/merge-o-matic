@@ -8,6 +8,8 @@ import error
 from deb.version import Version
 import config
 
+logger = logging.getLogger('model.debian')
+
 class DebianDistro(Distro):
   """An ordinary Debian derivative, with no OBS integration."""
 

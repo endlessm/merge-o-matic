@@ -26,6 +26,7 @@ from model import Distro
 import model.error
 import config
 
+logger = logging.getLogger('generate_dpatches')
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -33,19 +34,21 @@ def options(parser):
                       help="Process only this distribution target")
 
 def main(options, args):
+    logger.info('Extracting debian/patches from packages...')
+
     for target in config.targets(args):
       d = target.distro
       for source in d.newestSources(target.dist, target.component):
         if options.package and source['Package'] not in options.package:
           continue
         if source['Package'] in target.blacklist:
-          logging.debug("%s is blacklisted,skipping", source['Package'])
+          logger.debug("%s is blacklisted,skipping", source['Package'])
           continue
         try:
           pkg = d.package(target.dist, target.component,
               source['Package'])
         except model.error.PackageNotFound, e:
-          logging.exception("FIXME: Spooky stuff going on with %s.", d)
+          logger.exception("FIXME: Spooky stuff going on with %s.", d)
           continue
         sources = pkg.getSources()
         version_sort(sources)
@@ -53,12 +56,12 @@ def main(options, args):
           try:
             generate_dpatch(d.name, source, pkg.newestVersion())
           except model.error.PackageNotFound:
-            logging.exception("Could not find %s/%s for unpacking. How odd.",
+            logger.exception("Could not find %s/%s for unpacking. How odd.",
                 pkg, source['Version'])
 
 def generate_dpatch(distro, source, pkg):
     """Generate the extracted patches."""
-    logging.debug("%s: %s %s", distro, pkg, source["Version"])
+    logger.debug("%s: %s %s", distro, pkg, source["Version"])
 
     stamp = "%s/%s/dpatch-stamp-%s" \
         % (ROOT, pkg.poolDirectory(), source["Version"])
@@ -69,11 +72,11 @@ def generate_dpatch(distro, source, pkg):
         try:
             unpack_source(pkg)
         except ValueError:
-            logging.exception("Could not unpack %s!", pkg)
+            logger.exception("Could not unpack %s!", pkg)
         try:
             dirname = dpatch_directory(distro, source)
             extract_dpatches(dirname, source)
-            logging.info("Saved dpatches: %s", tree.subdir(ROOT, dirname))
+            logger.info("Saved dpatches: %s", tree.subdir(ROOT, dirname))
         finally:
             cleanup_source(source)
 
@@ -83,7 +86,7 @@ def extract_dpatches(dirname, source):
     patchdir = "%s/debian/patches" % srcdir
 
     if not os.path.isdir(patchdir):
-        logging.debug("No debian/patches")
+        logger.debug("No debian/patches")
         return
 
     for patch in tree.walk(patchdir):
@@ -93,7 +96,7 @@ def extract_dpatches(dirname, source):
         elif not len(patch):
             continue
 
-        logging.debug("%s", patch)
+        logger.debug("%s", patch)
         src_filename = "%s/%s" % (patchdir, patch)
         dest_filename = "%s/%s" % (dirname, patch)
 
