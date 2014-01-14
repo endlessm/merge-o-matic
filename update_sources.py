@@ -94,7 +94,7 @@ def main(options, args):
       pkg.updatePoolSource()
       logger.info("Available versions of %s/*/%s/%s:",
           pkg.distro, pkg.component, pkg.name)
-      for pv in sorted(pkg.versions()):
+      for pv in sorted(pkg.poolVersions()):
         logger.info('- %s', pv.version)
 
 if __name__ == "__main__":

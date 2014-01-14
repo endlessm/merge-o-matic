@@ -56,7 +56,7 @@ def main(options, args):
 
         last = None
         try:
-          for version in pkg.versions():
+          for version in pkg.poolVersions():
             try:
               generate_diff(last, version)
             except model.error.PackageNotFound:

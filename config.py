@@ -283,12 +283,12 @@ class Target(object):
         try:
           for pkg in  src.distro.findPackage(version.package.name,
               searchDist=src.dist):
-            for v in pkg.package.versions():
+            for v in pkg.package.poolVersions():
               if v not in sources:
                 sources.append(v)
         except model.error.PackageNotFound:
           pass
-    for v in version.package.versions():
+    for v in version.package.poolVersions():
       if v not in sources:
         sources.append(v)
     bases = []

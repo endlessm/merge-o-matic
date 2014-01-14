@@ -163,7 +163,7 @@ class Distro(object):
           pkg = self.package(dist, component, name)
         except error.PackageNotFound:
           continue
-        for v in pkg.versions():
+        for v in pkg.currentVersions():
           if version and v.version != version:
             continue
           ret.append(v)
@@ -354,13 +354,6 @@ class Package(object):
     matches.sort(key=lambda x:Version(x['Version']))
     return matches
 
-  def version(self, version):
-    for v in self.versions():
-      if v.version == version:
-        return v
-    raise error.PackageVersionNotFound(self, version)
-    
-
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):
     """Merge PackageVersion instances @ours (left) and @upstream (right) using
@@ -382,18 +375,24 @@ class Package(object):
     """
     self.distro.updatePool(self.dist, self.component, self.name)
 
-  def versions(self):
-    """Return all available versions of this package, including versions
-    now available from self.distro, and all versions which were
-    downloaded into the pool in previous runs (possibly from another
-    suite). They are in no particular order.
-
-    For up-to-date results, call updatePoolSource() first.
+  def currentVersions(self):
+    """Return all available versions of this package in self.distro.
+    They are in no particular order.
     """
     versions = []
     for s in self.distro.getSources(self.dist, self.component):
       if s['Package'] == self.name:
         versions.append(PackageVersion(self, Version(s['Version'])))
+    return versions
+
+  def poolVersions(self):
+    """Return all available versions of this package that were downloaded
+    into the pool in this or a previous run (possibly from another
+    suite). They are in no particular order.
+
+    For up-to-date results, call updatePoolSource() first.
+    """
+    versions = []
     try:
       sources = self.getSources()
     except:
@@ -403,12 +402,9 @@ class Package(object):
     return versions
 
   def newestVersion(self):
-    """Return the newest version of this package, either in self.distro
-    or downloaded from this or any other distro.
-
-    For up-to-date results, call updatePoolSource() first.
+    """Return the newest version of this package in self.distro.
     """
-    versions = self.versions()
+    versions = self.currentVersions()
     newest = versions[0]
     for v in versions:
       if v > newest:
