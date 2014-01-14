@@ -174,8 +174,9 @@ def main(options, args):
               except xml.etree.cElementTree.ParseError:
                 logger.exception("Failed to commit %s", branchPkg)
                 update_report(report, output_dir, False, "OBS API Error")
-              except urllib2.HTTPError:
-                logger.exception("Failed to commit %s", branchPkg)
+              except urllib2.HTTPError as e:
+                logger.exception("Failed to commit %s: HTTP error %s at <%s>:",
+                    branchPkg, e.code, e.geturl())
                 update_report(report, output_dir, False, "http error")
           else:
             logger.info("Not committing, due to --dry-run")
