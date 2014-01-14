@@ -1,4 +1,4 @@
-merge-o-matic (2014.01.14.1~smcv1) UNRELEASED; urgency=medium
+merge-o-matic (2014.01.14.1) unstable; urgency=low
 
   * Improve logging and error handling
   * Remove more unused functions
@@ -6,6 +6,7 @@ merge-o-matic (2014.01.14.1~smcv1) UNRELEASED; urgency=medium
     avoiding crash if it's outdated (SIN: #425)
   * model.obs: require Debian source package name = OBS package name,
     again avoiding potential crashes caused by the cache of OBS info
+    - don't crash if unable to get list of OBS packages (mitigates SIN: #429)
   * expire_pool: be a bit more object-oriented
   * momsettings: drop unused variable RSS_TIME_FORMAT
   * momlib: get globals from config, not directly from momsettings
