@@ -42,6 +42,7 @@ import osc.conf
 from cgi import escape
 from optparse import OptionParser
 
+import config
 from deb.controlfile import ControlFile
 from deb.version import Version
 from util import shell, tree, pathhash
@@ -54,10 +55,13 @@ try:
 except ImportError:
     from elementtree import ElementTree
 
-MOM_CONFIG_PATH = "/etc/merge-o-matic"
-sys.path.insert(1, MOM_CONFIG_PATH)
-from momsettings import *
-sys.path.remove(MOM_CONFIG_PATH)
+ROOT = config.get('ROOT')
+MOM_URL = config.get('MOM_URL')
+MOM_NAME = config.get('MOM_NAME')
+MOM_EMAIL = config.get('MOM_EMAIL')
+DISTROS = config.get('DISTROS')
+DISTRO_SOURCES = config.get('DISTRO_SOURCES')
+DISTRO_TARGETS = config.get('DISTRO_TARGETS')
 
 logger = logging.getLogger('momlib')
 
