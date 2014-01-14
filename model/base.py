@@ -100,6 +100,13 @@ class Distro(object):
     @param component a component (archive area) such as "main" or "contrib"
     @param package a source package name, or None to download all of them
     """
+    if package is None:
+      logger.debug('Downloading all packages from %s/%s/%s into %s pool',
+          self, dist, component, self)
+    else:
+      logger.debug('Downloading package "%s" from %s/%s/%s into %s pool',
+          package, self, dist, component, self)
+
     mirror = self.mirrorURL(dist, component)
     sources = self.getSources(dist, component)
     for source in sources:
