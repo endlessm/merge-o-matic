@@ -324,9 +324,18 @@ class Package(object):
     pass
 
   def sourcesFile(self):
+    """Return the absolute filename of a Sources file listing every
+    version of this (distro, component, package) tuple in the pool.
+
+    This may include out-of-date versions that are no longer in the
+    distro, or versions from a different suite (distribution).
+    """
     return '%s/%s/Sources'%(config.get('ROOT'), self.poolDirectory())
 
   def getSources(self):
+    """Return the parsed stanzas of sourcesFile(). The same caveats
+    apply.
+    """
     filename = self.sourcesFile()
     sources = ControlFile(filename, multi_para=True, signed=False)
     return sources.paras
@@ -334,7 +343,8 @@ class Package(object):
   def getPoolSources(self):
     """Return a list of Sources stanzas (dictionaries of the form
     { "Field": "value" }) describing versions of this package
-    available in self.distro, with the oldest version first.
+    available in (self.distro, self.dist, self.component), with
+    the oldest version first.
     """
     sources = self.distro.getSources(self.dist, self.component)
     matches = []
@@ -353,6 +363,10 @@ class Package(object):
 
   @staticmethod
   def merge(ours, upstream, base, output_dir, force=False):
+    """Merge PackageVersion instances @ours (left) and @upstream (right) using
+    the common ancestor PackageVersion @base, placing the result in
+    @output_dir.
+    """
     mergedVersion = Version(upstream.version()+"co1")
     base_version = Version(re.sub("build[0-9]+$", "", base.version()))
     left_version = Version(re.sub("build[0-9]+$", "", ours.version()))
@@ -363,8 +377,8 @@ class Package(object):
         tree.ensure("%s/%s" % (output_dir, "REPORT"))
 
   def updatePool(self):
-    """Download all available versions of this package from self.distro
-    into the pool.
+    """Download all available versions of this package from
+    (self.distro, self.dist, self.component) into the pool.
     """
     self.distro.updatePool(self.dist, self.component, self.name)
 
@@ -372,7 +386,7 @@ class Package(object):
     """Return all available versions of this package, including versions
     now available from self.distro, and all versions which were
     downloaded into the pool in previous runs (possibly from another
-    distro). They are in no particular order.
+    suite). They are in no particular order.
 
     For up-to-date results, call updatePoolSource() first.
     """
@@ -403,7 +417,7 @@ class Package(object):
 
   def updatePoolSource(self):
     """Update the Sources file listing all downloaded versions of this
-    package, if necessary.
+    package (regardless of suite or up-to-date status), if necessary.
     """
     pooldir = self.poolDirectory()
     filename = self.sourcesFile()
