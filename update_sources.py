@@ -20,7 +20,10 @@
 import sys
 import os
 
+import osc.core
+
 from model import Distro
+from model.obs import OBSDistro
 import config
 import model.error
 import logging
@@ -44,7 +47,10 @@ def main(options, args):
               logger.info("Updating upstream sources for %s/%s", source, component)
               source.distro.updateSources(source.dist, component)
             upstreamSources.append(source)
+
+      package_names = set()
       for package in target.distro.packages(target.dist, target.component):
+        package_names.add(package.name)
         if options.package and package.name not in options.package:
           continue
         packages.append(package)
@@ -59,6 +65,18 @@ def main(options, args):
             except model.error.PackageNotFound:
               logger.debug("%s not found in %s, skipping.", package, source)
               pass
+
+      if isinstance(d, OBSDistro):
+        project = d.obsProject(target.dist, target.component)
+        logger.debug('Checking packages in %s', project)
+        obs_packages = set(
+            osc.core.meta_get_packagelist(d.config('obs', 'url'),
+              project))
+        for p in package_names:
+          if p not in obs_packages:
+            logger.warning('Debian source package "%s" does not seem '
+                'to correspond to an OBS package. Please rename the OBS '
+                'package to match "Source" in the .dsc file', p)
 
     logger.info("%d packages considered for updating", len(packages))
     for pkg in packages:
