@@ -80,10 +80,22 @@ def main(options, args):
 
     logger.info("%d packages considered for updating", len(packages))
     for pkg in packages:
-      logger.info("Updating %s", pkg)
+      # updatePool and updatePoolSource ignore the suite (distribution)
+      # and work on the pool directory directly, so don't put the
+      # suite in the log messages: it's misleading.
+      #
+      # FIXME: if we track two suites, say raring and saucy, we could
+      # have both ubuntu/raring/main/hello and ubuntu/saucy/main/hello
+      # in @packages, resulting in us updating the ubuntu/*/main/hello
+      # pool directory twice. For the moment, we just live with it.
+      logger.info("Updating %s/*/%s/%s", pkg.distro, pkg.component,
+          pkg.name)
       pkg.updatePool()
       pkg.updatePoolSource()
-      logger.info("Updated %s to %s", pkg, pkg.newestVersion())
+      logger.info("Available versions of %s/*/%s/%s:",
+          pkg.distro, pkg.component, pkg.name)
+      for pv in sorted(pkg.versions()):
+        logger.info('- %s', pv.version)
 
 if __name__ == "__main__":
     run(main, usage="%prog [DISTRO...]",
