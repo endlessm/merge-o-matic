@@ -1,3 +1,23 @@
+merge-o-matic (2014.01.14.1~smcv1) UNRELEASED; urgency=medium
+
+  * Improve logging and error handling
+  * Remove more unused functions
+  * OBSPackage: get list of files "live" rather than relying on the cache,
+    avoiding crash if it's outdated (SIN: #425)
+  * model.obs: require Debian source package name = OBS package name,
+    again avoiding potential crashes caused by the cache of OBS info
+  * expire_pool: be a bit more object-oriented
+  * momsettings: drop unused variable RSS_TIME_FORMAT
+  * momlib: get globals from config, not directly from momsettings
+  * merge_report: there is no MergeReport.get method, so don't crash
+    trying to use it (SIN: #427)
+  * update_sources: make debug messages non-misleading
+  * Split Package.versions() into currentVersions() and poolVersions(),
+    avoiding merge with incorrect version if one target merges from a newer
+    upstream version than another (SIN: #426)
+
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Tue, 14 Jan 2014 18:06:08 +0000
+
 merge-o-matic (2014.01.10.1) unstable; urgency=low
 
   * Read and write merge reports using JSON (SIN: #392)
