@@ -47,16 +47,6 @@ class OBSDistro(Distro):
     """
     return '/'.join((config.get("ROOT"), 'osc', self.name))
 
-  def branchPackage(self, packageName):
-    """Branch a package in OBS.
-
-    This may only be called on an OBSDistro branched via OBSDistro.branch().
-    """
-    assert(not(self.parent is None))
-    exists, targetprj, targetpkg, srcprj, srcpkg = \
-      osccore.branch_pkg(self.config("obs", "url"), self.parent.obsProject(dist, component), \
-        packageName, target_project=self.obsProject(dist, component))
-
   def checkout(self, dist, component, packages=[]):
     """
     @param dist a release codename like "precise"
