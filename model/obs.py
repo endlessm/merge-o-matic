@@ -98,8 +98,10 @@ class OBSDistro(Distro):
       logger.info("Updating %s", package)
       pkgDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName))
       if not path.isdir('/'.join((pkgDir, '.osc'))):
+        logger.debug("checking out %s into %s (.osc not found)", package, pkgDir)
         osccore.checkout_package(self.config("obs", "url"), self.obsProject(dist, component), package.obsName, prj_dir='/'.join((self.oscDirectory(), self.obsProject(dist, component))))
       else:
+        logger.debug("updating %s in %s (.osc found)", package, pkgDir)
         try:
           p = osccore.Package(pkgDir)
         except oscerr.WorkingCopyInconsistent:
@@ -126,8 +128,9 @@ class OBSDistro(Distro):
     try:
       logger.debug("Attempting checkout of %s/%s", self, packages)
       self.checkout(dist, component, packages)
-    except:
-      pass
+    except Exception:
+      logger.debug('Ignoring error checking out %s/%s:',
+          self, packages, exc_info=1)
     logger.debug("Attempting update of %s/%s", self, packages)
     self.update(dist, component, packages)
 
