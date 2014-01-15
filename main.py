@@ -23,6 +23,7 @@ import os.path
 import shutil
 import sys
 
+from momversion import VERSION
 from util import run
 import config
 import update_sources
@@ -48,7 +49,7 @@ def options(parser):
 logger = logging.getLogger('main')
 
 def main(options, args):
-    logger.info('starting Merge-o-Matic')
+    logger.info('starting Merge-o-Matic version %s', VERSION)
     logger.debug('options: %r', options)
     logger.debug('args: %r', args)
 

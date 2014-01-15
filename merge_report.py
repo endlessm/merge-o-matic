@@ -32,6 +32,7 @@ from deb.version import (Version)
 from model import (Distro, PackageVersion)
 from model.obs import (OBSDistro)
 from momlib import files
+from momversion import VERSION
 from util import tree
 
 logger = logging.getLogger('merge_report')
@@ -159,6 +160,7 @@ def _read_report_text(output_dir, filename, report):
 class MergeReport(object):
     __slots__ = (
             'source_package',
+            'mom_version',
             'merge_date',
             'result',
             'message',
@@ -588,6 +590,7 @@ def write_report(left, left_patch,
                 % (left_source["Version"], sa_arg)
 
     report = MergeReport(left=left, right=right, base=base)
+    report.mom_version = str(VERSION)
     report["merge_date"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
     if left_patch is not None:

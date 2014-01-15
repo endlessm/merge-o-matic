@@ -1,5 +1,5 @@
 PACKAGE_NAME = merge-o-matic
-VERSION = 2013.07.03
+VERSION ?= $(shell $(CURDIR)/get-version.sh)
 
 SHELL = /bin/bash
 PREFIX ?= /usr
@@ -81,6 +81,7 @@ install: $(all_files)
 		"$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	mkdir -p "$(DESTDIR)"/etc/merge-o-matic
 	install -m 0644 momsettings.py "$(DESTDIR)"/etc/merge-o-matic
+	echo "VERSION = '$(VERSION)'" > "$(DESTDIR)$(PREFIX)/$(LIBDIR)/merge-o-matic/momversion.py"
 
 dist: $(PACKAGE_NAME)-$(VERSION).tar.bz2
 
