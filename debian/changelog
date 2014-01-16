@@ -1,3 +1,16 @@
+merge-o-matic (2014.01.16) unstable; urgency=medium
+
+  * Include MoM version in the log and merge reports (SIN: #435)
+  * OBSPackage: force obsName to be an 8-bit string,
+    fixing failure to commit to OBS (partially fixes SIN: #419)
+  * notify_action_needed: describe whether the package was committed
+    (SIN: #434)
+  * notify_action_needed: give some hints about how to deal with missing bases
+    (SIN: #432)
+  * OBSDistro: merge sync, update and checkout into one "sync" method
+
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Thu, 16 Jan 2014 19:10:55 +0000
+
 merge-o-matic (2014.01.14.1) unstable; urgency=low
 
   * Improve logging and error handling
