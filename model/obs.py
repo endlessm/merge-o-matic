@@ -185,7 +185,8 @@ class OBSPackage(Package):
     """Return the name of this package in OBS. This is currently assumed
     to be the same as its Debian package name.
     """
-    return self.name
+    # self.name sometimes ends up as a unicode object, which confuses urllib2
+    return str(self.name)
 
   def getOBSFiles(self):
     """Return the filenames of this package's .dsc file and
