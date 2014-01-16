@@ -238,6 +238,41 @@ class OBSPackage(Package):
 
   def branch(self, projectBranch):
     branch = self.distro.branch(projectBranch)
-    osccore.branch_pkg(self.distro.config('obs', 'url'), self.distro.obsProject(self.dist,self.component), self.obsName, target_project=branch.obsProject(self.dist, self.component), nodevelproject=False, msg='Branch for %s'%(str(self)), force=False, return_existing=True)
+    logger.info('Branching %r/%s as %r/%s', self.distro, self.name,
+        branch, self.name)
+
+    obsURL = self.distro.config('obs', 'url')
+    obsProject = self.distro.obsProject(self.dist,self.component)
+    targetProject = branch.obsProject(self.dist, self.component)
+
+    logger.debug('- OBS URL: %r', obsURL)
+    logger.debug('- Source OBS project: %r', obsProject)
+    logger.debug('- Source OBS package: %r', self.obsName)
+    logger.debug('- Target OBS project: %r', targetProject)
+    logger.debug('- Message: %r', 'Branch for %s' % (str(self)))
+
+    result = osccore.branch_pkg(obsURL, obsProject, self.obsName,
+      target_project=targetProject, nodevelproject=False,
+      msg='Branch for %s'%(str(self)), force=False, return_existing=True)
+
+    if result[0]:
+      logger.debug('Branched package already exists')
+    else:
+      logger.debug('Branched package was created')
+
+    if (result[1] != targetProject or
+        result[2] != self.obsName or
+        result[3] not in (None, obsProject) or
+        result[4] not in (None, self.obsName)):
+      logger.warning("Unexpected result from branch_pkg:")
+      logger.warning("- expected source project: %r or None", obsProject)
+      logger.warning("- result's source project: %r", result[3])
+      logger.warning("- expected source package: %r or None", self.obsName)
+      logger.warning("- result's source package: %r", result[4])
+      logger.warning("- expected target project: %r", targetProject)
+      logger.warning("- result's target project: %r", result[1])
+      logger.warning("- expected target package: %r", self.obsName)
+      logger.warning("- result's target package: %r", result[2])
+
     return branch.package(self.dist, self.component, self.name)
 
