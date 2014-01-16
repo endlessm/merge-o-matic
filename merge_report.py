@@ -193,6 +193,7 @@ class MergeReport(object):
             'conflicts',
             'genchanges',
             'committed',
+            'committed_to',
             'commit_detail',
             'obs_request_url',
             )

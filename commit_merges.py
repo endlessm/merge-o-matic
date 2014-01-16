@@ -91,10 +91,12 @@ def main(options, args):
           if not options.dry_run:
             try:
               package.commit('Automatic update by Merge-O-Matic')
-              pass
             except urllib2.HTTPError as e:
               logger.exception('Failed to commit %s: HTTP error %s at <%s>:',
                   package, e.code, e.geturl())
+            else:
+              update_report(report, output_dir, True,
+                      committed_to=d.obsProject(target.dist, target.component))
           continue
 
         # else we need to branch it and commit to the branch
@@ -168,8 +170,10 @@ def main(options, args):
                       branchPkg, branch, target)
               try:
                 branchPkg.commit('Automatic update by Merge-O-Matic')
-                reqid = branchPkg.submitMergeRequest(d.obsProject(target.dist, target.component), comment)
+                obs_project = d.obsProject(target.dist, target.component)
+                reqid = branchPkg.submitMergeRequest(obs_project, comment)
                 update_report(report, output_dir, True,
+                        committed_to=obs_project,
                         request_url=branchPkg.webMergeRequest(reqid))
               except xml.etree.cElementTree.ParseError:
                 logger.exception("Failed to commit %s", branchPkg)
@@ -189,10 +193,11 @@ def main(options, args):
           logger.exception('Failed to branch %s:', package)
 
 def update_report(report, output_dir, committed, message=None,
-        request_url=None):
+        request_url=None, committed_to=None):
   report.committed = committed
   report.commit_detail = message
   report.obs_request_url = request_url
+  report.committed_to = committed_to
   report.write_report(output_dir)
 
   with open("%s/REPORT" % output_dir, "a") as r:
