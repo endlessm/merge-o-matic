@@ -94,6 +94,13 @@ def main(options, args):
             except urllib2.HTTPError as e:
               logger.exception('Failed to commit %s: HTTP error %s at <%s>:',
                   package, e.code, e.geturl())
+              update_report(report, output_dir, False,
+                  "HTTP error %s" % e.code)
+            except Exception as e:
+              logger.exception('Failed to commit %s:', package)
+              # deliberately rather vague, as below
+              update_report(report, output_dir, False,
+                  "%s" % e.__class__.__name__)
             else:
               update_report(report, output_dir, True,
                       committed_to=d.obsProject(target.dist, target.component))
@@ -181,16 +188,29 @@ def main(options, args):
               except urllib2.HTTPError as e:
                 logger.exception("Failed to commit %s: HTTP error %s at <%s>:",
                     branchPkg, e.code, e.geturl())
-                update_report(report, output_dir, False, "http error")
+                update_report(report, output_dir, False,
+                    "HTTP error %s" % e.code)
+              except Exception as e:
+                logger.exception("Failed to commit %s", branchPkg)
+                # deliberately being a bit vague here in case the exact
+                # exception leaks internal info
+                update_report(report, output_dir, False,
+                    "%s" % e.__class__.__name__)
           else:
             logger.info("Not committing, due to --dry-run")
 
         except urllib2.HTTPError as e:
           logger.exception('Failed to branch %s: HTTP error %s at <%s>:',
               package, e.code, e.geturl())
+          update_report(report, output_dir, False,
+              "Failed to branch: HTTP error %s" % e.code)
 
         except Exception as e:
           logger.exception('Failed to branch %s:', package)
+          # deliberately being a bit vague here in case the exact
+          # exception leaks internal info
+          update_report(report, output_dir, False,
+              "Failed to branch: %s" % e.__class__.__name__)
 
 def update_report(report, output_dir, committed, message=None,
         request_url=None, committed_to=None):
