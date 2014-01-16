@@ -133,6 +133,20 @@ Their version in %s:%s:%s: %s
 OBS submit request for the proposed version:
     %s
 """ % report.obs_request_url)
+    elif report.committed:
+        text = (text + """
+This package was successfully committed to %s/%s.
+""" % (report.committed_to, report.obs_package))
+    elif report.commit_detail:
+        text = (text + """
+A commit to OBS was attempted, but it appears to have failed:
+    %s
+The merge-o-matic log file might have more details.
+""" % report.commit_detail)
+    else:
+        text = (text + """
+This package was not committed to OBS.
+""")
 
     if report.merged_patch is not None:
         text = (text + """
