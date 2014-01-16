@@ -47,25 +47,6 @@ class OBSDistro(Distro):
     """
     return '/'.join((config.get("ROOT"), 'osc', self.name))
 
-  def checkout(self, dist, component, packages=[]):
-    """
-    @param dist a release codename like "precise"
-    @param component a component (archive area) like "universe"
-    @param packages a list of packages, or the empty list to act on
-    all known packages
-    """
-    if path.isdir('/'.join((self.oscDirectory(), '.osc'))):
-      return
-    osccore.Project.init_project(self.config("obs", "url"), self.oscDirectory(), self.obsProject(dist, component))
-    if len(packages) == 0:
-      packages = self.packages(dist, component)
-
-    for package in packages:
-      logger.info("Checking out %s", package)
-      if not path.isdir('/'.join((self.oscDirectory(), package, '.osc'))):
-        osccore.checkout_package(self.config("obs", "url"), self.obsProject(dist, component), package, prj_dir='/'.join((self.oscDirectory(), self.obsProject(dist, component))))
-        self._validateCheckout(dist, component, package)
-
   def _validateCheckout(self, dist, component, package):
     oscDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName, '.osc'))
     pkg = osccore.Package(oscDir+'/../')
@@ -85,17 +66,19 @@ class OBSDistro(Distro):
       else:
         break
 
-  def update(self, dist, component, packages=[]):
+  def sync(self, dist, component, packages=[]):
     """
+    Check out and/or update each package into osc/PROJECT/NAME.
+
     @param dist a release codename like "precise"
     @param component a component (archive area) like "universe"
-    @param packages a list of packages, or the empty list to act on
+    @param packages a list of OBSPackage, or the empty list to act on
     all known packages
     """
     if len(packages) == 0:
       packages = self.packages(dist, component)
     for package in packages:
-      logger.info("Updating %s", package)
+      logger.info("Checking out/updating %s", package)
       pkgDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName))
       if not path.isdir('/'.join((pkgDir, '.osc'))):
         logger.debug("checking out %s into %s (.osc not found)", package, pkgDir)
@@ -117,22 +100,6 @@ class OBSDistro(Distro):
         except:
           logger.exception("Couldn't update %s.", package)
       self._validateCheckout(dist, component, package)
-
-  def sync(self, dist, component, packages=[]):
-    """
-    @param dist a release codename like "precise"
-    @param component a component (archive area) like "universe"
-    @param packages a list of packages, or the empty list to act on
-    all known packages
-    """
-    try:
-      logger.debug("Attempting checkout of %s/%s", self, packages)
-      self.checkout(dist, component, packages)
-    except Exception:
-      logger.debug('Ignoring error checking out %s/%s:',
-          self, packages, exc_info=1)
-    logger.debug("Attempting update of %s/%s", self, packages)
-    self.update(dist, component, packages)
 
   def package(self, dist, component, name):
     try:
