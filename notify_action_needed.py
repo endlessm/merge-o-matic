@@ -107,13 +107,32 @@ The version in the source distribution supersedes our version.
 Please check that it's OK to update to the newer version.
 """)
 
-    if report.bases_not_found and report.result != MergeResult.NO_BASE:
-        text = (text + """\
+    if report.bases_not_found:
+        if report.result == MergeResult.NO_BASE:
+            text = (text + """\
+The most recent common ancestor was:""")
+        else:
+            text = (text + """
 The packages' most recent common ancestor could not be found. This merge
 was based on an older common ancestor, but you might get a better-quality
-automatic merge if you import this version into the package pool:
-    %s
-""" % report.bases_not_found[0])
+automatic merge if you import this version into the package pool:""")
+
+        text += ("""
+    %(base_not_found)s
+If that version was in Debian or Ubuntu, you might be able to get it from:
+    http://snapshot.debian.org/package/%(source_package)s/
+    https://launchpad.net/ubuntu/+source/%(source_package)s
+See the "bases_not_found" list in the attached JSON report for some older
+versions that might also work.
+
+Download the source package with dget(1) or similar, and put it in:
+    %(right_pool_dir)s
+before the next merge-o-matic run.
+""" % {
+            'right_pool_dir': report.right_pool_dir,
+            'base_not_found': report.bases_not_found[0],
+            'source_package': report.source_package,
+        })
 
     text = (text + """
 Our version in %s: %s/%s
