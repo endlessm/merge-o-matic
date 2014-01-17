@@ -79,26 +79,39 @@ class OBSDistro(Distro):
       packages = self.packages(dist, component)
     for package in packages:
       logger.info("Checking out/updating %s", package)
-      pkgDir = '/'.join((self.oscDirectory(), self.obsProject(dist, component), package.obsName))
-      if not path.isdir('/'.join((pkgDir, '.osc'))):
-        logger.debug("checking out %s into %s (.osc not found)", package, pkgDir)
-        osccore.checkout_package(self.config("obs", "url"), self.obsProject(dist, component), package.obsName, prj_dir='/'.join((self.oscDirectory(), self.obsProject(dist, component))))
-      else:
+      apiurl = self.config("obs", "url")
+      project = self.obsProject(dist, component)
+      prjDir = '/'.join((self.oscDirectory(), project))
+      pkgDir = '/'.join((prjDir, package.obsName))
+
+      if path.isdir(pkgDir + '/.osc'):
         logger.debug("updating %s in %s (.osc found)", package, pkgDir)
         try:
           p = osccore.Package(pkgDir)
         except oscerr.WorkingCopyInconsistent:
           logger.warn("%s is inconsistent. Attempting to repair.", pkgDir)
           p = osccore.Package(pkgDir, wc_check=False)
-          p.wc_repair(self.config("obs", "url"))
+          p.wc_repair(apiurl)
+
         try:
           p.update()
-        except oscerr.PackageFileConflict, e:
-          logger.exception("%s already exists, but OBS can't recognize it.", pkgDir)
         except KeyboardInterrupt, e:
           raise e
         except:
-          logger.exception("Couldn't update %s.", package)
+          logger.warning("Couldn't update %s.", package, exc_info=True)
+          logger.info('Deleting %s and starting again...', pkgDir)
+          tree.rmtree(pkgDir)
+        else:
+          # no exception from update() => no need to redo the checkout
+          continue
+      else:
+        logger.debug("checking out %s into %s (.osc not found)", package, pkgDir)
+
+      # If .../.osc didn't exist, or if it existed but we decided it wasn't
+      # recoverable, check the package out
+      osccore.checkout_package(apiurl, project, package.obsName, prj_dir=prjDir)
+
+      # Perform a sanity check
       self._validateCheckout(dist, component, package)
 
   def package(self, dist, component, name):
