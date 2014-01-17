@@ -317,7 +317,7 @@ class Target(object):
 
   def _tryFetch(self, pkg, version):
     mirror = pkg.distro.mirrorURL(pkg.dist, pkg.component)
-    pooldir = pkg.getPoolSources()[0]['Directory']
+    pooldir = pkg.getCurrentSources()[0]['Directory']
     name = "%s_%s.dsc" % (pkg.name, version)
     url = "%s/%s/%s" % (mirror, pooldir, name)
     outfile = "%s/%s" % (pkg.poolDirectory(), name)

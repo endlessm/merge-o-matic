@@ -340,7 +340,7 @@ class Package(object):
     sources = ControlFile(filename, multi_para=True, signed=False)
     return sources.paras
 
-  def getPoolSources(self):
+  def getCurrentSources(self):
     """Return a list of Sources stanzas (dictionaries of the form
     { "Field": "value" }) describing versions of this package
     available in (self.distro, self.dist, self.component), with
