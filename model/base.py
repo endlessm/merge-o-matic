@@ -114,7 +114,7 @@ class Distro(object):
         continue
       sourcedir = source["Directory"]
 
-      pooldir = self.package(dist, component, source["Package"]).poolDirectory()
+      pooldir = PoolDirectory(self, component, source["Package"]).path
 
       for md5sum, size, name in files(source):
           url = "%s/%s/%s" % (mirror, sourcedir, name)
@@ -281,6 +281,90 @@ class Distro(object):
   def shouldExpire(self):
     return self.config('expire', default=False)
 
+class PoolDirectory(object):
+  def __init__(self, distro, component, package_name):
+    """Constructor
+
+    :param Distro distro: the relevant distro
+    :param str component: the component within the distro, e.g. "main"
+    :param str package_name: the name of a Debian source package
+    """
+    assert isinstance(distro, Distro), distro
+
+    self.distro = distro
+    self.component = component
+    self.package_name = package_name
+
+  @property
+  def path(self):
+    """Return something like 'pool/debian/main/libf/libfoo'"""
+    return "pool/%s/%s/%s" % (self.distro.poolName(self.component),
+        pathhash(self.package_name), self.package_name)
+
+  @property
+  def sourcesFilename(self):
+    """The absolute filename of the Sources file listing versions
+    of this package in this (distro, component), in any suite,
+    possibly including packages that are no longer referenced by
+    any suite.
+    """
+    return '%s/%s/Sources' % (config.get('ROOT'), self.path)
+
+  def __repr__(self):
+    """Return something like
+    <PoolDirectory 'pool/debian/main/libf/libfoo'>
+    """
+    return '<%s %r>' % (self.__class__.__name__, self.path)
+
+  def getSourceStanzas(self):
+    """Parse the Sources file for a package in the pool."""
+    return ControlFile(self.sourcesFilename,
+        multi_para=True, signed=False).paras
+
+  def updateSources(self):
+    pooldir = self.path
+    filename = self.sourcesFilename
+
+    tree.ensure(pooldir)
+    needsUpdate = False
+    if os.path.exists(filename):
+      sourceStat = os.stat(filename)
+
+      for f in tree.walk(pooldir):
+        s = os.stat('/'.join((pooldir, f)))
+        if s.st_mtime > sourceStat.st_mtime:
+          needsUpdate = True
+          break
+    else:
+      needsUpdate = True
+
+    if needsUpdate:
+      logger.debug("Updating %s", filename)
+      with open(filename, "w") as sources:
+        shell.run(("apt-ftparchive", "sources", pooldir),
+            chdir=config.get('ROOT'),
+            stdout=sources)
+
+  def getVersions(self):
+    """Return all available versions of this package that were downloaded
+    into the pool in this or a previous run (possibly from another
+    suite). They are in no particular order.
+
+    For up-to-date results, call updateSources() first.
+    """
+    # This doesn't return PackageVersion instances because PackageVersion
+    # has a Package, and Package has a known suite (dist), whereas
+    # this object is independent of suites. In practice, most callers
+    # will wrap the returned Versions in PackageVersions, but never mind...
+    versions = []
+    try:
+      sources = self.getSourceStanzas()
+    except:
+      return versions
+    for source in sources:
+      versions.append(Version(source['Version']))
+    return versions
+
 class Package(object):
   """A Debian source package in a distribution."""
 
@@ -314,31 +398,13 @@ class Package(object):
     return self.__unicode__()
 
   def poolDirectory(self):
-    """Return the relative path to the pool directory that will contain
+    """Return the pool directory that will contain
     this source package's files, e.g. "pool/debian/main/h/hello".
     """
-    dir = "%s/%s"%(pathhash(self.name), self.name)
-    return "pool/%s/%s/" % (self.distro.poolName(self.component), dir)
+    return PoolDirectory(self.distro, self.component, self.name)
 
   def commitMerge(self):
     pass
-
-  def sourcesFile(self):
-    """Return the absolute filename of a Sources file listing every
-    version of this (distro, component, package) tuple in the pool.
-
-    This may include out-of-date versions that are no longer in the
-    distro, or versions from a different suite (distribution).
-    """
-    return '%s/%s/Sources'%(config.get('ROOT'), self.poolDirectory())
-
-  def getSources(self):
-    """Return the parsed stanzas of sourcesFile(). The same caveats
-    apply.
-    """
-    filename = self.sourcesFile()
-    sources = ControlFile(filename, multi_para=True, signed=False)
-    return sources.paras
 
   def getCurrentSources(self):
     """Return a list of Sources stanzas (dictionaries of the form
@@ -385,22 +451,6 @@ class Package(object):
         versions.append(PackageVersion(self, Version(s['Version'])))
     return versions
 
-  def poolVersions(self):
-    """Return all available versions of this package that were downloaded
-    into the pool in this or a previous run (possibly from another
-    suite). They are in no particular order.
-
-    For up-to-date results, call updatePoolSource() first.
-    """
-    versions = []
-    try:
-      sources = self.getSources()
-    except:
-      return versions
-    for source in sources:
-      versions.append(PackageVersion(self, Version(source['Version'])))
-    return versions
-
   def newestVersion(self):
     """Return the newest version of this package in self.distro.
     """
@@ -411,31 +461,6 @@ class Package(object):
         newest = v
     return newest
 
-  def updatePoolSource(self):
-    """Update the Sources file listing all downloaded versions of this
-    package (regardless of suite or up-to-date status), if necessary.
-    """
-    pooldir = self.poolDirectory()
-    filename = self.sourcesFile()
-
-    tree.ensure(pooldir)
-    needsUpdate = False
-    if os.path.exists(filename):
-      sourceStat = os.stat(filename)
-      for f in tree.walk(pooldir):
-        s = os.stat('/'.join((pooldir,f)))
-        if s.st_mtime > sourceStat.st_mtime:
-          needsUpdate = True
-          break
-    else:
-      needsUpdate = True
-
-    if needsUpdate:
-      logger.debug("Updating %s", filename)
-      with open(filename, "w") as sources:
-        shell.run(("apt-ftparchive", "sources", pooldir), chdir=config.get('ROOT'),
-          stdout=sources)
- 
 class PackageVersion(object):
   """A pair (Package, Version)."""
 
@@ -462,7 +487,7 @@ class PackageVersion(object):
     """Return the Sources stanza for this version of this package
     as a dict of the form {"Field": "value"}, or raise PackageVersionNotFound.
     """
-    for s in self.package.getSources():
+    for s in self.poolDirectory().getSourceStanzas():
       if Version(s['Version']) == self.version:
         return s
     raise error.PackageVersionNotFound(self.package, self.version)

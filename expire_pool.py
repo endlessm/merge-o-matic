@@ -22,7 +22,7 @@ import logging
 from momlib import *
 from util import tree, run
 from merge_report import (read_report, MergeResult)
-from model import Distro
+from model.base import (Distro, PoolDirectory)
 
 logger = logging.getLogger('expire_pool')
 
@@ -80,10 +80,11 @@ def expire_pool_sources(distro, component, package, base):
     If the base doesn't exist, then the newest source that is older is also
     kept.
     """
-    pooldir = pool_directory(distro.name, component, package)
+    pooldir = PoolDirectory(distro, component, package)
     try:
-        sources = get_pool_sources(distro.name, package)
-    except IOError:
+        sources = pooldir.getSourceStanzas()
+    except:
+        logger.exception('unable to read Sources file from %s:', pooldir.path)
         return
 
     # Find sources older than the base, record the filenames of newer ones
@@ -127,11 +128,11 @@ def expire_pool_sources(distro, component, package, base):
 
         for md5sum, size, name in files(source):
             if name in keep_files:
-                logger.debug("Not removing %s/%s", pooldir, name)
+                logger.debug("Not removing %s/%s", pooldir.path, name)
                 continue
 
-            tree.remove("%s/%s/%s" % (ROOT, pooldir, name))
-            logger.debug("Removed %s/%s", pooldir, name)
+            tree.remove("%s/%s/%s" % (ROOT, pooldir.path, name))
+            logger.debug("Removed %s/%s", pooldir.path, name)
             need_update = True
 
 

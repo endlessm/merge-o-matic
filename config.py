@@ -283,14 +283,16 @@ class Target(object):
         try:
           for pkg in  src.distro.findPackage(version.package.name,
               searchDist=src.dist):
-            for v in pkg.package.poolVersions():
-              if v not in sources:
-                sources.append(v)
+            for v in pkg.package.poolDirectory().getVersions():
+              pv = model.PackageVersion(pkg.package, v)
+              if pv not in sources:
+                sources.append(pv)
         except model.error.PackageNotFound:
           pass
-    for v in version.package.poolVersions():
-      if v not in sources:
-        sources.append(v)
+    for v in version.package.poolDirectory().getVersions():
+      pv = model.PackageVersion(version.package, v)
+      if pv not in sources:
+        sources.append(pv)
     bases = []
     for source in sources:
       if base == source.version:
@@ -320,7 +322,8 @@ class Target(object):
     pooldir = pkg.getCurrentSources()[0]['Directory']
     name = "%s_%s.dsc" % (pkg.name, version)
     url = "%s/%s/%s" % (mirror, pooldir, name)
-    outfile = "%s/%s" % (pkg.poolDirectory(), name)
+    ourPoolDir = pkg.poolDirectory()
+    outfile = "%s/%s" % (ourPoolDir.path, name)
     logging.debug("Downloading %s to %s", url, outfile)
     try:
       self._getFile(url, outfile)
@@ -334,8 +337,9 @@ class Target(object):
       pass
     for md5sum, size, name in files(source.paras[0]):
       url = "%s/%s/%s" % (mirror, pooldir, name)
-      outfile = "%s/%s" % (pkg.poolDirectory(), name)
+      outfile = "%s/%s" % (ourPoolDir.path, name)
       self._getFile(url, outfile, size)
+    ourPoolDir.updateSources()
     return True
   
   def fetchMissingVersion(self, package, version):
@@ -345,7 +349,6 @@ class Target(object):
           for pkg in src.distro.findPackage(package.name, searchDist=src.dist,
                   version=version):
             if self._tryFetch(pkg.package, version):
-              pkg.package.updatePoolSource()
               return
         except model.error.PackageNotFound:
           logging.debug('%s/%s not found in %r', package.name, version,

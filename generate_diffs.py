@@ -22,9 +22,8 @@ import logging
 
 from momlib import *
 from util import tree, run
-from model import Distro
+from model.base import (Distro, PackageVersion)
 import config
-
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -51,14 +50,15 @@ def main(options, args):
         except model.error.PackageNotFound, e:
           logger.exception("Spooky stuff going on with %s.", d)
           continue
-        sources = pkg.getSources()
+        sources = pkg.poolDirectory().getSourceStanzas()
         version_sort(sources)
 
         last = None
         try:
-          for version in pkg.poolVersions():
+          for version in pkg.poolDirectory().getVersions():
+            pv = PackageVersion(pkg, version)
             try:
-              generate_diff(last, version)
+              generate_diff(last, pv)
             except model.error.PackageNotFound:
               logger.exception("Could not find a package to diff against.")
             except ValueError:
@@ -66,7 +66,7 @@ def main(options, args):
             finally:
               if last is not None:
                 cleanup_source(last.getSources())
-            last = version
+            last = pv
         finally:
           if last is not None:
             cleanup_source(last.getSources())

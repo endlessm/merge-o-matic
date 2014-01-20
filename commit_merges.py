@@ -130,7 +130,7 @@ def main(options, args):
                 try:
                   pkg = srcDistro.findPackage(package.name, searchDist=src.dist,
                       version=version)[0]
-                  pfx = pkg.poolDirectory()
+                  pfx = pkg.poolDirectory().path
                   break
                 except model.error.PackageNotFound:
                   pass

@@ -673,7 +673,7 @@ def copy_in(output_dir, pkgver):
     pkg = pkgver.package
 
     for md5sum, size, name in files(source):
-        src = "%s/%s/%s" % (ROOT, pkg.poolDirectory(), name)
+        src = "%s/%s/%s" % (ROOT, pkg.poolDirectory().path, name)
         dest = "%s/%s" % (output_dir, name)
         if os.path.isfile(dest):
             os.unlink(dest)

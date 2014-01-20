@@ -93,15 +93,6 @@ def md5sum(filename):
 # Location functions
 # --------------------------------------------------------------------------- #
 
-def pool_directory(distro, component, package):
-    """Return the pool directory for a source"""
-    return "pool/%s/%s/%s/%s" % (pool_name(distro), component, pathhash(package), package)
-
-def pool_sources_file(distro, component, package):
-    """Return the location of a pool Sources file for a source."""
-    pooldir = pool_directory(distro, component, package)
-    return "%s/%s/Sources" % (ROOT, pooldir)
-
 def unpack_directory(source):
     """Return the location of a local unpacked source."""
     return "%s/unpacked/%s/%s/%s" % (ROOT, pathhash(source["Package"]),
@@ -162,38 +153,6 @@ def result_dir(target, package):
     return "%s/merges/%s/%s/%s" % (ROOT, target, pathhash(package), package)
 
 # --------------------------------------------------------------------------- #
-# Pool handling
-# --------------------------------------------------------------------------- #
-
-def pool_name(distro):
-    """Return the name of the pool for the given distro."""
-    if "pool" in DISTROS[distro]:
-        return DISTROS[distro]["pool"]
-    else:
-        return distro
-
-def get_pool_distros():
-    """Return the list of distros with pools."""
-    distros = []
-    for distro in DISTROS.keys():
-        pool = pool_name(distro)
-        if pool not in distros:
-            distros.append(pool)
-
-    return distros
-
-def get_pool_sources(distro, package):
-    """Parse the Sources file for a package in the pool."""
-    for component in DISTROS[distro]['components']:
-      try:
-        filename = pool_sources_file(distro, component, package)
-        sources = ControlFile(filename, multi_para=True, signed=False)
-        return sources.paras
-      except:
-        pass
-    return []
-
-# --------------------------------------------------------------------------- #
 # Source meta-data handling
 # --------------------------------------------------------------------------- #
 
@@ -237,7 +196,7 @@ def unpack_source(pv):
     if os.path.isdir(destdir):
         return destdir
 
-    srcdir = "%s/%s" % (ROOT, pv.poolDirectory())
+    srcdir = "%s/%s" % (ROOT, pv.poolDirectory().path)
     for md5sum, size, name in files(source):
         if name.endswith(".dsc"):
             dsc_file = name

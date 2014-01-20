@@ -50,7 +50,7 @@ def main(options, args):
         except model.error.PackageNotFound, e:
           logger.exception("FIXME: Spooky stuff going on with %s.", d)
           continue
-        sources = pkg.getSources()
+        sources = pkg.poolDirectory().getSourceStanzas()
         version_sort(sources)
         for source in sources:
           try:
@@ -64,7 +64,7 @@ def generate_dpatch(distro, source, pkg):
     logger.debug("%s: %s %s", distro, pkg, source["Version"])
 
     stamp = "%s/%s/dpatch-stamp-%s" \
-        % (ROOT, pkg.poolDirectory(), source["Version"])
+        % (ROOT, pkg.poolDirectory().path, source["Version"])
 
     if not os.path.isfile(stamp):
         open(stamp, "w").close()

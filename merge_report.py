@@ -221,7 +221,7 @@ class MergeReport(object):
             self.base_distro = base.package.distro.name
             self.base_suite = base.package.dist
             self.base_component = base.package.component
-            self.base_pool_dir = base.package.poolDirectory()
+            self.base_pool_dir = base.package.poolDirectory().path
             self.base_files = [f[2] for f in files(base.getSources())]
 
         if right is not None:
@@ -230,7 +230,7 @@ class MergeReport(object):
             self.right_suite = right.package.dist
             self.right_component = right.package.component
             self.right_version = right.version
-            self.right_pool_dir = right.package.poolDirectory()
+            self.right_pool_dir = right.package.poolDirectory().path
             self.right_files = [f[2] for f in files(right.getSources())]
 
         if left is not None:
@@ -239,7 +239,7 @@ class MergeReport(object):
             self.left_suite = left.package.dist
             self.left_component = left.package.component
             self.left_version = left.version
-            self.left_pool_dir = left.package.poolDirectory()
+            self.left_pool_dir = left.package.poolDirectory().path
             self.left_files = [f[2] for f in files(left.getSources())]
 
             if isinstance(left.package.distro, OBSDistro):
