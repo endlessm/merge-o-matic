@@ -135,6 +135,9 @@ def expire_pool_sources(distro, component, package, base):
             logger.debug("Removed %s/%s", pooldir.path, name)
             need_update = True
 
+    if need_update:
+        pooldir.updateSources()
+
 
 if __name__ == "__main__":
     run(main, usage="%prog [DISTRO...]",
