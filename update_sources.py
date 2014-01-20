@@ -108,8 +108,8 @@ def main(options, args):
       # pool directory twice. For the moment, we just live with it.
       pd = pkg.poolDirectory()
       logger.info("Updating %r from suite %s", pd, pkg.dist)
-      pkg.updatePool()
-      pd.updateSources()
+      if pkg.updatePool():
+        pd.updateSources()
       logger.info("Available versions in %r:", pd)
       for v in sorted(pd.getVersions()):
         logger.info('- %s', v)

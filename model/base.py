@@ -96,9 +96,12 @@ class Distro(object):
     """Populate the 'pool' directory by downloading Debian source packages
     from the given release and component.
 
-    @param dist a release codename such as "wheezy" or "precise"
-    @param component a component (archive area) such as "main" or "contrib"
-    @param package a source package name, or None to download all of them
+    :param str dist: a release codename such as "wheezy" or "precise"
+    :param str component: a component (archive area) such as "main" or "contrib"
+    :param package: a source package name, or None to download all of them
+    :type package: str or None
+    :return: True if anything actually changed, False otherwise
+    :rtype: bool
     """
     if package is None:
       logger.debug('Downloading all packages from %s/%s/%s into %s pool',
@@ -109,6 +112,9 @@ class Distro(object):
 
     mirror = self.mirrorURL(dist, component)
     sources = self.getSources(dist, component)
+
+    changed = False
+
     for source in sources:
       if package != source["Package"] and not (package is None):
         continue
@@ -126,6 +132,7 @@ class Distro(object):
                   continue
 
           logger.debug("Downloading %s", url)
+          changed = True
           tree.ensure(filename)
           try:
               urllib.URLopener().retrieve(url, filename)
@@ -133,6 +140,8 @@ class Distro(object):
               logger.error("Downloading %s failed", url)
               raise
           logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
+
+    return changed
 
   def findPackage(self, name, searchDist=None, searchComponent=None, version=None):
     """Return a list of the available versions of the given package
@@ -326,24 +335,11 @@ class PoolDirectory(object):
     filename = self.sourcesFilename
 
     tree.ensure(pooldir)
-    needsUpdate = False
-    if os.path.exists(filename):
-      sourceStat = os.stat(filename)
-
-      for f in tree.walk(pooldir):
-        s = os.stat('/'.join((pooldir, f)))
-        if s.st_mtime > sourceStat.st_mtime:
-          needsUpdate = True
-          break
-    else:
-      needsUpdate = True
-
-    if needsUpdate:
-      logger.debug("Updating %s", filename)
-      with open(filename, "w") as sources:
-        shell.run(("apt-ftparchive", "sources", pooldir),
-            chdir=config.get('ROOT'),
-            stdout=sources)
+    logger.debug("Updating %s", filename)
+    with open(filename, "w") as sources:
+      shell.run(("apt-ftparchive", "sources", pooldir),
+          chdir=config.get('ROOT'),
+          stdout=sources)
 
   def getVersions(self):
     """Return all available versions of this package that were downloaded
@@ -438,8 +434,11 @@ class Package(object):
   def updatePool(self):
     """Download all available versions of this package from
     (self.distro, self.dist, self.component) into the pool.
+
+    :return: True if the pool changed
+    :rtype: bool
     """
-    self.distro.updatePool(self.dist, self.component, self.name)
+    return self.distro.updatePool(self.dist, self.component, self.name)
 
   def currentVersions(self):
     """Return all available versions of this package in self.distro.
