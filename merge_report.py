@@ -412,7 +412,7 @@ class MergeReport(object):
             fh.write('\n')
         os.rename(filename + '.tmp', filename)
 
-def write_report(left, left_patch,
+def write_text_report(left, left_patch,
                  base, tried_bases,
                  right, right_patch,
                  merged_version, conflicts, src_file, patch_file, output_dir,
@@ -624,55 +624,25 @@ def write_report(left, left_patch,
             print >>report, "  $ dpkg-genchanges -S -v%s%s" \
                 % (left_source["Version"], sa_arg)
 
-    report = MergeReport(left=left, right=right, base=base)
-    report.mom_version = str(VERSION)
-    report["merge_date"] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+def write_report(report,
+                 left,
+                 base,
+                 right,
+                 src_file,
+                 output_dir,
+                 merged_dir):
 
-    if left_patch is not None:
-        report["left_patch"] = left_patch
-
-    if tried_bases:
-        report["bases_not_found"] = tried_bases
-
-    if right_patch is not None:
-        report["right_patch"] = right_patch
-
-    if merged_version is not None:
-        report["merged_version"] = merged_version
-
-    report["merged_dir"] = output_dir
-
-    if base is None:
-        report["result"] = MergeResult.NO_BASE
-
-    elif merged_is_right:
-        assert not conflicts
-        report["result"] = MergeResult.SYNC_THEIRS
-    elif src_file is None:
-        report["result"] = MergeResult.FAILED
-        report["merged_files"] = report["right_files"]
-        report["merged_dir"] = ""
-    elif src_file.endswith(".dsc"):
-        assert not conflicts
-        dsc = ControlFile("%s/%s" % (output_dir, src_file),
-                        multi_para=False, signed=True).para
-        report["result"] = MergeResult.MERGED
-        report["merged_files"] = [f[2] for f in files(dsc)]
-        report["build_metadata_changed"] = bool(build_metadata_changed)
-    else:
-        report["merge_failure_tarball"] = src_file
-
-        if conflicts:
-            report["result"] = MergeResult.CONFLICTS
-        else:
-            report["result"] = MergeResult.FAILED
-
-    if patch_file is not None:
-        report["merged_patch"] = patch_file
-
-    if conflicts:
-        report["conflicts"] = sorted(conflicts)
-
-    report["committed"] = False
+    write_text_report(
+            left, report.left_patch,
+            base, report.bases_not_found,
+            right, report.right_patch,
+            report.merged_version,
+            report.conflicts,
+            src_file,
+            report.merged_patch,
+            output_dir,
+            merged_dir,
+            (report.result == MergeResult.SYNC_THEIRS),
+            report.build_metadata_changed)
 
     report.write_report(output_dir)

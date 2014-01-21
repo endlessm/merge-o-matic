@@ -903,7 +903,7 @@ def produce_merge(target, left, upstream, output_dir):
   generate_patch(base, upstream.package.distro, upstream, slipped=False,
           force=False, unpacked=True)
 
-  merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
+  report.merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
 
   if base >= upstream:
     logger.info("Nothing to be done: %s >= %s", base, upstream)
@@ -912,20 +912,36 @@ def produce_merge(target, left, upstream, output_dir):
     report.write_report(output_dir)
     return
 
-  merged_dir = work_dir(left.package.name, merged_version)
+  # Careful: MergeReport.merged_dir is the output directory for the .dsc or
+  # tarball, whereas our local variable merged_dir (below) is a temporary
+  # directory containing unpacked source code. Don't mix them up.
+  report.merged_dir = output_dir
 
   if base.version == left.version:
     logger.info("Syncing %s to %s", left, upstream)
     cleanup(output_dir)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
-    right_patch = copy_in(output_dir, upstream)
-    write_report(left, None,
-        base, report.bases_not_found,
-        upstream, right_patch,
-        merged_version, None, None, right_patch,
-        output_dir, None, True, False)
+
+    report.result = MergeResult.SYNC_THEIRS
+    report.build_metadata_changed = False
+    report.right_patch = copy_in(output_dir, upstream)
+    report.merged_patch = report.right_patch
+    report.merged_files = report.right_files
+
+    write_report(report,
+        left=left,
+        base=base,
+        right=upstream,
+        src_file=None,
+        # this is MergeReport.merged_dir...
+        output_dir=output_dir,
+        # ... and for a SYNC_THEIRS merge, we don't need to look at the
+        # unpacked source code
+        merged_dir=None)
     return
+
+  merged_dir = work_dir(left.package.name, report.merged_version)
 
   logger.info("Merging %s..%s onto %s", upstream, base, left)
 
@@ -942,7 +958,7 @@ def produce_merge(target, left, upstream, output_dir):
     return
 
   try:
-    add_changelog(left.package.name, merged_version, left.package.distro.name, left.package.dist,
+    add_changelog(left.package.name, report.merged_version, left.package.distro.name, left.package.dist,
                   upstream.package.distro.name, upstream.package.dist, merged_dir)
   except IOError as e:
     logger.exception("Could not update changelog for %s!", left)
@@ -953,26 +969,39 @@ def produce_merge(target, left, upstream, output_dir):
   cleanup(output_dir)
   os.makedirs(output_dir)
   copy_in(output_dir, base)
-  left_patch = copy_in(output_dir, left)
-  right_patch = copy_in(output_dir, upstream)
-
-  patch_file = None
-  build_metadata_changed = False
+  report.left_patch = copy_in(output_dir, left)
+  report.right_patch = copy_in(output_dir, upstream)
+  report.build_metadata_changed = False
+  report.merged_dir = output_dir
 
   if len(conflicts):
-    src_file = create_tarball(left.package.name, merged_version, output_dir, merged_dir)
+    src_file = create_tarball(left.package.name, report.merged_version, output_dir, merged_dir)
+    report.result = MergeResult.CONFLICTS
+    report.conflicts = sorted(conflicts)
+    report.merge_failure_tarball = src_file
+    report.merged_dir = None
   else:
-    src_file = create_source(left.package.name, merged_version, left.version, output_dir, merged_dir)
+    src_file = create_source(left.package.name, report.merged_version, left.version, output_dir, merged_dir)
     if src_file.endswith(".dsc"):
-      build_metadata_changed = is_build_metadata_changed(left.getSources(), ControlFile("%s/%s" % (output_dir, src_file), signed=True).para)
-      patch_file = create_patch(left.package.name, merged_version,
+      report.result = MergeResult.MERGED
+      dsc = ControlFile("%s/%s" % (output_dir, src_file), signed=True).para
+      report.build_metadata_changed = is_build_metadata_changed(left.getSources(), dsc)
+      report.merged_files = [f[2] for f in files(dsc)]
+      report.merged_patch = create_patch(left.package.name, report.merged_version,
                                 output_dir, merged_dir,
                                 upstream.getSources(), upstream_dir)
-  write_report(left, left_patch,
-               base, report.bases_not_found,
-               upstream, right_patch,
-               merged_version, conflicts, src_file, patch_file,
-               output_dir, merged_dir, False, build_metadata_changed)
+    else:
+      report.result = MergeResult.FAILED
+      report.merged_dir = ""
+      report.merge_failure_tarball = src_file
+
+  write_report(report,
+               left,
+               base,
+               upstream,
+               src_file=src_file,
+               output_dir=output_dir,
+               merged_dir=merged_dir)
   logger.info("Wrote output to %s", src_file)
   cleanup(merged_dir)
   cleanup_source(upstream.getSources())
