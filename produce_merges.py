@@ -33,6 +33,7 @@ from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
 from merge_report import (MergeResult, MergeReport, read_report, write_report)
+from momversion import VERSION
 import config
 import model.error
 
@@ -868,6 +869,8 @@ def produce_merge(target, left, upstream, output_dir):
   upstream_dir = unpack_source(upstream)
 
   report = MergeReport(left=left, right=upstream)
+  report.mom_version = str(VERSION)
+  report.merge_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
   # Try to find the newest common ancestor
   tried_bases = set()
