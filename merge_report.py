@@ -215,7 +215,19 @@ class MergeReport(object):
         self.committed = False
         self.result = MergeResult.UNKNOWN
 
-        if base is not None:
+        self.set_base(base)
+        self.set_left(left)
+        self.set_right(right)
+
+    def set_base(self, base):
+        if base is None:
+            self.base_version = None
+            self.base_distro = None
+            self.base_suite = None
+            self.base_component = None
+            self.base_pool_dir = None
+            self.base_files = []
+        else:
             self.source_package = base.package.name
             self.base_version = base.version
             self.base_distro = base.package.distro.name
@@ -224,7 +236,15 @@ class MergeReport(object):
             self.base_pool_dir = base.package.poolDirectory().path
             self.base_files = [f[2] for f in files(base.getSources())]
 
-        if right is not None:
+    def set_right(self, right):
+        if right is None:
+            self.right_version = None
+            self.right_distro = None
+            self.right_suite = None
+            self.right_component = None
+            self.right_pool_dir = None
+            self.right_files = []
+        else:
             self.source_package = right.package.name
             self.right_distro = right.package.distro.name
             self.right_suite = right.package.dist
@@ -233,7 +253,15 @@ class MergeReport(object):
             self.right_pool_dir = right.package.poolDirectory().path
             self.right_files = [f[2] for f in files(right.getSources())]
 
-        if left is not None:
+    def set_left(self, left):
+        if left is None:
+            self.left_version = None
+            self.left_distro = None
+            self.left_suite = None
+            self.left_component = None
+            self.left_pool_dir = None
+            self.left_files = []
+        else:
             self.source_package = left.package.name
             self.left_distro = left.package.distro.name
             self.left_suite = left.package.dist

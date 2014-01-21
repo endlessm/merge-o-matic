@@ -867,6 +867,8 @@ def produce_merge(target, left, upstream, output_dir):
   left_dir = unpack_source(left)
   upstream_dir = unpack_source(upstream)
 
+  report = MergeReport(left=left, right=upstream)
+
   # Try to find the newest common ancestor
   tried_bases = set()
   try:
@@ -876,7 +878,6 @@ def produce_merge(target, left, upstream, output_dir):
             left, downstream_versions, upstream, upstream_versions, tried_bases)
   except Exception as e:
     cleanup(output_dir)
-    report = MergeReport(left=left, right=upstream)
     report.bases_not_found = sorted(tried_bases, reverse=True)
 
     if isinstance(e, NoBase):
@@ -889,7 +890,8 @@ def produce_merge(target, left, upstream, output_dir):
     report.write_report(output_dir)
     return
 
-  tried_bases = sorted(tried_bases, reverse=True)
+  report.set_base(base)
+  report.bases_not_found = sorted(tried_bases, reverse=True)
 
   logger.info('base version: %s', base.version)
 
@@ -903,9 +905,7 @@ def produce_merge(target, left, upstream, output_dir):
   if base >= upstream:
     logger.info("Nothing to be done: %s >= %s", base, upstream)
     cleanup(output_dir)
-    report = MergeReport(left=left, right=upstream, base=base)
     report.result = MergeResult.KEEP_OURS
-    report.bases_not_found = tried_bases
     report.write_report(output_dir)
     return
 
@@ -918,7 +918,7 @@ def produce_merge(target, left, upstream, output_dir):
         os.makedirs(output_dir)
     right_patch = copy_in(output_dir, upstream)
     write_report(left, None,
-        base, tried_bases,
+        base, report.bases_not_found,
         upstream, right_patch,
         merged_version, None, None, right_patch,
         output_dir, None, True, False)
@@ -933,10 +933,8 @@ def produce_merge(target, left, upstream, output_dir):
   except OSError as e:
     cleanup(merged_dir)
     logger.exception("Could not merge %s, probably bad files?", left)
-    report = MergeReport(left=left, right=upstream, base=base)
     report.result = MergeResult.FAILED
     report.message = 'Could not merge: %s' % e
-    report.bases_not_found = tried_bases
     report.write_report(output_dir)
     return
 
@@ -945,10 +943,8 @@ def produce_merge(target, left, upstream, output_dir):
                   upstream.package.distro.name, upstream.package.dist, merged_dir)
   except IOError as e:
     logger.exception("Could not update changelog for %s!", left)
-    report = MergeReport(left=left, right=upstream, base=base)
     report.result = MergeResult.FAILED
     report.message = 'Could not update changelog: %s' % e
-    report.bases_not_found = tried_bases
     report.write_report(output_dir)
     return
   cleanup(output_dir)
@@ -970,7 +966,7 @@ def produce_merge(target, left, upstream, output_dir):
                                 output_dir, merged_dir,
                                 upstream.getSources(), upstream_dir)
   write_report(left, left_patch,
-               base, tried_bases,
+               base, report.bases_not_found,
                upstream, right_patch,
                merged_version, conflicts, src_file, patch_file,
                output_dir, merged_dir, False, build_metadata_changed)
