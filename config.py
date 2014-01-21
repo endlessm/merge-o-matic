@@ -32,11 +32,7 @@ import os
 from deb.source import ControlFile
 from util import files, tree
 
-MOM_CONFIG_PATH = "/etc/merge-o-matic"
-sys.path.insert(1, MOM_CONFIG_PATH)
-import momsettings
-configdb = momsettings
-sys.path.remove(MOM_CONFIG_PATH)
+configdb = None
 
 SOURCES_CACHE = {}
 
@@ -45,6 +41,13 @@ def loadConfig(data):
   configdb = data
 
 def get(*args, **kwargs):
+  if configdb is None:
+    MOM_CONFIG_PATH = "/etc/merge-o-matic"
+    sys.path.insert(1, MOM_CONFIG_PATH)
+    import momsettings
+    loadConfig(momsettings)
+    sys.path.remove(MOM_CONFIG_PATH)
+
   def _get(item, *args, **kwargs):
     global configdb
     if len(args) == 0:
