@@ -1,5 +1,6 @@
 import unittest
 import config
+import model
 import testingConfig
 
 config.loadConfig(testingConfig)
@@ -19,7 +20,7 @@ class ConfigTest(unittest.TestCase):
 
 class DistroTest(unittest.TestCase):
   def setUp(self):
-    self.distro = config.Distro("target")
+    self.distro = model.base.Distro.get("target")
 
   def test_name(self):
     self.assertTrue(self.distro.name, "target")
@@ -29,20 +30,25 @@ class DistroTest(unittest.TestCase):
     self.assertEqual(self.distro.config("nonExistantConfig", default=42), 42)
 
   def test_all(self):
-    distros = config.Distro.all()
+    distros = model.base.Distro.all()
     self.assertEqual(len(distros), len(testingConfig.DISTROS))
     found = False
     for d in distros:
-      self.assertIsInstance(d, config.Distro)
+      self.assertIsInstance(d, model.base.Distro)
       if d.name == "target":
         found = True
     self.assertTrue(found)
 
   def test_oscDir(self):
-    dirname = self.distro.oscDirectory()
+    self.assertEqual(self.distro.oscDirectory(), "/tmp/mom/osc/target")
+
+    self.assertEqual(self.distro.obsProject("unstable", "contrib"),
+            "target:unstable:contrib")
 
   def test_branch(self):
     homeBranch = self.distro.branch("mom-test")
     self.assertEqual(homeBranch.name, "mom-test")
     self.assertEqual(homeBranch.config("obs", "url"), self.distro.config("obs", "url"))
-    self.assertEqual(homeBranch.obsProject(), "%s:%s"%("mom-test", self.distro.obsProject()))
+    self.assertEqual(homeBranch.obsProject("experimental", "main"),
+        "mom-test:target:experimental:main")
+    self.assertEqual(homeBranch.oscDirectory(), "/tmp/mom/osc/mom-test")

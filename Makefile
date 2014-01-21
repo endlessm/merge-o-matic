@@ -65,6 +65,9 @@ all_files = \
 
 all:
 
+check:
+	python -m tests
+
 # We do not want to compile addcomment.py or main.py
 install: $(all_files)
 	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/{deb,util,model}

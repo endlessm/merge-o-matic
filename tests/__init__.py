@@ -1,4 +1,1 @@
-import __main__
-
-if __name__ == '__main__':
-  __main__.main()
+# "packages cannot be executed directly", see __main__.py for main()
