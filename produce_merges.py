@@ -42,6 +42,9 @@ CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
 
 logger = logging.getLogger('produce_merges')
 
+class NoBase(Exception):
+    pass
+
 def options(parser):
     parser.add_option("-f", "--force", action="store_true",
                       help="Force creation of merges")
@@ -856,7 +859,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
 
         tried_bases.add(downstream_version)
 
-  raise Exception('unable to find a usable base version for %s and %s' %
+  raise NoBase('unable to find a usable base version for %s and %s' %
           (downstream, upstream))
 
 def produce_merge(target, left, upstream, output_dir):
@@ -871,12 +874,18 @@ def produce_merge(target, left, upstream, output_dir):
     upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
     base, base_dir = get_common_ancestor(target,
             left, downstream_versions, upstream, upstream_versions, tried_bases)
-  except Exception:
-    logger.exception('error finding base version:\n')
+  except Exception as e:
     cleanup(output_dir)
     report = MergeReport(left=left, right=upstream)
-    report.result = MergeResult.NO_BASE
     report.bases_not_found = sorted(tried_bases, reverse=True)
+
+    if isinstance(e, NoBase):
+      report.result = MergeResult.NO_BASE
+      logger.info('%s', e)
+    else:
+      report.result = MergeResult.FAILED
+      logger.exception('error finding base version:\n')
+
     report.write_report(output_dir)
     return
 
