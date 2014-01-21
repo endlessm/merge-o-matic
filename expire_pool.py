@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import errno
 import logging
 
 from momlib import *
@@ -83,8 +84,13 @@ def expire_pool_sources(distro, component, package, base):
     pooldir = PoolDirectory(distro, component, package)
     try:
         sources = pooldir.getSourceStanzas()
-    except:
-        logger.exception('unable to read Sources file from %s:', pooldir.path)
+    except Exception as e:
+        if isinstance(e, IOError) and e.errno == errno.ENOENT:
+            # keep relatively quiet about this
+            logger.debug('unable to read Sources file: %s', e)
+        else:
+            logger.exception('unable to read Sources file from %s:',
+                    pooldir.path)
         return
 
     # Find sources older than the base, record the filenames of newer ones
