@@ -763,19 +763,18 @@ def create_source(package, version, since, output_dir, merged_dir):
     finally:
         tree.remove(parent)
 
-def create_patch(package, version, output_dir, merged_dir,
-                 right_source, right_dir):
+def create_patch(version, filename, merged_dir,
+                 basis_source, basis_dir):
     """Create the merged patch."""
-    filename = "%s/%s_%s.patch" % (output_dir, package, version)
 
     parent = tempfile.mkdtemp()
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, version))
-        tree.copytree(right_dir, "%s/%s" % (parent, right_source["Version"]))
+        tree.copytree(basis_dir, "%s/%s" % (parent, basis_source["Version"]))
 
         with open(filename, "w") as diff:
             shell.run(("diff", "-pruN",
-                       right_source["Version"], "%s" % version),
+                       basis_source["Version"], "%s" % version),
                       chdir=parent, stdout=diff, okstatus=(0, 1, 2))
             logger.info("Created %s", tree.subdir(ROOT, filename))
 
@@ -991,9 +990,18 @@ def produce_merge(target, left, upstream, output_dir):
       dsc = ControlFile("%s/%s" % (output_dir, src_file), signed=True).para
       report.build_metadata_changed = is_build_metadata_changed(left.getSources(), dsc)
       report.merged_files = [f[2] for f in files(dsc)]
-      report.merged_patch = create_patch(left.package.name, report.merged_version,
-                                output_dir, merged_dir,
-                                upstream.getSources(), upstream_dir)
+      report.merged_patch = create_patch(report.merged_version,
+              "%s/%s_%s_from-theirs.patch" % (output_dir, left.package.name,
+                  report.merged_version),
+              merged_dir,
+              upstream.getSources(),
+              upstream_dir)
+      report.proposed_patch = create_patch(report.merged_version,
+              "%s/%s_%s_from-ours.patch" % (output_dir, left.package.name,
+                  report.merged_version),
+              merged_dir,
+              left.getSources(),
+              left_dir)
     else:
       report.result = MergeResult.FAILED
       report.merged_dir = ""

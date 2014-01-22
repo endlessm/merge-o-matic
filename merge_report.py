@@ -199,6 +199,7 @@ class MergeReport(object):
             'merged_version',
             'merged_dir',
             'merged_files',
+            'proposed_patch',
             'merged_patch',
             'build_metadata_changed',
             'merge_failure_tarball',
@@ -381,6 +382,7 @@ class MergeReport(object):
             bases_not_found="these common ancestors could not be found",
             right_version="'their' version",
             right_patch="diff(base version ... right version)",
+            proposed_patch="diff(our old version ... our new version) for review",
             merged_patch="diff(their version ... our new version) if the proposed patch is applied",
             genchanges=("Pass these arguments to dpkg-genchanges, " +
                 "dpkg-buildpackage or debuild when you have completed the " +
