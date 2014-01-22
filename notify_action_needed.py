@@ -38,8 +38,14 @@ def options(parser):
 
 def notify_action_needed(target, output_dir, source, report):
     try:
-        if (os.path.getmtime(output_dir + '/REPORT.json') <
-                os.path.getmtime(output_dir + '/action_needed.eml')):
+        json_mtime = os.path.getmtime(output_dir + '/REPORT.json')
+    except OSError as e:
+        # presumably it only has an old-style REPORT; skip it
+        logger.debug('Skipping package %s: %s', report.source_package, e)
+        return
+
+    try:
+        if json_mtime < os.path.getmtime(output_dir + '/action_needed.eml'):
             logger.debug('already sent notification for %s', output_dir)
             return
     except OSError:
