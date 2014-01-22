@@ -989,7 +989,7 @@ def produce_merge(target, left, upstream, output_dir):
       report.result = MergeResult.MERGED
       dsc = ControlFile("%s/%s" % (output_dir, src_file), signed=True).para
       report.build_metadata_changed = is_build_metadata_changed(left.getSources(), dsc)
-      report.merged_files = [f[2] for f in files(dsc)]
+      report.merged_files = [src_file] + [f[2] for f in files(dsc)]
       report.merged_patch = create_patch(report.merged_version,
               "%s/%s_%s_from-theirs.patch" % (output_dir, left.package.name,
                   report.merged_version),
