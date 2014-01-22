@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>merging {{ report.source_package }} in {{ report.target }}: {{ report.result }}</title>
+<link rel="up" href="FIXME" title="FIXME" />
+<style type="text/css">
+.res_UNKNOWN { color: #cc0000; background: #fff; } /* brighter red */
+.res_MERGED { color: #4e9a06; background: #fff; } /* green */
+.res_FAILED { color: #a40000; background: #fff; } /* red */
+.res_SYNC_THEIRS { color: #204a87; background: #fff; } /* blue */
+.res_CONFLICTS { color: #ce5c00; background: #fff; } /* orange */
+.res_NO_BASE { color: #5c3566; background: #fff; } /* purple */
+.res_KEEP_OURS { color: #555753; background: #fff; } /* grey */
+
+.good, a:link.good, a:hover.good { color: #4e9a06; background: #fff; }
+.bad, a:link.bad, a:hover:bad { color: #a40000; background: #fff; }
+.ugly, a:link.ugly, a:hover:ugly { color: #ce5c00; background: #fff; }
+</style>
+</head>
+<body>
+
+<h1>merging {{ report.source_package }} in {{ report.target }}:
+  <span class="res_{{ report.result }}">{{ report.result }}</span></h1>
+
+{% if report.result == "CONFLICTS" %}
+
+<p>This package could not be merged: an automated 3-way merge detected
+conflicts (different changes made to the same file).
+Please carry out a manual merge and commit the result.</p>
+
+{% if report.conflicts %}
+<p>Files with conflicts:</p>
+
+<ul>
+  {% for c in report.conflicts %}
+  <li>{{ c }}</li>
+  {% endfor %}
+</ul>
+{% endif %} {# conflicts #}
+
+{% elif report.result == "FAILED" %}
+
+<p>This package could not be merged for some reason.
+Please carry out a manual merge and commit the result.</p>
+
+{% elif report.result == "MERGED" %}
+
+<p>This package was merged automatically and it seems to have worked.
+Please check that the result makes sense.</p>
+
+<p>You should compare the patches between package versions
+and ensure that there are no unexpected changes. You should also
+sanity-check the resulting source package.</p>
+
+{% elif report.result == "NO_BASE" %}
+
+<p>None of the packages' common ancestors could be found in the package pool.
+This package cannot be merged until you import one.</p>
+
+{% elif report.result == "SYNC_THEIRS" %}
+
+<p>The version in the source distribution supersedes our version.
+Please check that it's OK to update to the newer version.</p>
+
+{% elif report.result == "KEEP_OURS" %}
+
+<p>Our version is up-to-date.</p>
+
+{% else %}
+
+<p>Unknown merge result! Please report this as a merge-o-matic bug.</p>
+
+{% endif %} {# report.result #}
+
+{% if report.merge_failure_tarball %}
+<p>You can download
+<a class="bad" href="{{ report.merge_failure_tarball|urlencode }}">
+  a tarball containing the result of the failed merge</a>.</p>
+{% endif %}
+
+{% if report.result != "KEEP_OURS" %}
+<p>Once you have a source package you are happy to upload, you should make
+  sure you include the orig.tar.gz if appropriate, and information
+  about all the versions included in the merge.<p>
+{% endif %}
+
+{% if report.genchanges %}
+<p>Pass these arguments to dpkg-genchanges, dpkg-buildpackage or debuild:</p>
+<pre><code>{{ report.genchanges }}</code></pre>
+{% endif %}
+
+<div>
+<h2>Merge details</h2>
+
+<dl>
+  <dt>Our version in
+  {% if report.obs_project %}
+  {{ report.obs_project }}
+  {% else %}
+  {{ report.left_distro }}:{{ report.left_suite }}:{{ report.left_component }}
+  {% endif %}
+  </dt>
+  <dd>{{ report.left_version }}</dd>
+
+  <dt>Newest common ancestor</dt>
+  <dd>
+  {% if report.base_version %}
+  {{ report.base_version }}
+  {% else %}
+  none
+  {% endif %}
+  </dd>
+
+  <dt>Their version in
+  {{ report.right_distro }}:{{ report.right_suite }}:{{ report.right_component }}
+  </dt>
+  <dd>{{ report.right_version }}</dd>
+
+  <dt>Committed to OBS</dt>
+  {% if report.obs_request_url %}
+  <dd><a href="{{ report.obs_request_url }}" class="good">submit request</a></dd>
+  {% elif report.committed %}
+  <dd class="good">{{ report.committed_to }}/{{ report.obs_package }}</dd>
+  {% elif report.commit_detail %}
+  <dd class="bad">
+    A commit to OBS was attempted, but it appears to have failed:
+    {{ report.commit_detail }}
+    The merge-o-matic log file might have more details.
+  </dd>
+  {% else %}
+  <dd class="ugly">Not committed to OBS.</dd>
+  {% endif %}
+
+  {% if report.merged_patch %}
+  <dt>Diff</dd>
+  <dd><a href="{{ report.merged_patch|urlencode }}">Diff from our previous version
+    to the proposed version</a></dd>
+  {% endif %}
+
+  {% if report.merged_files %}
+  <dt>Proposed source package</dt>
+  <dd>
+    <ul>
+  {% for x in report.merged_files %}
+      <li><a href="{{ x|urlencode }}">{{ x }}</a></li>
+  {% endfor %}
+    </ul>
+  </dd>
+  {% endif %}
+
+  {% if report.merge_failure_tarball %}
+  <dt>Failed merge tarball</dt>
+  <dd>
+  <a class="bad" href="{{ report.merge_failure_tarball|urlencode }}">
+    {{ report.merge_failure_tarball }}</a>
+  </dd>
+  {% endif %}
+
+  <dt>Full merge report in JSON format</dt>
+  <dd><a href="REPORT.json">REPORT.json</a></dd>
+</div>
+
+{% if report.bases_not_found %}
+<div>
+<h2>Finding a common ancestor</h2>
+
+{% if report.result == "NO_BASE" %}
+<p>The most recent common ancestor was
+  <strong>{{ report.bases_not_found[0] }}</strong>.</p>
+{% else %} {# !NO_BASE #}
+<p>The packages' most recent common ancestor
+  <strong>{{ report.bases_not_found[0] }}</strong>
+  could not be found. This merge was based on an older common ancestor, but
+  you might get a better-quality automatic merge if you import this version
+  into the package pool.</p>
+{% endif %} {# !NO_BASE #}
+
+<p>If that version was in Debian or Ubuntu, you might be able
+  to get it from
+  <a href="http://snapshot.debian.org/package/{{ report.source_package|urlencode }}/"
+    >snapshot.debian.org</a> or
+  <a href="https://launchpad.net/ubuntu/+source/{{ report.source_package|urlencode }}"
+    >Launchpad</a>.</p>
+
+<p>See the "bases_not_found" list in <a href="REPORT.json">the
+  detailed JSON report</a> for some older versions that might also work.</p>
+
+<p>Download the source package with dget(1) or similar, and put it in
+  <code>{{ report.right_pool_dir }}</code>
+  before the next merge-o-matic run.</p>
+
+</div>
+{% endif %} {# bases_not_found #}
+
+</body>
+</html>
+{# actually HTML + jinja2, but django is close enough...
+vim: set sw=2 sts=2 et ft=htmldjango:
+#}

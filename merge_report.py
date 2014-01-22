@@ -26,6 +26,8 @@ import time
 from collections import (OrderedDict)
 from textwrap import fill
 
+import jinja2
+
 import config
 from deb.controlfile import ControlFile
 from deb.version import (Version)
@@ -34,8 +36,14 @@ from model.obs import (OBSDistro)
 from momlib import files
 from momversion import VERSION
 from util import tree
+from util.jinja import patch_environment
 
 logger = logging.getLogger('merge_report')
+
+jinja_env = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(os.path.dirname(__file__) + '/templates'),
+    autoescape=True)
+patch_environment(jinja_env)
 
 class MergeResult(str):
     def __new__(cls, s):
@@ -411,6 +419,13 @@ class MergeReport(object):
         with open(filename + '.tmp', "w") as fh:
             json.dump(report, fh, indent=2, sort_keys=False)
             fh.write('\n')
+        os.rename(filename + '.tmp', filename)
+
+        filename = "%s/REPORT.html" % output_dir
+        tree.ensure(filename)
+        template = jinja_env.get_template('merge_report.html')
+        with open(filename + '.tmp', "w") as fh:
+            template.stream(report=report).dump(fh, encoding='utf-8')
         os.rename(filename + '.tmp', filename)
 
 def write_text_report(left, left_patch,

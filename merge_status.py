@@ -247,8 +247,18 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
             base_version, left_version, right_version, right_distro, output_dir in merges:
 
         print >>status, "<tr bgcolor=%s class=first>" % COLOURS[priority]
-        print >>status, "<td><tt><a href=\"%s/REPORT\">" \
-              "%s</a></tt>" % (re.sub('^' + re.escape(ROOT), MOM_URL, output_dir, 1), package)
+
+        if os.path.exists(output_dir + '/REPORT.html'):
+            print >>status, "<td><tt><a href=\"%s/REPORT.html\">" \
+                  "%s</a></tt>" % (re.sub('^' + re.escape(ROOT), '../', output_dir, 1), package)
+        else:
+            print >>status, "<td><tt><a href=\"%s/REPORT\">" \
+                  "%s</a></tt>" % (re.sub('^' + re.escape(ROOT), '../', output_dir, 1), package)
+
+        if os.path.exists(output_dir + '/REPORT.json'):
+            print >>status, " <sup><a href=\"%s/REPORT.json\">" \
+                  "JSON</a></sup>" % (re.sub('^' + re.escape(ROOT), '../', output_dir, 1))
+
         print >>status, " <sup><a href=\"https://launchpad.net/ubuntu/" \
               "+source/%s\">LP</a></sup>" % package
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \

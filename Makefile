@@ -37,8 +37,14 @@ deb_nonexe_files = \
 	deb/source.py \
 	deb/version.py
 
+tmpl_nonexe_files = \
+	templates/merge_report.html \
+	$(NULL)
+
 util_nonexe_files = \
 	util/__init__.py \
+	util/jinja2-AUTHORS \
+	util/jinja2.py \
 	util/shell.py \
 	util/tree.py
 
@@ -53,6 +59,7 @@ all_files = \
 	$(main_exe_files) \
 	$(main_nonexe_files) \
 	$(deb_nonexe_files) \
+	$(tmpl_nonexe_files) \
 	$(util_nonexe_files) \
 	$(model_nonexe_files) \
 	COPYING \
@@ -70,10 +77,11 @@ check:
 
 # We do not want to compile addcomment.py or main.py
 install: $(all_files)
-	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/{deb,util,model}
+	mkdir -p "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/{deb,templates,util,model}
 	install -m 0644 $(main_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	install -m 0755 $(main_exe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	install -m 0644 $(deb_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/deb
+	install -m 0644 $(tmpl_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/templates
 	install -m 0644 $(util_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/util
 	install -m 0644 $(model_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/model
 	[[ x"$(PY_COMPILE)" = xyes ]] && \
@@ -90,7 +98,7 @@ dist: $(PACKAGE_NAME)-$(VERSION).tar.bz2
 
 $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 	-rm -r "$(PACKAGE_NAME)-$(VERSION)"
-	mkdir -p "$(PACKAGE_NAME)-$(VERSION)"/{deb,util,model}
+	mkdir -p "$(PACKAGE_NAME)-$(VERSION)"/{deb,templates,util,model}
 	install -m 0644 \
 		$(main_nonexe_files) \
 		COPYING \
@@ -103,6 +111,7 @@ $(PACKAGE_NAME)-$(VERSION).tar.bz2: $(all_files)
 		"$(PACKAGE_NAME)-$(VERSION)"
 	install -m 0755 $(main_exe_files) "$(PACKAGE_NAME)-$(VERSION)"
 	install -m 0644 $(deb_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/deb
+	install -m 0644 $(tmpl_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/templates
 	install -m 0644 $(util_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/util
 	install -m 0644 $(model_nonexe_files) "$(PACKAGE_NAME)-$(VERSION)"/model
 	tar --format=ustar -chf - "$(PACKAGE_NAME)-$(VERSION)" | bzip2 -c > ""$(PACKAGE_NAME)-$(VERSION)".tar.bz2"

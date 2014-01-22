@@ -200,10 +200,15 @@ You can download a tarball containing the failed merge here:
 
     text = (text + """
 A detailed merge report in JSON format is attached.
+More information at:
+    %(MOM_URL)s/%(rel_output_dir)s/REPORT.html
 
 Regards,
-    the Merge-o-Matic instance at <%s>
-""" % MOM_URL)
+    the Merge-o-Matic instance at <%(MOM_URL)s>
+""" % {
+    'MOM_URL': MOM_URL,
+    'rel_output_dir': rel_output_dir,
+    })
 
     message.attach(MIMEText(text))
     json_part = MIMEText(open(output_dir + '/REPORT.json').read())
