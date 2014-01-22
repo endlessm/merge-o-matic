@@ -136,6 +136,7 @@ def main(options, args):
             logger.info("%s not available upstream, skipping", our_version)
             cleanup(output_dir)
             report = MergeReport(left=our_version)
+            report.target = target.name
             report.result = MergeResult.KEEP_OURS
             report.merged_version = our_version.version
             report.write_report(output_dir)
@@ -160,6 +161,7 @@ def main(options, args):
                     our_version, upstream)
             cleanup(output_dir)
             report = MergeReport(left=our_version, right=upstream)
+            report.target = target.name
             report.result = MergeResult.KEEP_OURS
             report.merged_version = our_version.version
             report.write_report(output_dir)
@@ -172,6 +174,7 @@ def main(options, args):
           except ValueError as e:
             logger.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
             report = MergeReport(left=our_version, right=upstream)
+            report.target = target.name
             report.result = MergeResult.FAILED
             report.message = 'Could not produce merge: %s' % e
             report.write_report(output_dir)
@@ -869,6 +872,7 @@ def produce_merge(target, left, upstream, output_dir):
   upstream_dir = unpack_source(upstream)
 
   report = MergeReport(left=left, right=upstream)
+  report.target = target.name
   report.mom_version = str(VERSION)
   report.merge_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 

@@ -160,6 +160,7 @@ def _read_report_text(output_dir, filename, report):
 class MergeReport(object):
     __slots__ = (
             'source_package',
+            'target',
             'mom_version',
             'merge_date',
             'result',
