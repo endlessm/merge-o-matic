@@ -180,6 +180,13 @@ here:
     %s/%s/%s
 """ % (MOM_URL, rel_output_dir, report.merged_patch))
 
+    if report.proposed_patch is not None:
+        text = (text + """
+You can view the diff from our current version to the proposed version
+here:
+    %s/%s/%s
+""" % (MOM_URL, rel_output_dir, report.proposed_patch))
+
     dsc = None
 
     for x in report.merged_files:
