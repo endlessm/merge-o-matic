@@ -101,7 +101,18 @@ Please check that it's OK to update to the newer version.</p>
   {{ report.left_distro }}:{{ report.left_suite }}:{{ report.left_component }}
   {% endif %}
   </dt>
-  <dd>{{ report.left_version }}</dd>
+  <dd>{{ report.left_version }}
+  {% if report.left_patch %}
+  <br />
+  (<a href="{{ report.left_patch|urlencode }}">patch from base version to our
+    version</a>)
+  {% endif %}
+  {% if report.proposed_patch %}
+  <br />
+  (<a href="{{ report.proposed_patch|urlencode }}">patch from our
+    version to the proposed version</a>)
+  {% endif %}
+  </dd>
 
   <dt>Newest common ancestor</dt>
   <dd>
@@ -115,7 +126,18 @@ Please check that it's OK to update to the newer version.</p>
   <dt>Their version in
   {{ report.right_distro }}:{{ report.right_suite }}:{{ report.right_component }}
   </dt>
-  <dd>{{ report.right_version }}</dd>
+  <dd>{{ report.right_version }}
+  {% if report.right_patch %}
+  <br />
+  (<a href="{{ report.right_patch|urlencode }}">patch from base version to
+    their version</a>)
+  {% endif %}
+  {% if report.merged_patch %}
+  <br />
+  (<a href="{{ report.merged_patch|urlencode }}">patch from their
+    version to the proposed version</a>)
+  {% endif %}
+  </dd>
 
   <dt>Committed to OBS</dt>
   {% if report.obs_request_url %}
@@ -130,12 +152,6 @@ Please check that it's OK to update to the newer version.</p>
   </dd>
   {% else %}
   <dd class="ugly">Not committed to OBS.</dd>
-  {% endif %}
-
-  {% if report.merged_patch %}
-  <dt>Diff</dd>
-  <dd><a href="{{ report.merged_patch|urlencode }}">Diff from our previous version
-    to the proposed version</a></dd>
   {% endif %}
 
   {% if report.merged_files %}
