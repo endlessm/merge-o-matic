@@ -113,7 +113,7 @@ def main(options, args):
             merges.append((section, priority_idx, source["Package"],
                         source, report["base_version"],
                         report["left_version"], report["right_version"],
-                        report["right_distro"], output_dir))
+                        report["right_distro"], output_dir, report))
 
         merges.sort()
 
@@ -241,10 +241,12 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
     print >>status, "<td><b>%s Version</b></td>" % our_distro.title()
     print >>status, "<td><b>%s Version</b></td>" % default_src_distro.title()
     print >>status, "<td><b>Base Version</b></td>"
+    print >>status, "<td><b>Result</b></td>"
     print >>status, "</tr>"
 
     for uploaded, priority, package, source, \
-            base_version, left_version, right_version, right_distro, output_dir in merges:
+            base_version, left_version, right_version, right_distro, \
+            output_dir, report in merges:
 
         print >>status, "<tr bgcolor=%s class=first>" % COLOURS[priority]
 
@@ -278,6 +280,9 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
             print >>status, "<td style='text-align:center'><em>???</em></td>"
         else:
             print >>status, "<td>%s</td>" % base_version
+
+        print >>status, "<td>%s</td>" % report.result
+
         print >>status, "</tr>"
 
     print >>status, "</table>"
@@ -292,7 +297,8 @@ def write_status_json(target, merges):
         print >>status, '['
         cur_merge = 0
         for uploaded, priority, package, source, \
-                base_version, left_version, right_version, right_distro, output_dir in merges:
+                base_version, left_version, right_version, right_distro, \
+                output_dir, report in merges:
             print >>status, ' {',
             # source_package, short_description, and link are for
             # Harvest (http://daniel.holba.ch/blog/?p=838).
@@ -324,7 +330,8 @@ def write_status_file(status_file, merges):
     """Write out the merge status file."""
     with open(status_file + ".new", "w") as status:
         for uploaded, priority, package, source, \
-                base_version, left_version, right_version, right_distro, output_dir in merges:
+                base_version, left_version, right_version, right_distro, \
+                output_dir, report in merges:
             if base_version is None:
                 base_version = "???"
             print >>status, "%s %s %s %s %s, %s" \
