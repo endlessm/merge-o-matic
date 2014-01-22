@@ -125,6 +125,8 @@ class Version(object):
 
         return 0
 
+    def __hash__(self):
+        return hash((self.epoch, self.upstream, self.revision))
 
     def base(self, slip=False):
         def strip_suffix(text, suffix):

@@ -209,6 +209,30 @@ Please check that it's OK to update to the newer version.</p>
 </div>
 {% endif %} {# bases_not_found #}
 
+{% if left_changelog_text %}
+<div>
+<h2>Our changelog</h2>
+{% if report.result == "NO_BASE" %}
+<p>Our latest changelog entry:</p>
+{% else %}
+<p>Our changelog entries since most recent common ancestor:</p>
+{% endif %}
+<pre>{{ left_changelog_text }}</pre>
+</div>
+{% endif %}
+
+{% if right_changelog_text %}
+<div>
+<h2>Their changelog</h2>
+{% if report.result == "NO_BASE" %}
+<p>Their latest changelog entry:</p>
+{% else %}
+<p>Their changelog entries since most recent common ancestor:</p>
+{% endif %}
+<pre>{{ right_changelog_text }}</pre>
+</div>
+{% endif %}
+
 </body>
 </html>
 {# actually HTML + jinja2, but django is close enough...

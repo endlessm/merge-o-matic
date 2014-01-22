@@ -865,6 +865,33 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
   raise NoBase('unable to find a usable base version for %s and %s' %
           (downstream, upstream))
 
+def save_changelog(output_dir, cl_versions, pv, bases, limit=None):
+  fh = None
+  name = None
+  n = 0
+
+  for (v, text) in cl_versions:
+    n += 1
+
+    if v in bases:
+      break
+
+    if limit is not None and n > limit:
+      break
+
+    if fh is None:
+      name = '%s_changelog.txt' % pv.version
+      path = '%s/%s' % (output_dir, name)
+      tree.ensure(path)
+      fh = open(path, 'w')
+
+    fh.write(text + '\n')
+
+  if fh is not None:
+    fh.close()
+
+  return name
+
 def produce_merge(target, left, upstream, output_dir):
 
   left_dir = unpack_source(left)
@@ -875,15 +902,18 @@ def produce_merge(target, left, upstream, output_dir):
   report.mom_version = str(VERSION)
   report.merge_date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
+  cleanup(output_dir)
+
   # Try to find the newest common ancestor
   tried_bases = set()
+  downstream_versions = None
+  upstream_versions = None
   try:
     downstream_versions = read_changelog(left_dir + '/debian/changelog')
     upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
     base, base_dir = get_common_ancestor(target,
             left, downstream_versions, upstream, upstream_versions, tried_bases)
   except Exception as e:
-    cleanup(output_dir)
     report.bases_not_found = sorted(tried_bases, reverse=True)
 
     if isinstance(e, NoBase):
@@ -893,8 +923,22 @@ def produce_merge(target, left, upstream, output_dir):
       report.result = MergeResult.FAILED
       logger.exception('error finding base version:\n')
 
+    if downstream_versions:
+      report.left_changelog = save_changelog(output_dir, downstream_versions,
+          left, set(), 1)
+
+    if upstream_versions:
+      report.right_changelog = save_changelog(output_dir, upstream_versions,
+          upstream, set(), 1)
+
     report.write_report(output_dir)
     return
+
+  stop_at = set([base.version]).union(tried_bases)
+  report.left_changelog = save_changelog(output_dir, downstream_versions,
+      left, stop_at)
+  report.right_changelog = save_changelog(output_dir, upstream_versions,
+      upstream, stop_at)
 
   report.set_base(base)
   report.bases_not_found = sorted(tried_bases, reverse=True)
@@ -910,7 +954,6 @@ def produce_merge(target, left, upstream, output_dir):
 
   if base >= upstream:
     logger.info("Nothing to be done: %s >= %s", base, upstream)
-    cleanup(output_dir)
     report.result = MergeResult.KEEP_OURS
     report.write_report(output_dir)
     return
@@ -922,7 +965,6 @@ def produce_merge(target, left, upstream, output_dir):
 
   if base.version == left.version:
     logger.info("Syncing %s to %s", left, upstream)
-    cleanup(output_dir)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
@@ -969,8 +1011,8 @@ def produce_merge(target, left, upstream, output_dir):
     report.message = 'Could not update changelog: %s' % e
     report.write_report(output_dir)
     return
-  cleanup(output_dir)
-  os.makedirs(output_dir)
+  if not os.path.isdir(output_dir):
+    os.makedirs(output_dir)
   copy_in(output_dir, base)
   report.left_patch = copy_in(output_dir, left)
   report.right_patch = copy_in(output_dir, upstream)

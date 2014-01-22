@@ -182,6 +182,7 @@ class MergeReport(object):
             'left_pool_dir',
             'left_files',
             'left_patch',
+            'left_changelog',
             'base_version',
             'bases_not_found',
             'base_distro',
@@ -196,6 +197,7 @@ class MergeReport(object):
             'right_pool_dir',
             'right_files',
             'right_patch',
+            'right_changelog',
             'merged_version',
             'merged_dir',
             'merged_files',
@@ -426,8 +428,24 @@ class MergeReport(object):
         filename = "%s/REPORT.html" % output_dir
         tree.ensure(filename)
         template = jinja_env.get_template('merge_report.html')
+
+        if self.left_changelog is None:
+            left_changelog_text = ''
+        else:
+            left_changelog_text = open(output_dir + '/' +
+                    self.left_changelog).read()
+
+        if self.right_changelog is None:
+            right_changelog_text = ''
+        else:
+            right_changelog_text = open(output_dir + '/' +
+                    self.right_changelog).read()
+
         with open(filename + '.tmp', "w") as fh:
-            template.stream(report=report).dump(fh, encoding='utf-8')
+            template.stream(report=report,
+                    left_changelog_text=left_changelog_text,
+                    right_changelog_text=right_changelog_text,
+                    ).dump(fh, encoding='utf-8')
         os.rename(filename + '.tmp', filename)
 
 def write_text_report(left, left_patch,

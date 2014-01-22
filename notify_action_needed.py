@@ -187,6 +187,11 @@ here:
     %s/%s/%s
 """ % (MOM_URL, rel_output_dir, report.proposed_patch))
 
+    if report.right_changelog is not None:
+        text = (text + """
+The upstream version's changelog is attached.
+""")
+
     dsc = None
 
     for x in report.merged_files:
@@ -218,6 +223,14 @@ Regards,
     })
 
     message.attach(MIMEText(text))
+
+    if report.right_changelog:
+        cl_part = MIMEText(
+                open(output_dir + '/' + report.right_changelog).read())
+        cl_part.add_header('Content-Disposition', 'inline',
+                filename=report.right_changelog)
+        message.attach(cl_part)
+
     json_part = MIMEText(open(output_dir + '/REPORT.json').read())
     json_part.add_header('Content-Disposition', 'inline',
             filename='%s_REPORT.json' % report.source_package)
