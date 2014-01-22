@@ -175,7 +175,7 @@ This package was not committed to OBS.
 
     if report.merged_patch is not None:
         text = (text + """
-You can view the diff from our previous version to the proposed version
+You can view the diff from the upstream version to the proposed version
 here:
     %s/%s/%s
 """ % (MOM_URL, rel_output_dir, report.merged_patch))
