@@ -87,7 +87,7 @@ def read_report(output_dir):
 
     if os.path.isfile(filename + '.json'):
         with open(filename + '.json') as r:
-            for (k, v) in json.load(r).iteritems():
+            for (k, v) in json.load(r, encoding='utf-8').iteritems():
                 if k.startswith('#'):
                     continue
 
