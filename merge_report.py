@@ -18,6 +18,7 @@
 
 from __future__ import with_statement
 
+import codecs
 import json
 import logging
 import os
@@ -420,9 +421,9 @@ class MergeReport(object):
 
         filename = "%s/REPORT.json" % output_dir
         tree.ensure(filename)
+        json_report = json.dumps(report, indent=2, sort_keys=False)
         with open(filename + '.tmp', "w") as fh:
-            json.dump(report, fh, indent=2, sort_keys=False)
-            fh.write('\n')
+            fh.write(json_report + '\n')
         os.rename(filename + '.tmp', filename)
 
         filename = "%s/REPORT.html" % output_dir
@@ -430,19 +431,26 @@ class MergeReport(object):
         template = jinja_env.get_template('merge_report.html')
 
         if self.left_changelog is None:
-            left_changelog_text = ''
+            left_changelog_text = u''
         else:
-            left_changelog_text = open(output_dir + '/' +
-                    self.left_changelog).read()
+            # Use a unicode object to avoid errors when decoding
+            # with implicit ascii codec for inclusion in Jinja
+            left_changelog_text = codecs.open(output_dir + '/' +
+                    self.left_changelog, encoding='utf-8',
+                    errors='replace').read()
 
         if self.right_changelog is None:
-            right_changelog_text = ''
+            right_changelog_text = u''
         else:
-            right_changelog_text = open(output_dir + '/' +
-                    self.right_changelog).read()
+            right_changelog_text = codecs.open(output_dir + '/' +
+                    self.right_changelog, encoding='utf-8',
+                    errors='replace').read()
 
         with open(filename + '.tmp', "w") as fh:
-            template.stream(report=report,
+            # we decode the JSON report and pass that in, rather than
+            # using this object directly, so that the values are
+            # consistently unicode as expected by jinja
+            template.stream(report=json.loads(json_report, encoding='utf-8'),
                     left_changelog_text=left_changelog_text,
                     right_changelog_text=right_changelog_text,
                     ).dump(fh, encoding='utf-8')
