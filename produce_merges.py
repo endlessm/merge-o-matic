@@ -33,6 +33,7 @@ from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
 from merge_report import (MergeResult, MergeReport, read_report, write_report)
+from model.base import (PoolDirectory, PackageVersion)
 from momversion import VERSION
 import config
 import model.error
@@ -821,6 +822,34 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
               sources.append(source)
 
           for source in sources:
+            base_dir = None
+
+            # First try to get it from one of its pool directories on disk.
+            # FIXME: if we have more than one source differing only
+            # by suite, this searches the corresponding pool directory
+            # that many times, because they share a pool directory
+            for component in source.distro.components():
+              pooldir = PoolDirectory(source.distro, component,
+                      downstream.package.name)
+              # In principle we could do this conditionally... but we've
+              # already decided we're going to try a merge, which takes
+              # orders of magnitude more time and I/O than apt-ftparchive
+              pooldir.updateSources()
+
+              if downstream_version in pooldir.getVersions():
+                try:
+                  package_version = PackageVersion(
+                      source.distro.package(source.dist,
+                      component, downstream.package.name),
+                      downstream_version)
+                  base_dir = unpack_source(package_version)
+                except Exception:
+                  logger.exception('unable to use version %s from %s:\n',
+                      downstream_version, pooldir)
+                else:
+                  return (package_version, base_dir)
+
+            # Failing that, try to download it from some suite.
             try:
               package_version = source.distro.findPackage(
                       downstream.package.name,

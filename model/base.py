@@ -331,8 +331,14 @@ class PoolDirectory(object):
         multi_para=True, signed=False).paras
 
   def updateSources(self):
+    """Update the Sources file at sourcesFilename() to contain every
+    package/version in this pool directory.
+    """
     pooldir = self.path
     filename = self.sourcesFilename
+
+    if not os.path.isdir(pooldir):
+      return
 
     tree.ensure(pooldir)
     logger.debug("Updating %s", filename)
