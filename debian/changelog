@@ -1,3 +1,25 @@
+merge-o-matic (2014.01.23~smcv1) UNRELEASED; urgency=medium
+
+  * OBSDistro.sync: on failure to update, delete the checkout and start again
+    (SIN: #419)
+  * Introduce a PoolDirectory object to encapsulate a subdirectory of pool/
+  * expire_pool: update Sources file when we delete things (SIN: #430)
+  * overhaul tests so they work and are somewhat realistic
+  * produce_merges: make less noise about missing bases
+  * produce_merges: include MoM version and merge date in all merge reports
+  * do most of the old text REPORT via a MergeReport object
+  * Don't try to send email for packages with only an old-style REPORT
+    (SIN: #439)
+  * Write out HTML reports that combine REPORT and action_needed.eml,
+    and add packages' changelogs too (SIN: #440)
+    - new dependency: python-jinja2
+  * merge_report: document merged_patch correctly (diff(theirs..proposed)),
+    and generate a patch showing diff(ours..proposed)
+  * Check for base versions in pool directories, not just on upstream servers
+    (SIN: #443)
+
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Thu, 23 Jan 2014 14:43:36 +0000
+
 merge-o-matic (2014.01.16) unstable; urgency=medium
 
   * Include MoM version in the log and merge reports (SIN: #435)
