@@ -1,4 +1,4 @@
-merge-o-matic (2014.01.23~smcv1) UNRELEASED; urgency=medium
+merge-o-matic (2014.01.24) unstable; urgency=medium
 
   * OBSDistro.sync: on failure to update, delete the checkout and start again
     (SIN: #419)
@@ -17,8 +17,13 @@ merge-o-matic (2014.01.23~smcv1) UNRELEASED; urgency=medium
     and generate a patch showing diff(ours..proposed)
   * Check for base versions in pool directories, not just on upstream servers
     (SIN: #443)
+  * Record miscellaneous merge failures in more detail (SIN: #444)
+  * produce_merges: don't warn about base versions missing from suites
+    (SIN: #445)
+  * Don't try to prepend a merge changelog entry if the changelog had
+    conflicts and so doesn't exist (SIN: #446)
 
- -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Thu, 23 Jan 2014 14:43:36 +0000
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Fri, 24 Jan 2014 18:39:13 +0000
 
 merge-o-matic (2014.01.16) unstable; urgency=medium
 
