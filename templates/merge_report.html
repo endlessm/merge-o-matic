@@ -41,7 +41,12 @@ Please carry out a manual merge and commit the result.</p>
 
 {% elif report.result == "FAILED" %}
 
-<p>This package could not be merged for some reason.
+<p>This package could not be merged:
+{%- if report.message %}
+{{ report.message }}.
+{% else %}
+no reason was specified.
+{% endif %}
 Please carry out a manual merge and commit the result.</p>
 
 {% elif report.result == "MERGED" %}

@@ -23,6 +23,7 @@ import os
 import re
 import time
 import logging
+import subprocess
 import tempfile
 
 from stat import *
@@ -744,10 +745,22 @@ def create_source(package, version, since, output_dir, merged_dir):
         cmd += ("-b", contained)
 
         try:
-            shell.run(cmd, chdir=parent)
-        except (ValueError, OSError):
-            logger.error("dpkg-source failed")
-            return create_tarball(package, version, output_dir, merged_dir)
+            dpkg_source_output = subprocess.check_output(cmd, cwd=parent,
+                    stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError, e:
+            logger.warning("dpkg-source failed with code %d:\n%s\n",
+                e.returncode, e.output)
+            # for the message in the JSON report, just take the last line
+            # and hope it's relevant...
+            lastline = re.sub(r'.*\n', '', e.output.rstrip('\n'),
+                flags=re.DOTALL)
+            return (MergeResult.FAILED,
+                    "unable to build merged source package: "
+                    "dpkg-source failed with %d (%s)" % (
+                        e.returncode, lastline),
+                    create_tarball(package, version, output_dir, merged_dir))
+        else:
+            logger.debug("dpkg-source succeeded:\n%s\n", dpkg_source_output)
 
         if os.path.isfile("%s/%s" % (parent, filename)):
             logger.info("Created dpkg-source %s", filename)
@@ -757,10 +770,14 @@ def create_source(package, version, since, output_dir, merged_dir):
                 if os.path.isfile(src) and not os.path.isfile(dest):
                     os.link(src, dest)
 
-            return os.path.basename(filename)
+            return (MergeResult.MERGED, None, os.path.basename(filename))
         else:
-            logger.warning("Dropped dsc %s", tree.subdir(ROOT, filename))
-            return create_tarball(package, version, output_dir, merged_dir)
+            message = ("dpkg-source did not produce expected filename %s" %
+                tree.subdir(ROOT, filename))
+            logger.warning("%s", message)
+            return (MergeResult.FAILED,
+                    "unable to build merged source package (%s)" % message,
+                create_tarball(package, version, output_dir, merged_dir))
     finally:
         tree.remove(parent)
 
@@ -950,6 +967,7 @@ def produce_merge(target, left, upstream, output_dir):
       logger.info('%s', e)
     else:
       report.result = MergeResult.FAILED
+      report.message = 'error finding base version: %s' % e
       logger.exception('error finding base version:\n')
 
     if downstream_versions:
@@ -1055,9 +1073,12 @@ def produce_merge(target, left, upstream, output_dir):
     report.merge_failure_tarball = src_file
     report.merged_dir = None
   else:
-    src_file = create_source(left.package.name, report.merged_version, left.version, output_dir, merged_dir)
-    if src_file.endswith(".dsc"):
-      report.result = MergeResult.MERGED
+    result, message, src_file = create_source(left.package.name,
+        report.merged_version, left.version, output_dir, merged_dir)
+    report.result = result
+
+    if result == MergeResult.MERGED:
+      assert src_file.endswith('.dsc'), src_file
       dsc = ControlFile("%s/%s" % (output_dir, src_file), signed=True).para
       report.build_metadata_changed = is_build_metadata_changed(left.getSources(), dsc)
       report.merged_files = [src_file] + [f[2] for f in files(dsc)]
@@ -1074,7 +1095,8 @@ def produce_merge(target, left, upstream, output_dir):
               left.getSources(),
               left_dir)
     else:
-      report.result = MergeResult.FAILED
+      report.result = result
+      report.message = message
       report.merged_dir = ""
       report.merge_failure_tarball = src_file
 
