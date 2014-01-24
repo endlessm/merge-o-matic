@@ -844,7 +844,11 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
             # First try to get it from one of its pool directories on disk.
             # FIXME: if we have more than one source differing only
             # by suite, this searches the corresponding pool directory
-            # that many times, because they share a pool directory
+            # that many times, because they share a pool directory.
+            # It would make more sense if we could just iterate over
+            # PoolDirectory instances... but then we wouldn't have a
+            # suite (dist) to make the necessary Package so we can hav
+            # a PackageVersion.
             for component in source.distro.components():
               pooldir = PoolDirectory(source.distro, component,
                       downstream.package.name)
@@ -860,6 +864,10 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
                       component, downstream.package.name),
                       downstream_version)
                   base_dir = unpack_source(package_version)
+                except model.error.PackageNotFound:
+                  # ignore, try other source (distro, suite, component)
+                  # tuples
+                  pass
                 except Exception:
                   logger.exception('unable to use version %s from %s:\n',
                       downstream_version, pooldir)
