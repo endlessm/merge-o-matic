@@ -9,6 +9,10 @@ include /usr/share/dpkg/default.mk
 override_dh_auto_install:
 	dh_auto_install -- VERSION="$(DEB_VERSION)"
 
+# don't run tests during build, they require ~/.oscrc :-(
+override_dh_auto_test:
+	:
+
 override_dh_install:
 	dh_install
 	cp merge-o-matic.logrotate \

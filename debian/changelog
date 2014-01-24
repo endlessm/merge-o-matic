@@ -1,3 +1,10 @@
+merge-o-matic (2014.01.24.1) unstable; urgency=medium
+
+  * Don't run "make check" during the build, it still needs a
+    configured ~/.oscrc.
+
+ -- Simon McVittie <simon.mcvittie@collabora.co.uk>  Fri, 24 Jan 2014 18:54:44 +0000
+
 merge-o-matic (2014.01.24) unstable; urgency=medium
 
   * OBSDistro.sync: on failure to update, delete the checkout and start again
