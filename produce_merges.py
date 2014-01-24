@@ -1057,15 +1057,17 @@ def produce_merge(target, left, upstream, output_dir):
     report.write_report(output_dir)
     return
 
-  try:
-    add_changelog(left.package.name, report.merged_version, left.package.distro.name, left.package.dist,
-                  upstream.package.distro.name, upstream.package.dist, merged_dir)
-  except IOError as e:
-    logger.exception("Could not update changelog for %s!", left)
-    report.result = MergeResult.FAILED
-    report.message = 'Could not update changelog: %s' % e
-    report.write_report(output_dir)
-    return
+  if 'debian/changelog' not in conflicts:
+    try:
+      add_changelog(left.package.name, report.merged_version, left.package.distro.name, left.package.dist,
+                    upstream.package.distro.name, upstream.package.dist, merged_dir)
+    except IOError as e:
+      logger.exception("Could not update changelog for %s!", left)
+      report.result = MergeResult.FAILED
+      report.message = 'Could not update changelog: %s' % e
+      report.write_report(output_dir)
+      return
+
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
   copy_in(output_dir, base)
