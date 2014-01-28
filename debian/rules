@@ -7,7 +7,10 @@ include /usr/share/dpkg/default.mk
 	dh $@
 
 override_dh_auto_install:
-	dh_auto_install -- VERSION="$(DEB_VERSION)"
+	make install \
+		DESTDIR=$(CURDIR)/debian/merge-o-matic \
+		VERSION="$(DEB_VERSION)" \
+		$(NULL)
 
 # don't run tests during build, they require ~/.oscrc :-(
 override_dh_auto_test:
