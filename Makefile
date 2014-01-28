@@ -44,7 +44,7 @@ tmpl_nonexe_files = \
 util_nonexe_files = \
 	util/__init__.py \
 	util/jinja2-AUTHORS \
-	util/jinja2.py \
+	util/jinja.py \
 	util/shell.py \
 	util/tree.py
 
