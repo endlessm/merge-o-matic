@@ -143,6 +143,17 @@ def main(options, args):
             report.merged_version = our_version.version
             report.write_report(output_dir)
             continue
+          elif pkg.name in target.sync_upstream_packages:
+            logger.info("Syncing to %s per sync_upstream_packages", upstream)
+            cleanup(output_dir)
+            report = MergeReport(left=our_version, right=upstream)
+            report.target = target.name
+            report.result = MergeResult.SYNC_THEIRS
+            report.merged_version = upstream.version
+            report.message = "Using version in upstream distro per " \
+                             "sync_upstream_packages configuration"
+            report.write_report(output_dir)
+            continue
 
           try:
             report = read_report(output_dir)

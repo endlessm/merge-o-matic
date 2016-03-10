@@ -184,6 +184,7 @@ class Target(object):
     super(Target, self).__init__()
     self._name = name
     self._blacklist = None
+    self._sync_upstream = None
 
   @property
   def blacklist(self):
@@ -222,6 +223,16 @@ class Target(object):
     this target.
     """
     return map(SourceList, self.config('sources', default=[]))
+
+  @property
+  def sync_upstream_packages(self):
+    """Return a set of package names that should be synced to the upstream
+    distro without merging changes.
+    """
+    if self._sync_upstream is None:
+      self._sync_upstream = set(self.config('sync_upstream_packages',
+                                            default=[]))
+    return self._sync_upstream
 
   def getAllSourceLists(self):
     """Return the union of self.sources and all possible results of
