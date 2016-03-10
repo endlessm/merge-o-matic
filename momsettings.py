@@ -124,6 +124,7 @@ def defineDist(distro, name, upstreams, commitable,
      @param upstream A key from DISTRO_SOURCES, linking this distro with a collection of upstream repos
      @param commitable Whether or not you want to be able to commit to OBS, or submit merge requests.
      @param distro The distro to use
+     @param sources_per_package A dictionary setting upstream DISTRO_SOURCES for particular packages.
   """
   if sources_per_package is None:
     sources_per_package = {}
