@@ -154,7 +154,7 @@ def main(options, args):
           #logger.debug("Running debdiff on %s and %s", oldDsc, newDsc)
           #comment = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
           # FIXME: Debdiff needs implemented in OBS, as large merge descriptions break clucene.
-          comment = "Merge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT')))
+          comment = "Merge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT.html')))
           if not options.dry_run:
             filesUpdated = False
             for f in obsFiles:
