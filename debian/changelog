@@ -1,3 +1,17 @@
+merge-o-matic (2014.01.24.2endless2) jessie; urgency=medium
+
+  * Improve OBS request message to show the distro being merged from.
+    (T10577)
+  * Expand links in OBS checkouts so that updates from the linked project
+    are represented correctly. (T10577)
+  * Fix sync_upstream_packages to not produce bogus merges once the sync
+    has happened. (T10577)
+  * If the only change is in debian/changelog, sync to the upstream
+    version instead of producing a merge. (T10889)
+  * Honor --force when producing merges.
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Fri, 18 Mar 2016 13:34:11 -0700
+
 merge-o-matic (2014.01.24.2endless1) jessie; urgency=medium
 
   * Add new configuration option, sync_upstream_packages, to allow
