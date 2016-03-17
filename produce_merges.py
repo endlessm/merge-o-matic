@@ -157,7 +157,8 @@ def main(options, args):
 
           try:
             report = read_report(output_dir)
-            if (Version(report['right_version']) == upstream.version and
+            if (not options.force and
+                    Version(report['right_version']) == upstream.version and
                     Version(report['left_version']) == our_version.version and
                     # we'll retry the merge if there was an unexpected
                     # failure, a missing base or an unknown result last time
