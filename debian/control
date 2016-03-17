@@ -15,6 +15,7 @@ Depends:
  ${shlibs:Depends}, ${misc:Depends},
  apache2 | httpd,
  cron,
+ diffstat,
  logrotate,
  osc,
  python-pychart,

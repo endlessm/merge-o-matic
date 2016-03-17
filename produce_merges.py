@@ -1070,6 +1070,55 @@ def produce_merge(target, left, upstream, output_dir):
     report.write_report(output_dir)
     return
 
+  # Hack. Create a temporary merged patch to see what's changed. It
+  # would be better to track the changes through do_merge and return
+  # them.
+  if len(conflicts) == 0:
+    changelog_only = False
+    tree.ensure("%s/tmp/" % ROOT)
+    with tempfile.NamedTemporaryFile(suffix=".patch",
+                                     dir="%s/tmp/" % ROOT) as tmp_patch:
+      create_patch(report.merged_version, tmp_patch.name, merged_dir,
+                   upstream.getSources(), upstream_dir)
+      cmd = ["diffstat", "-qlkp1", tmp_patch.name]
+      diffstat_output = subprocess.check_output(cmd)
+      diff_files = diffstat_output.splitlines()
+      logger.debug("Files differing from upstream:\n%s",
+                   "\n".join(diff_files))
+      if len(diff_files) == 0 or diff_files == ["debian/changelog"]:
+        changelog_only = True
+
+    if changelog_only:
+      # Sync to upstream since this is just noise
+      logger.info("Syncing %s to %s since only changes are in changelog",
+                  left, upstream)
+      if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+
+      report.result = MergeResult.SYNC_THEIRS
+      report.build_metadata_changed = False
+      report.right_patch = copy_in(output_dir, upstream)
+      report.merged_patch = report.right_patch
+      report.merged_files = report.right_files
+
+      write_report(report,
+                   left=left,
+                   base=base,
+                   right=upstream,
+                   src_file=None,
+                   # this is MergeReport.merged_dir...
+                   output_dir=output_dir,
+                   # ... and for a SYNC_THEIRS merge, we don't need to
+                   # look at the unpacked source code
+                   merged_dir=None)
+
+      cleanup(merged_dir)
+      cleanup_source(upstream.getSources())
+      cleanup_source(base.getSources())
+      cleanup_source(left.getSources())
+
+      return
+
   if 'debian/changelog' not in conflicts:
     try:
       add_changelog(left.package.name, report.merged_version, left.package.distro.name, left.package.dist,
