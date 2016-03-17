@@ -94,7 +94,11 @@ class OBSDistro(Distro):
           p.wc_repair(apiurl)
 
         try:
-          p.update()
+          # Expand the linked version like "osc up -e"
+          rev = None
+          if p.islink():
+            rev = p.latest_rev(expand=True)
+          p.update(rev)
         except KeyboardInterrupt, e:
           raise e
         except:
@@ -108,8 +112,9 @@ class OBSDistro(Distro):
         logger.debug("checking out %s into %s (.osc not found)", package, pkgDir)
 
       # If .../.osc didn't exist, or if it existed but we decided it wasn't
-      # recoverable, check the package out
-      osccore.checkout_package(apiurl, project, package.obsName, prj_dir=prjDir)
+      # recoverable, check the package out. Expand links like osc checkout.
+      osccore.checkout_package(apiurl, project, package.obsName, prj_dir=prjDir,
+                               expand_link=True)
 
       # Perform a sanity check
       self._validateCheckout(dist, component, package)
