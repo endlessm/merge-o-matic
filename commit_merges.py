@@ -154,7 +154,20 @@ def main(options, args):
           #logger.debug("Running debdiff on %s and %s", oldDsc, newDsc)
           #comment = shell.get(("debdiff", oldDsc, newDsc), okstatus=(0,1))
           # FIXME: Debdiff needs implemented in OBS, as large merge descriptions break clucene.
-          comment = "Merge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT.html')))
+          comment = ''
+          if report['result'] == MergeResult.SYNC_THEIRS:
+            comment += 'Sync to '
+          elif report['result'] == MergeResult.MERGED:
+            comment += 'Merge with '
+          comment += 'version %s from %s %s' %(report['right_version'],
+                                               report['right_distro'],
+                                               report['right_suite'])
+          comment += "\n\nMerge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT.html')))
+
+          # The newlines seem to cause create_submit_request to send
+          # UTF-32 over the wire, which OBS promptly chokes on. Encode
+          # the message to UTF-8 first.
+          comment = comment.encode('utf-8')
           if not options.dry_run:
             filesUpdated = False
             for f in obsFiles:
