@@ -317,6 +317,10 @@ def write_status_json(target, merges):
                 print >>status, '"base_version": "%s",' % base_version,
             print >>status, '"left_version": "%s",' % left_version,
             print >>status, '"right_version": "%s",' % right_version,
+            merged_version = report['merged_version']
+            if merged_version is None:
+                merged_version = '???'
+            print >>status, '"merged_version": "%s",' % merged_version,
             print >>status, '"result": "%s"' % report['result']
             cur_merge += 1
             if cur_merge < len(merges):
