@@ -304,7 +304,8 @@ def write_status_json(target, merges):
             # Harvest (http://daniel.holba.ch/blog/?p=838).
             print >>status, '"source_package": "%s",' % package,
             print >>status, '"short_description": "merge %s",' % right_version,
-            print >>status, '"link": "%s/%s/",' % (MOM_URL, output_dir),
+            print >>status, '"link": "%s/%s/",' \
+                % (MOM_URL, os.path.relpath(ROOT, output_dir)),
             print >>status, '"uploaded": "%s",' % uploaded,
             print >>status, '"priority": "%s",' % priority,
             binaries = re.split(', *', source["Binary"].replace('\n', ''))
