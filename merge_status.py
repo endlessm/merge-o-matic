@@ -305,7 +305,7 @@ def write_status_json(target, merges):
             print >>status, '"source_package": "%s",' % package,
             print >>status, '"short_description": "merge %s",' % right_version,
             print >>status, '"link": "%s/%s/",' \
-                % (MOM_URL, os.path.relpath(ROOT, output_dir)),
+                % (MOM_URL, os.path.relpath(output_dir, ROOT)),
             print >>status, '"uploaded": "%s",' % uploaded,
             print >>status, '"priority": "%s",' % priority,
             binaries = re.split(', *', source["Binary"].replace('\n', ''))
