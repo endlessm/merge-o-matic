@@ -1,3 +1,9 @@
+merge-o-matic (2014.01.24.2endless4) jessie; urgency=medium
+
+  * Really fix link field in top level json report. (T10973)
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Wed, 06 Apr 2016 10:08:56 -0700
+
 merge-o-matic (2014.01.24.2endless3) jessie; urgency=medium
 
   * Fix link field in top level json report.
