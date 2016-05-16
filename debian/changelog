@@ -1,3 +1,9 @@
+merge-o-matic (2014.01.24.2endless5) jessie; urgency=medium
+
+  * Correct merged_version value in json report. (T11642)
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Mon, 16 May 2016 16:27:20 -0700
+
 merge-o-matic (2014.01.24.2endless4) jessie; urgency=medium
 
   * Really fix link field in top level json report. (T10973)
