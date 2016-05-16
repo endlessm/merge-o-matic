@@ -1023,6 +1023,7 @@ def produce_merge(target, left, upstream, output_dir):
   if base >= upstream:
     logger.info("Nothing to be done: %s >= %s", base, upstream)
     report.result = MergeResult.KEEP_OURS
+    report.merged_version = left.version
     report.write_report(output_dir)
     return
 
@@ -1039,6 +1040,7 @@ def produce_merge(target, left, upstream, output_dir):
     report.result = MergeResult.SYNC_THEIRS
     report.build_metadata_changed = False
     report.right_patch = copy_in(output_dir, upstream)
+    report.merged_version = upstream.version
     report.merged_patch = report.right_patch
     report.merged_files = report.right_files
 
@@ -1098,6 +1100,7 @@ def produce_merge(target, left, upstream, output_dir):
       report.result = MergeResult.SYNC_THEIRS
       report.build_metadata_changed = False
       report.right_patch = copy_in(output_dir, upstream)
+      report.merged_version = upstream.version
       report.merged_patch = report.right_patch
       report.merged_files = report.right_files
 
