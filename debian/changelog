@@ -1,3 +1,10 @@
+merge-o-matic (2014.01.24.2endless6) jessie; urgency=medium
+
+  * Handle non-gz orig.tar compression formats when creating merges. This
+    is now the common case since dpkg defaults to xz compression.
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Fri, 27 May 2016 13:40:57 -0700
+
 merge-o-matic (2014.01.24.2endless5) jessie; urgency=medium
 
   * Correct merged_version value in json report. (T11642)
