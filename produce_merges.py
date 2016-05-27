@@ -219,9 +219,22 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
     right_name = right.package.name
     right_distro = right.package.distro.name
 
+    # See what format each is and whether they're both quilt
+    left_format = left.getSources()["Format"]
+    right_format = right.getSources()["Format"]
+    both_formats_quilt = left_format == right_format == "3.0 (quilt)"
+    if both_formats_quilt:
+        logger.debug("Only merging debian directory since both "
+                     "formats 3.0 (quilt)")
+
     # Look for files in the base and merge them if they're in both new
     # files (removed files get removed)
     for filename in tree.walk(base_dir):
+        # If both packages are 3.0 (quilt), ignore everything except the
+        # debian directory
+        if both_formats_quilt and not tree.under("debian", filename):
+            continue
+
         if tree.under(".pc", filename):
             # Not interested in merging quilt metadata
             continue
@@ -296,6 +309,11 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
     # Look for files in the left hand side that aren't in the base,
     # conflict if new on both sides or copy into the tree
     for filename in tree.walk(left_dir):
+        # If both packages are 3.0 (quilt), ignore everything except the
+        # debian directory
+        if both_formats_quilt and not tree.under("debian", filename):
+            continue
+
         if tree.under(".pc", filename):
             # Not interested in merging quilt metadata
             continue
@@ -337,13 +355,19 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
             # Not interested in merging quilt metadata
             continue
 
-        if tree.exists("%s/%s" % (base_dir, filename)):
-            continue
+        if both_formats_quilt and not tree.under("debian", filename):
+            # Always copy right version for quilt non-debian files
+            if not tree.exists("%s/%s" % (left_dir, filename)):
+                logger.debug("new in %s: %s", right_distro, filename)
+        else:
+            if tree.exists("%s/%s" % (base_dir, filename)):
+                continue
 
-        if tree.exists("%s/%s" % (left_dir, filename)):
-            continue
+            if tree.exists("%s/%s" % (left_dir, filename)):
+                continue
 
-        logger.debug("new in %s: %s", right_distro, filename)
+            logger.debug("new in %s: %s", right_distro, filename)
+
         tree.copyfile("%s/%s" % (right_dir, filename),
                       "%s/%s" % (merged_dir, filename))
 
