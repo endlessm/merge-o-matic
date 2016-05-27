@@ -1,3 +1,10 @@
+merge-o-matic (2014.01.24.2endless7) jessie; urgency=medium
+
+  * Skip merging upstream files when both packages are 3.0 (quilt).
+    (T11776)
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Fri, 27 May 2016 16:48:11 -0700
+
 merge-o-matic (2014.01.24.2endless6) jessie; urgency=medium
 
   * Handle non-gz orig.tar compression formats when creating merges. This
