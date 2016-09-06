@@ -1,3 +1,11 @@
+merge-o-matic (2014.01.24.2endless8) jessie; urgency=medium
+
+  * Check existing report sync_upstream status before creating new merge
+    report. (T12472)
+  * Make produce_merges quieter when using the -p option.
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Tue, 06 Sep 2016 04:56:09 -0700
+
 merge-o-matic (2014.01.24.2endless7) jessie; urgency=medium
 
   * Skip merging upstream files when both packages are 3.0 (quilt).
