@@ -98,8 +98,8 @@ def main(options, args):
         d = target.distro
         for pkg in d.packages(target.dist, target.component):
           if options.package is not None and pkg.name not in options.package:
-            logger.info('skipping package %s: not the selected package',
-                    pkg.name)
+            logger.debug('skipping package %s: not the selected package',
+                         pkg.name)
             continue
           if len(includes) and pkg.name not in includes:
             logger.info('skipping package %s: not in include list', pkg.name)
