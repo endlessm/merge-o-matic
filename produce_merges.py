@@ -143,22 +143,21 @@ def main(options, args):
             report.merged_version = our_version.version
             report.write_report(output_dir)
             continue
-          elif our_version < upstream and \
-               pkg.name in target.sync_upstream_packages:
-            logger.info("Syncing to %s per sync_upstream_packages", upstream)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.SYNC_THEIRS
-            report.merged_version = upstream.version
-            report.message = "Using version in upstream distro per " \
-                             "sync_upstream_packages configuration"
-            report.write_report(output_dir)
-            continue
 
           try:
             report = read_report(output_dir)
-            if (not options.force and
+            # See if sync_upstream_packages already set
+            if not options.force and \
+               pkg.name in target.sync_upstream_packages and \
+               Version(report['right_version']) == upstream.version and \
+               Version(report['left_version']) == our_version.version and \
+               Version(report['merged_version']) == upstream.version and \
+               report['result'] == MergeResult.SYNC_THEIRS:
+                logger.info("sync to upstream for %s [ours=%s, theirs=%s] "
+                            "already produced, skipping run", pkg,
+                            our_version.version, upstream.version)
+                continue
+            elif (not options.force and
                     Version(report['right_version']) == upstream.version and
                     Version(report['left_version']) == our_version.version and
                     # we'll retry the merge if there was an unexpected
@@ -179,6 +178,18 @@ def main(options, args):
             report.target = target.name
             report.result = MergeResult.KEEP_OURS
             report.merged_version = our_version.version
+            report.write_report(output_dir)
+            continue
+          elif our_version < upstream and \
+               pkg.name in target.sync_upstream_packages:
+            logger.info("Syncing to %s per sync_upstream_packages", upstream)
+            cleanup(output_dir)
+            report = MergeReport(left=our_version, right=upstream)
+            report.target = target.name
+            report.result = MergeResult.SYNC_THEIRS
+            report.merged_version = upstream.version
+            report.message = "Using version in upstream distro per " \
+                             "sync_upstream_packages configuration"
             report.write_report(output_dir)
             continue
 
