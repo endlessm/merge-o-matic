@@ -225,6 +225,14 @@ class Target(object):
     return map(SourceList, self.config('sources', default=[]))
 
   @property
+  def unstable_sources(self):
+    """Return a list of SourceList containing each Source that is merged into
+    this target.
+    """
+    return map(SourceList, self.config('unstable_sources', default=[]))
+
+
+  @property
   def sync_upstream_packages(self):
     """Return a set of package names that should be synced to the upstream
     distro without merging changes.

@@ -1,3 +1,13 @@
+merge-o-matic (2014.01.24.2endless9) eos; urgency=medium
+
+  * Strip "endless" suffix when calculating base version
+  * Add support for unstable upstreams. If provided, when our version
+    base is newer than the current upstream versions, we will assume
+    that the package has instead come from an unstable upstream so we'll
+    see if we can pull an update from unstable instead.
+
+ -- Daniel Drake <drake@endlessm.com>  Thu, 23 Mar 2017 15:15:26 -0600
+
 merge-o-matic (2014.01.24.2endless8) jessie; urgency=medium
 
   * Check existing report sync_upstream status before creating new merge

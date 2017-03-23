@@ -142,6 +142,7 @@ class Version(object):
             return text[:idx]
         v = strip_suffix(str(self), "build")
         v = strip_suffix(v, "co")
+        v = strip_suffix(v, "endless")
         if v.endswith("-"):
             v += "0"
         if slip and v.endswith("-0"):

@@ -117,7 +117,7 @@ DISTRO_SOURCES = {
 DISTRO_TARGETS = {}
 
 def defineDist(distro, name, upstreams, commitable,
-        sources_per_package=None, sync_upstream_packages=[]):
+        sources_per_package=None, sync_upstream_packages=[], unstable_upstreams=[]):
   """Adds an entry to DISTRO_TARGETS.
 
      @param name The name of the distro
@@ -136,6 +136,7 @@ def defineDist(distro, name, upstreams, commitable,
       'dist': name,
       'component': component,
       'sources': [ upstreams, ],
+      'unstable_sources': [ unstable_upstreams, ],
       'commit': commitable,
       'sources_per_package': sources_per_package,
       'sync_upstream_packages': sync_upstream_packages,

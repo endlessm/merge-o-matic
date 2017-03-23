@@ -144,6 +144,24 @@ def main(options, args):
             report.write_report(output_dir)
             continue
 
+          if our_version >= upstream:
+            our_base_version = our_version.version.base()
+            logger.info("our version %s >= their version %s, checking base version s", our_version, upstream, our_base_version)
+            if our_base_version > upstream.version:
+              logger.info("base version still newer than their version, checking in unstable")
+              for srclist in target.unstable_sources:
+                for src in srclist:
+                  logger.debug('considering unstable source %s', src)
+                  try:
+                    for possible in src.distro.findPackage(pkg.name,
+                        searchDist=src.dist):
+                      logger.debug('- contains version %s', possible)
+                      if upstream is None or possible > upstream:
+                        logger.debug('  - that version is the best yet seen')
+                        upstream = possible
+                  except model.error.PackageNotFound:
+                    pass
+
           try:
             report = read_report(output_dir)
             # See if sync_upstream_packages already set
