@@ -1,3 +1,13 @@
+merge-o-matic (2014.01.24.2endless10) eos; urgency=medium
+
+  * No need to pass list of lists in defineDist(), pass list of upstreams
+  * Fix format specifier of info message
+  * Don't consider unstable upstreams if a specific distro was provided for
+    a given package via sources_per_package
+    https://phabricator.endlessm.com/T16285
+
+ -- Daniel Drake <drake@endlessm.com>  Wed, 29 Mar 2017 16:04:49 -0600
+
 merge-o-matic (2014.01.24.2endless9) eos; urgency=medium
 
   * Strip "endless" suffix when calculating base version
@@ -5,6 +15,7 @@ merge-o-matic (2014.01.24.2endless9) eos; urgency=medium
     base is newer than the current upstream versions, we will assume
     that the package has instead come from an unstable upstream so we'll
     see if we can pull an update from unstable instead.
+    https://phabricator.endlessm.com/T16285
 
  -- Daniel Drake <drake@endlessm.com>  Thu, 23 Mar 2017 15:15:26 -0600
 

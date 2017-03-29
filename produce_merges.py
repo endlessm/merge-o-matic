@@ -144,9 +144,9 @@ def main(options, args):
             report.write_report(output_dir)
             continue
 
-          if our_version >= upstream:
+          if our_version >= upstream and not target.packageHasSpecificSource(pkg.name):
             our_base_version = our_version.version.base()
-            logger.info("our version %s >= their version %s, checking base version s", our_version, upstream, our_base_version)
+            logger.info("our version %s >= their version %s, checking base version %s", our_version, upstream, our_base_version)
             if our_base_version > upstream.version:
               logger.info("base version still newer than their version, checking in unstable")
               for srclist in target.unstable_sources:

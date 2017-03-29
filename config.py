@@ -276,6 +276,10 @@ class Target(object):
     else:
       return map(SourceList, ret)
 
+  def packageHasSpecificSource(self, packageName):
+    spp = self.config('sources_per_package', default={})
+    return spp.get(packageName, None) is not None
+
   @property
   def committable(self):
     """Return True if we can commit directly to this component's

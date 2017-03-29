@@ -126,6 +126,7 @@ def defineDist(distro, name, upstreams, commitable,
      @param distro The distro to use
      @param sources_per_package A dictionary setting upstream DISTRO_SOURCES for particular packages.
      @param sync_upstream_packages A list of packages to prefer upstreams version instead of merging.
+     @param unstable_upstreams A list of distros to consider when our version base is newer than the standard distro upstream
   """
   if sources_per_package is None:
     sources_per_package = {}
@@ -135,8 +136,8 @@ def defineDist(distro, name, upstreams, commitable,
       'distro': distro,
       'dist': name,
       'component': component,
-      'sources': [ upstreams, ],
-      'unstable_sources': [ unstable_upstreams, ],
+      'sources': upstreams,
+      'unstable_sources': unstable_upstreams,
       'commit': commitable,
       'sources_per_package': sources_per_package,
       'sync_upstream_packages': sync_upstream_packages,
@@ -146,17 +147,17 @@ def defineDist(distro, name, upstreams, commitable,
 
 # dderivative alpha gets packages from Debian wheezy, except that we
 # need a newer version of miscfiles from unstable for some reason
-defineDist('dderivative', 'alpha', 'wheezy+updates', False,
+defineDist('dderivative', 'alpha', ['wheezy+updates'], False,
       sources_per_package={
         'miscfiles': [ 'unstable' ],
       })
 # dderivative beta is entirely based on unstable
-defineDist('dderivative', 'beta', 'unstable', False)
+defineDist('dderivative', 'beta', ['unstable'], False)
 # uderivative aardvark is based on Ubuntu precise
-defineDist('uderivative', 'aardvark', 'precise+updates', False)
+defineDist('uderivative', 'aardvark', ['precise+updates'], False)
 # uderivative badger is mostly based on Ubuntu raring, but picks up systemd
 # updates from Debian
-defineDist('uderivative', 'badger', 'raring+updates', False,
+defineDist('uderivative', 'badger', ['raring+updates'], False,
         sources_per_package={
             'systemd': [ 'unstable' ],
         })
