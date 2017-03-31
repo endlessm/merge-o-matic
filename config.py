@@ -246,7 +246,7 @@ class Target(object):
     """Return the union of self.sources and all possible results of
     self.getSourceLists.
     """
-    ret = set(self.config('sources', default=[]))
+    ret = set(self.config('sources', default=[]) + self.config('unstable_sources', default=[]))
 
     for (p, s) in self.config('sources_per_package', default={}).iteritems():
       if isinstance(s, str):
@@ -256,21 +256,23 @@ class Target(object):
 
     return map(SourceList, ret)
 
-  def getSourceLists(self, packageName=None):
+  def getSourceLists(self, packageName=None, include_unstable=True):
     """Return a list of SourceList containing each Source that is merged into
     the given package in this target. For instance, this is useful
     if you want to take most packages from Debian stable, but some
     subset of packages from backports, testing or unstable; or
     most packages from unstable, but some from experimental.
     """
+    unstable = self.unstable_sources if include_unstable else []
+
     if packageName is None:
-      return self.sources
+      return self.sources + unstable
 
     spp = self.config('sources_per_package', default={})
     ret = spp.get(packageName, None)
 
     if ret is None:
-      return self.sources
+      return self.sources + unstable
     elif isinstance(ret, str):
       return [SourceList(ret)]
     else:

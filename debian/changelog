@@ -1,3 +1,13 @@
+merge-o-matic (2014.01.24.2endless11) eos; urgency=medium
+
+  * Make getSourceLists optionally return unstable too, so that we
+    fetch all required sources.
+  * Also consider upstream sources if the package was not found in the
+    stable distro.
+    https://phabricator.endlessm.com/T16285
+
+ -- Daniel Drake <drake@endlessm.com>  Fri, 31 Mar 2017 13:30:10 -0600
+
 merge-o-matic (2014.01.24.2endless10) eos; urgency=medium
 
   * No need to pass list of lists in defineDist(), pass list of upstreams

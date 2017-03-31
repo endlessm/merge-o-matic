@@ -119,7 +119,7 @@ def main(options, args):
             logger.debug('our version: %s', our_version)
           upstream = None
 
-          for srclist in target.getSourceLists(pkg.name):
+          for srclist in target.getSourceLists(pkg.name, include_unstable=False):
             for src in srclist:
               logger.debug('considering source %s', src)
               try:
@@ -134,6 +134,49 @@ def main(options, args):
 
           output_dir = result_dir(target.name, pkg.name)
 
+          # There are two situations in which we will look in unstable distros
+          # for a better version:
+          try_unstable = False
+      
+          # 1. If our version is newer than the stable upstream version, we
+          #    assume that our version was sourced from unstable, so let's
+          #    check for an update there.
+          #    However we must use the base version for the comparison here,
+          #    otherwise we would consider our version 1.0-1endless1 newer
+          #    than the stable 1.0-1 and look in unstable for an update.
+          if our_version >= upstream:
+            our_base_version = our_version.version.base()
+            logger.info("our version %s >= their version %s, checking base version %s", our_version, upstream, our_base_version)
+            if our_base_version > upstream.version:
+              logger.info("base version still newer than their version, checking in unstable")
+              try_unstable = True
+
+          # 2. If we didn't find any upstream version at all, it's possible
+          #    that it's a brand new package where our version was imported
+          #    from unstable, so let's see if we can find a better version
+          #    there.
+          if upstream is None:
+            try_unstable = True
+
+          # However, if this package has been assigned a specific source,
+          # we'll honour that.
+          if target.packageHasSpecificSource(pkg.name):
+            try_unstable = False
+
+          if try_unstable:
+            for srclist in target.unstable_sources:
+              for src in srclist:
+                logger.debug('considering unstable source %s', src)
+                try:
+                  for possible in src.distro.findPackage(pkg.name,
+                      searchDist=src.dist):
+                    logger.debug('- contains version %s', possible)
+                    if upstream is None or possible > upstream:
+                      logger.debug('  - that version is the best yet seen')
+                      upstream = possible
+                except model.error.PackageNotFound:
+                  pass
+
           if upstream is None:
             logger.info("%s not available upstream, skipping", our_version)
             cleanup(output_dir)
@@ -143,24 +186,6 @@ def main(options, args):
             report.merged_version = our_version.version
             report.write_report(output_dir)
             continue
-
-          if our_version >= upstream and not target.packageHasSpecificSource(pkg.name):
-            our_base_version = our_version.version.base()
-            logger.info("our version %s >= their version %s, checking base version %s", our_version, upstream, our_base_version)
-            if our_base_version > upstream.version:
-              logger.info("base version still newer than their version, checking in unstable")
-              for srclist in target.unstable_sources:
-                for src in srclist:
-                  logger.debug('considering unstable source %s', src)
-                  try:
-                    for possible in src.distro.findPackage(pkg.name,
-                        searchDist=src.dist):
-                      logger.debug('- contains version %s', possible)
-                      if upstream is None or possible > upstream:
-                        logger.debug('  - that version is the best yet seen')
-                        upstream = possible
-                  except model.error.PackageNotFound:
-                    pass
 
           try:
             report = read_report(output_dir)
