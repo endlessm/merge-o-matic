@@ -1,3 +1,10 @@
+merge-o-matic (2014.01.24.2endless12) eos; urgency=medium
+
+  * Fix handling of packages which don't exist in the stable distro
+    https://phabricator.endlessm.com/T16285
+
+ -- Daniel Drake <drake@endlessm.com>  Fri, 31 Mar 2017 16:20:02 -0600
+
 merge-o-matic (2014.01.24.2endless11) eos; urgency=medium
 
   * Make getSourceLists optionally return unstable too, so that we

@@ -144,7 +144,7 @@ def main(options, args):
           #    However we must use the base version for the comparison here,
           #    otherwise we would consider our version 1.0-1endless1 newer
           #    than the stable 1.0-1 and look in unstable for an update.
-          if our_version >= upstream:
+          if upstream is not None and our_version >= upstream:
             our_base_version = our_version.version.base()
             logger.info("our version %s >= their version %s, checking base version %s", our_version, upstream, our_base_version)
             if our_base_version > upstream.version:
