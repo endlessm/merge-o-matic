@@ -147,6 +147,10 @@ def main(options, args):
           # this might raise an error
           obsFiles = branchPkg.getOBSFiles()
 
+          # Get the linked target files since the checkout is expanded
+          # and may contain them
+          linkedFiles = package.getOBSFiles()
+
           for f in obsFiles:
             if f.endswith(".dsc"):
               oldDsc = '%s/%s'%(branchPkg.obsDir(), f)
@@ -175,7 +179,7 @@ def main(options, args):
           comment = comment.encode('utf-8')
           if not options.dry_run:
             filesUpdated = False
-            for f in obsFiles:
+            for f in obsFiles + linkedFiles:
               if f == "_link":
                 continue
               try:
