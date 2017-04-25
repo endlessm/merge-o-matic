@@ -36,6 +36,8 @@ def options(parser):
                       default=None,
                       help="Distribution target to publish")
     parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
+    parser.add_option("-f", "--force", action="store_true",
+                      help="Force creation of commits")
 
 def main(options, args):
     logger.debug('Committing merges...')
@@ -68,8 +70,11 @@ def main(options, args):
                 report.source_package)
 
         if report['committed']:
-          logger.debug("%s already committed, skipping!", package)
-          continue
+          if options.force:
+            logger.info("Forcing commit of %s", package)
+          else:
+            logger.debug("%s already committed, skipping!", package)
+            continue
 
         if report['result'] not in (MergeResult.MERGED,
                 MergeResult.SYNC_THEIRS):
