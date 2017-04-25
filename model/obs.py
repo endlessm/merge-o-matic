@@ -94,10 +94,30 @@ class OBSDistro(Distro):
           p.wc_repair(apiurl)
 
         try:
+          # If the package is "frozen" (.osc/_frozenlink exists), then
+          # the upstream linked package got updated after the branched
+          # package got updated and now represents an error.
+          #
+          # osc doesn't know how to properly deal with this scenario
+          # since the previous changeset doesn't apply anymore. You can
+          # run "osc pull" on a checkout to run a bunch of hairy code
+          # that tries to do a 3-way merge, but we don't need any of
+          # that since we don't actually care about what's in the linked
+          # package and always want to replace whatever's there with the
+          # new files.
+          #
+          # Simply unfreeze the package so that latest_rev() really
+          # returns the latest linked rev. The new files will all be
+          # deleted before committing.
+          if p.isfrozen():
+            logger.warning('Clearing frozen state for %s', package)
+            p.unmark_frozen()
+
           # Expand the linked version like "osc up -e"
           rev = None
           if p.islink():
             rev = p.latest_rev(expand=True)
+            logger.info('Updating %s to revision %s', package, rev)
           p.update(rev)
         except KeyboardInterrupt, e:
           raise e
