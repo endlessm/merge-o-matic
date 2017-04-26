@@ -1,3 +1,15 @@
+merge-o-matic (2014.01.24.2endless13) jessie; urgency=medium
+
+  * Add --force option to commit_merges.py.
+  * Remove linked files after updating so that commits actually remove the
+    previous source files when the local checkout is updated. (T16751)
+  * Unfreeze packages before updating. When a linked package and the
+    branched package both get updated, osc can freeze the link in the
+    checkout. Try to fix that situation before updating so that the latest
+    linked version is pulled in.
+
+ -- Dan Nicholson <nicholson@endlessm.com>  Tue, 25 Apr 2017 23:22:34 -0500
+
 merge-o-matic (2014.01.24.2endless12) eos; urgency=medium
 
   * Fix handling of packages which don't exist in the stable distro
