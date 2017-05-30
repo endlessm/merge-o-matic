@@ -26,6 +26,8 @@ from model import Distro
 import model.error
 from util import tree, run
 import config
+import subprocess
+from tempfile import mkdtemp
 
 logger = logging.getLogger('update_sources')
 
@@ -49,14 +51,35 @@ def main(options, args):
         if options.package is not None and pkg.name not in options.package:
           continue
 
+        base = pkg.newestVersion().version.base()
+        nearest = target.findNearestVersion(pkg.newestVersion())
+        if nearest.version == base:
+          # already have the base
+          continue
+
+        logger.debug("Attempting to fetch missing base %s for %s",
+                     base, pkg.newestVersion())
+        poolDir = pkg.poolDirectory()
+        tmpdir = mkdtemp()
+
         try:
-          base = target.findNearestVersion(pkg.newestVersion())
-          if base > pkg.newestVersion():
-            raise IndexError
-        except IndexError:
-          logger.debug("Attempting to fetch missing base %s for %s",
-              pkg.newestVersion().version.base(), pkg.newestVersion())
-          target.fetchMissingVersion(pkg, pkg.newestVersion().version.base())
+          rc = subprocess.call(['debsnap', '-d', tmpdir, '-f', '-v', pkg.name,
+                                str(base)])
+          if rc != 0:
+            logger.warning("debsnap failed with code %d", rc)
+            continue
+
+          updated = False
+          for filename in os.listdir(tmpdir):
+            if not os.path.exists(os.path.join(poolDir.path, filename)):
+              shutil.move(os.path.join(tmpdir, filename), poolDir.path)
+              updated = True
+        finally:
+          shutil.rmtree(tmpdir)
+        
+        if updated:
+          poolDir.updateSources()
+        
 
 if __name__ == "__main__":
     run(main, options, usage="%prog]",

@@ -1,3 +1,11 @@
+merge-o-matic (2014.01.24.2endless14) eos; urgency=medium
+
+  * Strip "ubuntu" suffix when calculating base version
+  * get_missing_bases was not actually doing anything. Adjust it to use
+    debsnap for significantly improved base-finding capabilities.
+
+ -- Daniel Drake <drake@endlessm.com>  Tue, 30 May 2017 14:57:15 -0600
+
 merge-o-matic (2014.01.24.2endless13) jessie; urgency=medium
 
   * Add --force option to commit_merges.py.
