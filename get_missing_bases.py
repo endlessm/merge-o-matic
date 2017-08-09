@@ -23,6 +23,7 @@ import urllib
 from momlib import *
 from config import *
 from model import Distro
+from model.base import PoolDirectory
 import model.error
 from util import tree, run
 import config
@@ -59,9 +60,17 @@ def main(options, args):
 
         logger.debug("Attempting to fetch missing base %s for %s",
                      base, pkg.newestVersion())
-        poolDir = pkg.poolDirectory()
-        tmpdir = mkdtemp()
 
+        # For lack of a better place, we save the missing base version under
+        # the very last source distro in the list.
+        source_list = target.getSourceLists(pkg.name)[-1]
+        source = source_list[-1]
+        component = source.distro.components()[-1]
+        logger.debug("Saving it into last source %s component %s",
+                     source.distro, component)
+        poolDir = PoolDirectory(source.distro, component, pkg.name)
+
+        tmpdir = mkdtemp()
         try:
           rc = subprocess.call(['debsnap', '-d', tmpdir, '-f', '-v', pkg.name,
                                 str(base)])

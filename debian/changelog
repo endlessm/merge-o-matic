@@ -1,3 +1,10 @@
+merge-o-matic (2014.01.24.2endless15) eos; urgency=medium
+
+  * get_missing_bases: save the newly found base into the last source
+    distro so that it can be found by produce_merges. T17314
+
+ -- Daniel Drake <drake@endlessm.com>  Wed, 09 Aug 2017 10:06:55 +0100
+
 merge-o-matic (2014.01.24.2endless14) eos; urgency=medium
 
   * Strip "ubuntu" suffix when calculating base version
