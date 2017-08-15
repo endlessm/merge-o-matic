@@ -43,6 +43,17 @@ def options(parser):
                       default=None,
                       help="Source suite (aka distrorelease)")
 
+def package_version_present_in_sources(target, pkg, base):
+    for sl in target.getSourceLists(pkg.name):
+        for source in sl:
+            for component in source.distro.components():
+                pooldir = PoolDirectory(source.distro, component,
+                                        pkg.name)
+
+                if base in pooldir.getVersions():
+                    return True
+    return False
+
 def main(options, args):
     logger.info('Trying to download missing base versions for 3-way merge...')
 
@@ -53,10 +64,19 @@ def main(options, args):
           continue
 
         base = pkg.newestVersion().version.base()
-        nearest = target.findNearestVersion(pkg.newestVersion())
-        if nearest.version == base:
-          # already have the base
-          continue
+
+        # See if the base version is already in the target distro
+        try:
+            target.distro.findPackage(pkg.name, searchDist=target.dist,
+                                      version=base)
+            # already have the base
+            continue
+        except model.error.PackageNotFound:
+            pass
+
+        # Now look for the base version in the source distros
+        if package_version_present_in_sources(target, pkg, base):
+            continue
 
         logger.debug("Attempting to fetch missing base %s for %s",
                      base, pkg.newestVersion())
@@ -77,6 +97,9 @@ def main(options, args):
           if rc != 0:
             logger.warning("debsnap failed with code %d", rc)
             continue
+
+          if not os.path.exists(poolDir.path):
+              os.makedirs(poolDir.path)
 
           updated = False
           for filename in os.listdir(tmpdir):

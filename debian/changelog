@@ -1,3 +1,19 @@
+merge-o-matic (2014.01.24.2endless16) eos; urgency=medium
+
+  * get_missing_bases:
+    - When deciding if the base version is already present, use the same
+      logic as in produce_merges (check target, then sources). Checking
+      the source distros is necessary to avoid repeated downloads on
+      later runs.
+    - Make pool directory if it doesn't exist
+   * produce_merges:
+    - directly instantiate the Package object when looking for base
+      versions for the merge. The previous approach of distro.package()
+      won't find stuff that was downloaded by get_missing_bases since it
+      is not present in the original distro from upstream.
+
+ -- Daniel Drake <drake@endlessm.com>  Tue, 15 Aug 2017 16:20:25 +0100
+
 merge-o-matic (2014.01.24.2endless15) eos; urgency=medium
 
   * get_missing_bases: save the newly found base into the last source

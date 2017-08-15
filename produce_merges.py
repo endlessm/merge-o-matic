@@ -34,7 +34,7 @@ from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
 from merge_report import (MergeResult, MergeReport, read_report, write_report)
-from model.base import (PoolDirectory, PackageVersion)
+from model.base import (PoolDirectory, PackageVersion, Package)
 from momversion import VERSION
 import config
 import model.error
@@ -958,7 +958,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
               if downstream_version in pooldir.getVersions():
                 try:
                   package_version = PackageVersion(
-                      source.distro.package(source.dist,
+                      Package(source.distro, source.dist,
                       component, downstream.package.name),
                       downstream_version)
                   base_dir = unpack_source(package_version)
