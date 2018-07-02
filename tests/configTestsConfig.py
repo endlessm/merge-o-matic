@@ -1,3 +1,4 @@
+# Fake config for use in the configTests unit tests
 ROOT = "/tmp/mom"
 
 DISTROS = {

@@ -127,3 +127,18 @@ For instance, we might have:
            \- source list: testing+unstable
               \- source: (debian, testing, main)
               \- source: (debian, unstable, main)
+
+
+Tests
+-----
+
+Run all tests with:
+	$ make check
+
+e.g. to run individual test classes or individual test cases:
+	$ python -m unittest tests.sourceTests
+	$ python -m unittest tests.sourceTests.SourceTest
+
+Customise with environment variables:
+
+MOM_TEST_DEBUG=1 enables standard logging of debug messages
