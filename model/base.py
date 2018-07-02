@@ -314,13 +314,18 @@ class PoolDirectory(object):
         pathhash(self.package_name), self.package_name)
 
   @property
+  def absolutePath(self):
+    """Return absolute path of PoolDirectory"""
+    return "%s/%s" % (config.get('ROOT'), self.path)
+
+  @property
   def sourcesFilename(self):
     """The absolute filename of the Sources file listing versions
     of this package in this (distro, component), in any suite,
     possibly including packages that are no longer referenced by
     any suite.
     """
-    return '%s/%s/Sources' % (config.get('ROOT'), self.path)
+    return '%s/Sources' % self.absolutePath
 
   def __repr__(self):
     """Return something like
@@ -337,13 +342,12 @@ class PoolDirectory(object):
     """Update the Sources file at sourcesFilename() to contain every
     package/version in this pool directory.
     """
-    pooldir = self.path
+    pooldir = self.absolutePath
     filename = self.sourcesFilename
 
     if not os.path.isdir(pooldir):
       return
 
-    tree.ensure(pooldir)
     logger.debug("Updating %s", filename)
     with open(filename, "w") as sources:
       shell.run(("apt-ftparchive", "sources", pooldir),
