@@ -41,7 +41,7 @@ def loadConfig(data):
   configdb = data
 
 def get(*args, **kwargs):
-  if configdb is None:
+  if configdb is None and 'MOM_TEST' not in os.environ:
     MOM_CONFIG_PATH = "/etc/merge-o-matic"
     sys.path.insert(1, MOM_CONFIG_PATH)
     import momsettings
