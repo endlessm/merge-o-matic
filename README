@@ -142,3 +142,6 @@ e.g. to run individual test classes or individual test cases:
 Customise with environment variables:
 
 MOM_TEST_DEBUG=1 enables standard logging of debug messages
+
+MOM_TEST_NO_CLEANUP=1 avoids the /tmp/mom* directories being automatically
+removed (useful for debugging test failures).
