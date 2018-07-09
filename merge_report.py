@@ -42,7 +42,7 @@ from util.jinja import patch_environment
 logger = logging.getLogger('merge_report')
 
 jinja_env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.dirname(__file__) + '/templates'),
+    loader=jinja2.FileSystemLoader(os.path.abspath(os.path.dirname(__file__)) + '/templates'),
     autoescape=True)
 patch_environment(jinja_env)
 
