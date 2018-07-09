@@ -1090,7 +1090,7 @@ def produce_merge(target, left, upstream, output_dir):
           upstream, set(), 1)
 
     report.write_report(output_dir)
-    return
+    return report
 
   stop_at = set([base.version]).union(tried_bases)
   report.left_changelog = save_changelog(output_dir, downstream_versions,
@@ -1115,7 +1115,7 @@ def produce_merge(target, left, upstream, output_dir):
     report.result = MergeResult.KEEP_OURS
     report.merged_version = left.version
     report.write_report(output_dir)
-    return
+    return report
 
   # Careful: MergeReport.merged_dir is the output directory for the .dsc or
   # tarball, whereas our local variable merged_dir (below) is a temporary
@@ -1144,7 +1144,7 @@ def produce_merge(target, left, upstream, output_dir):
         # ... and for a SYNC_THEIRS merge, we don't need to look at the
         # unpacked source code
         merged_dir=None)
-    return
+    return report
 
   merged_dir = work_dir(left.package.name, report.merged_version)
 
@@ -1159,7 +1159,7 @@ def produce_merge(target, left, upstream, output_dir):
     report.result = MergeResult.FAILED
     report.message = 'Could not merge: %s' % e
     report.write_report(output_dir)
-    return
+    return report
 
   # Hack. Create a temporary merged patch to see what's changed. It
   # would be better to track the changes through do_merge and return
@@ -1209,7 +1209,7 @@ def produce_merge(target, left, upstream, output_dir):
       cleanup_source(base.getSources())
       cleanup_source(left.getSources())
 
-      return
+      return report
 
   if 'debian/changelog' not in conflicts:
     try:
@@ -1220,7 +1220,7 @@ def produce_merge(target, left, upstream, output_dir):
       report.result = MergeResult.FAILED
       report.message = 'Could not update changelog: %s' % e
       report.write_report(output_dir)
-      return
+      return report
 
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
@@ -1276,6 +1276,7 @@ def produce_merge(target, left, upstream, output_dir):
   cleanup_source(upstream.getSources())
   cleanup_source(base.getSources())
   cleanup_source(left.getSources())
+  return report
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",
