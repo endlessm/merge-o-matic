@@ -35,7 +35,7 @@ def main(options, args):
 
     # Run through our default distribution and use that for the base
     # package names.  Expire from all distributions.
-    for target in DISTRO_TARGETS.keys():
+    for target in config.get('DISTRO_TARGETS').keys():
         our_distro, our_dist, our_component = get_target_distro_dist_component(target)
         d = Distro.get(our_distro)
         for source in d.getSources(our_dist, our_component):
@@ -137,7 +137,7 @@ def expire_pool_sources(distro, component, package, base):
                 logger.debug("Not removing %s/%s", pooldir.path, name)
                 continue
 
-            tree.remove("%s/%s/%s" % (ROOT, pooldir.path, name))
+            tree.remove("%s/%s/%s" % (config.get('ROOT'), pooldir.path, name))
             logger.debug("Removed %s/%s", pooldir.path, name)
             need_update = True
 

@@ -264,7 +264,7 @@ def is_build_metadata_changed(left_source, right_source):
 
 def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
     """Do the heavy lifting of comparing and merging."""
-    logger.debug("Producing merge in %s", tree.subdir(ROOT, merged_dir))
+    logger.debug("Producing merge in %s", tree.subdir(config.get('ROOT'), merged_dir))
     conflicts = []
     po_files = []
 
@@ -762,7 +762,8 @@ def add_changelog(package, merged_version, left_distro, left_dist,
                   % (right_distro.title(), right_dist)
             print >>new_changelog, "    - SUMMARISE HERE"
             print >>new_changelog
-            print >>new_changelog, (" -- %s <%s>  " % (MOM_NAME, MOM_EMAIL) +
+            print >>new_changelog, (" -- %s <%s>  " % (config.get('MOM_NAME'),
+                                                       config.get('MOM_EMAIL')) +
                                     time.strftime("%a, %d %b %Y %H:%M:%S %z"))
             print >>new_changelog
             for line in changelog:
@@ -777,7 +778,7 @@ def copy_in(output_dir, pkgver):
     pkg = pkgver.package
 
     for md5sum, size, name in files(source):
-        src = "%s/%s/%s" % (ROOT, pkg.poolDirectory().path, name)
+        src = "%s/%s/%s" % (config.get('ROOT'), pkg.poolDirectory().path, name)
         dest = "%s/%s" % (output_dir, name)
         if os.path.isfile(dest):
             os.unlink(dest)
@@ -803,8 +804,8 @@ def create_tarball(package, version, output_dir, merged_dir):
                                         version.without_epoch)
     contained = "%s-%s" % (package, version.without_epoch)
 
-    tree.ensure("%s/tmp/" % ROOT)
-    parent = tempfile.mkdtemp(dir="%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % config.get('ROOT'))
+    parent = tempfile.mkdtemp(dir="%s/tmp/" % config.get('ROOT'))
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
 
@@ -814,7 +815,7 @@ def create_tarball(package, version, output_dir, merged_dir):
 
         shell.run(("tar", "czf", filename, contained), chdir=parent)
 
-        logger.info("Created %s", tree.subdir(ROOT, filename))
+        logger.info("Created %s", tree.subdir(config.get('ROOT'), filename))
         return os.path.basename(filename)
     finally:
         tree.remove(parent)
@@ -824,8 +825,8 @@ def create_source(package, version, since, output_dir, merged_dir):
     contained = "%s-%s" % (package, version.upstream)
     filename = "%s_%s.dsc" % (package, version.without_epoch)
 
-    tree.ensure("%s/tmp/" % ROOT)
-    parent = tempfile.mkdtemp(dir="%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % config.get('ROOT'))
+    parent = tempfile.mkdtemp(dir="%s/tmp/" % config.get('ROOT'))
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
 
@@ -871,7 +872,7 @@ def create_source(package, version, since, output_dir, merged_dir):
             return (MergeResult.MERGED, None, os.path.basename(filename))
         else:
             message = ("dpkg-source did not produce expected filename %s" %
-                tree.subdir(ROOT, filename))
+                tree.subdir(config.get('ROOT'), filename))
             logger.warning("%s", message)
             return (MergeResult.FAILED,
                     "unable to build merged source package (%s)" % message,
@@ -892,7 +893,7 @@ def create_patch(version, filename, merged_dir,
             shell.run(("diff", "-pruN",
                        basis_source["Version"], "%s" % version),
                       chdir=parent, stdout=diff, okstatus=(0, 1, 2))
-            logger.info("Created %s", tree.subdir(ROOT, filename))
+            logger.info("Created %s", tree.subdir(config.get('ROOT'), filename))
 
         return os.path.basename(filename)
     finally:
@@ -1161,9 +1162,9 @@ def produce_merge(target, left, upstream, output_dir):
   # them.
   if len(conflicts) == 0:
     changelog_only = False
-    tree.ensure("%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % config.get('ROOT'))
     with tempfile.NamedTemporaryFile(suffix=".patch",
-                                     dir="%s/tmp/" % ROOT) as tmp_patch:
+                                     dir="%s/tmp/" % config.get('ROOT')) as tmp_patch:
       create_patch(report.merged_version, tmp_patch.name, merged_dir,
                    upstream.getSources(), upstream_dir)
       cmd = ["diffstat", "-qlkp1", tmp_patch.name]

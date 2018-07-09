@@ -59,13 +59,13 @@ def main(options, args):
     if options.target:
         targets = [options.target]
     else:
-        targets = DISTRO_TARGETS.keys()
+        targets = config.get('DISTRO_TARGETS').keys()
 
     outstanding = []
-    if os.path.isfile("%s/outstanding-merges.txt" % ROOT):
+    if os.path.isfile("%s/outstanding-merges.txt" % config.get('ROOT')):
         after_uvf = True
 
-        with open("%s/outstanding-merges.txt" % ROOT) as f:
+        with open("%s/outstanding-merges.txt" % config.get('ROOT')) as f:
             for line in f:
                 outstanding.append(line.strip())
     else:
@@ -125,7 +125,7 @@ def main(options, args):
         write_status_page(target, merges, our_distro, obs_project)
         write_status_json(target, merges)
 
-        status_file = "%s/merges/tomerge-%s" % (ROOT, target)
+        status_file = "%s/merges/tomerge-%s" % (config.get('ROOT'), target)
         remove_old_comments(status_file, merges)
         write_status_file(status_file, merges)
 
@@ -140,8 +140,8 @@ def get_uploader(distro, source):
         return None
 
     filename = "%s/pool/%s/%s/%s/%s" \
-            % (ROOT, distro, pathhash(source["Package"]), source["Package"], 
-               dsc_file)
+            % (config.get('ROOT'), distro, pathhash(source["Package"]),
+               source["Package"], dsc_file)
 
     (a, b, c) = os.popen3("gpg --verify %s" % filename)
     stdout = c.readlines()
@@ -153,7 +153,7 @@ def get_uploader(distro, source):
 
 def write_status_page(target, merges, our_distro, obsProject):
     """Write out the merge status page."""
-    status_file = "%s/merges/%s.html" % (ROOT, target)
+    status_file = "%s/merges/%s.html" % (config.get('ROOT'), target)
     if not os.path.isdir(os.path.dirname(status_file)):
         os.makedirs(os.path.dirname(status_file))
     with open(status_file + ".new", "w") as status:
@@ -230,7 +230,7 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
         # not really human-usable but it's the best we can do
         web_ui = target_object.distro.config('obs', 'url')
 
-    default_src_distro =DISTRO_SOURCES[DISTRO_TARGETS[target]["sources"][0]][0]["distro"]
+    default_src_distro =config.get('DISTRO_SOURCES')[config.get('DISTRO_TARGETS')[target]["sources"][0]][0]["distro"]
 
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
@@ -247,19 +247,20 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
     for uploaded, priority, package, source, \
             base_version, left_version, right_version, right_distro, \
             output_dir, report in merges:
+        escaped_root = re.escape(config.get('ROOT'))
 
         print >>status, "<tr bgcolor=%s class=first>" % COLOURS[priority]
 
         if os.path.exists(output_dir + '/REPORT.html'):
             print >>status, "<td><tt><a href=\"%s/REPORT.html\">" \
-                  "%s</a></tt>" % (re.sub('^' + re.escape(ROOT), '../', output_dir, 1), package)
+                  "%s</a></tt>" % (re.sub('^' + escaped_root, '../', output_dir, 1), package)
         else:
             print >>status, "<td><tt><a href=\"%s/REPORT\">" \
-                  "%s</a></tt>" % (re.sub('^' + re.escape(ROOT), '../', output_dir, 1), package)
+                  "%s</a></tt>" % (re.sub('^' + escaped_root, '../', output_dir, 1), package)
 
         if os.path.exists(output_dir + '/REPORT.json'):
             print >>status, " <sup><a href=\"%s/REPORT.json\">" \
-                  "JSON</a></sup>" % (re.sub('^' + re.escape(ROOT), '../', output_dir, 1))
+                  "JSON</a></sup>" % (re.sub('^' + escaped_root, '../', output_dir, 1))
 
         print >>status, " <sup><a href=\"https://launchpad.net/ubuntu/" \
               "+source/%s\">LP</a></sup>" % package
@@ -290,7 +291,7 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
 
 def write_status_json(target, merges):
     """Write out the merge status JSON dump."""
-    status_file = "%s/merges/%s.json" % (ROOT, target)
+    status_file = "%s/merges/%s.json" % (config.get('ROOT'), target)
     with open(status_file + ".new", "w") as status:
         # No json module available on merges.ubuntu.com right now, but it's
         # not that hard to do it ourselves.
@@ -305,7 +306,7 @@ def write_status_json(target, merges):
             print >>status, '"source_package": "%s",' % package,
             print >>status, '"short_description": "merge %s",' % right_version,
             print >>status, '"link": "%s/%s/",' \
-                % (MOM_URL.rstrip('/'), os.path.relpath(output_dir, ROOT)),
+                % (config.get('MOM_URL').rstrip('/'), os.path.relpath(output_dir, config.get('ROOT'))),
             print >>status, '"uploaded": "%s",' % uploaded,
             print >>status, '"priority": "%s",' % priority,
             binaries = re.split(', *', source["Binary"].replace('\n', ''))

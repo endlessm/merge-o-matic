@@ -55,14 +55,6 @@ try:
 except ImportError:
     from elementtree import ElementTree
 
-ROOT = config.get('ROOT')
-MOM_URL = config.get('MOM_URL')
-MOM_NAME = config.get('MOM_NAME')
-MOM_EMAIL = config.get('MOM_EMAIL')
-DISTROS = config.get('DISTROS')
-DISTRO_SOURCES = config.get('DISTRO_SOURCES')
-DISTRO_TARGETS = config.get('DISTRO_TARGETS')
-
 logger = logging.getLogger('momlib')
 
 # --------------------------------------------------------------------------- #
@@ -74,7 +66,7 @@ def cleanup(path):
     tree.remove(path)
 
     (dirname, basename) = os.path.split(path)
-    while dirname != ROOT:
+    while dirname != config.get('ROOT'):
         try:
             os.rmdir(dirname)
         except OSError, e:
@@ -95,25 +87,27 @@ def md5sum(filename):
 
 def unpack_directory(source):
     """Return the location of a local unpacked source."""
-    return "%s/unpacked/%s/%s/%s" % (ROOT, pathhash(source["Package"]),
+    return "%s/unpacked/%s/%s/%s" % (config.get('ROOT'),
+                                     pathhash(source["Package"]),
                                      source["Package"], source["Version"])
 
 def changes_file(distro, source):
     """Return the location of a local changes file."""
     return "%s/changes/%s/%s/%s/%s_%s_source.changes" \
-           % (ROOT, distro, pathhash(source["Package"]),
+           % (config.get('ROOT'), distro, pathhash(source["Package"]),
               source["Package"], source["Package"], source["Version"])
 
 def dpatch_directory(distro, source):
     """Return the directory where we put dpatches."""
     return "%s/dpatches/%s/%s/%s/%s" \
-           % (ROOT, distro, pathhash(source["Package"]), source["Package"],
-              source["Version"])
+           % (config.get('ROOT'), distro, pathhash(source["Package"]),
+              source["Package"], source["Version"])
 
 def diff_directory(distro, source):
     """Return the directory where we can find diffs."""
     return "%s/diffs/%s/%s/%s" \
-           % (ROOT, distro, pathhash(source["Package"]), source["Package"])
+           % (config.get('ROOT'), distro, pathhash(source["Package"]),
+              source["Package"])
 
 def diff_file(distro, source):
     """Return the location of a local diff file."""
@@ -123,7 +117,8 @@ def diff_file(distro, source):
 def patch_directory(distro, source):
     """Return the directory where we can find local patch files."""
     return "%s/patches/%s/%s/%s" \
-           % (ROOT, distro, pathhash(source["Package"]), source["Package"])
+           % (config.get('ROOT'), distro, pathhash(source["Package"]),
+              source["Package"])
 
 def patch_file(distro, source, slipped=False):
     """Return the location of a local patch file."""
@@ -137,20 +132,21 @@ def patch_file(distro, source, slipped=False):
 def published_file(distro, source):
     """Return the location where published patches should be placed."""
     return "%s/published/%s/%s/%s_%s.patch" \
-           % (ROOT, pathhash(source["Package"]), source["Package"],
-              source["Package"], source["Version"])
+           % (config.get('ROOT'), pathhash(source["Package"]),
+              source["Package"], source["Package"], source["Version"])
 
 def patch_list_file():
     """Return the location of the patch list."""
-    return "%s/published/PATCHES" % ROOT
+    return "%s/published/PATCHES" % config.get('ROOT')
 
 def work_dir(package, version):
     """Return the directory to produce the merge result."""
-    return "%s/work/%s/%s/%s" % (ROOT, pathhash(package), package, version)
+    return "%s/work/%s/%s/%s" % (config.get('ROOT'), pathhash(package), package, version)
 
 def result_dir(target, package):
     """Return the directory to store the result in."""
-    return "%s/merges/%s/%s/%s" % (ROOT, target, pathhash(package), package)
+    return "%s/merges/%s/%s/%s" % (config.get('ROOT'), target,
+                                   pathhash(package), package)
 
 # --------------------------------------------------------------------------- #
 # Source meta-data handling
@@ -196,7 +192,7 @@ def unpack_source(pv):
     if os.path.isdir(destdir):
         return destdir
 
-    srcdir = "%s/%s" % (ROOT, pv.poolDirectory().path)
+    srcdir = "%s/%s" % (config.get('ROOT'), pv.poolDirectory().path)
     for md5sum, size, name in files(source):
         if name.endswith(".dsc"):
             dsc_file = name
@@ -234,7 +230,7 @@ def save_changes_file(filename, source, previous=None):
     """Save a changes file for the given source."""
     srcdir = unpack_directory(source)
 
-    filesdir = "%s/%s" % (ROOT, source["Directory"])
+    filesdir = "%s/%s" % (config.get('ROOT'), source["Directory"])
 
     tree.ensure(filename)
     with open(filename, "w") as changes:
@@ -344,17 +340,20 @@ class PackageLists(object):
         self.include = {}
         self.exclude = {}
 
-        for target in DISTRO_TARGETS:
-            filename_exclude = "%s/%s.ignore.txt" % (ROOT, target)
+        distro_targets = config.get('DISTRO_TARGETS')
+        for target in distro_targets:
+            filename_exclude = "%s/%s.ignore.txt" % (config.get('ROOT'), target)
             self.exclude[target] = PackageList(filename_exclude)
             self.include[target] = {}
 
-            for src in DISTRO_TARGETS[target]["sources"]:
+            for src in distro_targets[target]["sources"]:
                 self.include[target][src] = {}
-                filename_include = "%s/%s-%s.list.txt" % (ROOT, target, src)
+                filename_include = "%s/%s-%s.list.txt" % (config.get('ROOT'),
+                                                          target, src)
                 # Allow short filename form for default sources
-                if src == DISTRO_TARGETS[target]["sources"][0] and not os.path.isfile(filename_include):
-                    filename_include = "%s/%s.list.txt" % (ROOT, target)
+                if src == distro_targets[target]["sources"][0] and not os.path.isfile(filename_include):
+                    filename_include = "%s/%s.list.txt" % (config.get('ROOT'),
+                                                           target)
 
                 self.include[target][src] = PackageList(filename_include)
 
@@ -368,7 +367,8 @@ class PackageLists(object):
             includes = [self.include[target][src_] for src_ in self.include[target]]
         else:
             includes = [self.include[target][src]]
-            if DISTRO_TARGETS[target]["sources"] and src != DISTRO_TARGETS[target]["sources"][0]:
+            distro_targets = config.get('DISTRO_TARGETS')
+            if distro_targets[target]["sources"] and src != distro_targets[target]["sources"][0]:
                 src_is_default = False
         found = False
         findable = False
@@ -386,13 +386,13 @@ class PackageLists(object):
     def add(self, target, src, package):
         """If src is None, the default source group is used"""
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         return self.include[target][src].add(package)
 
     def add_if_needed(self, target, src, package):
         """If src is None, the default source group is used"""
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         for src_ in self.include[target]:
             if package in self.include[target][src_]:
                 return False
@@ -401,12 +401,12 @@ class PackageLists(object):
     def discard(self, target, src, package):
         """If src is None, the default source group is used"""
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         return self.include[target][src].discard(package)
 
     def save_if_modified(self, target, src=None):
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         return self.include[target][src].save_if_modified()
 
     def check_manual(self, package):
@@ -427,17 +427,16 @@ class PackageLists(object):
 
         return True
 
-PACKAGELISTS = PackageLists()
-
 def get_target_distro_dist_component(target):
     """Return the distro, dist, and component for a given distribution target"""
-    distro = DISTRO_TARGETS[target]["distro"]
+    distro_targets = config.get('DISTRO_TARGETS')
+    distro = distro_targets[target]["distro"]
     try:
-        dist = DISTRO_TARGETS[target]["dist"]
+        dist = distro_targets[target]["dist"]
     except KeyError:
         dist = None
     try:
-        component = DISTRO_TARGETS[target]["component"]
+        component = distro_targets[target]["component"]
     except KeyError:
         component = None
     return (distro, dist, component)
@@ -448,7 +447,7 @@ def get_target_distro_dist_component(target):
 
 def comments_file():
     """Return the location of the comments."""
-    return "%s/comments.txt" % ROOT
+    return "%s/comments.txt" % config.get('ROOT')
 
 def get_comments():
     """Extract the comments from file, and return a dictionary

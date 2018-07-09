@@ -37,7 +37,7 @@ def main(options, args):
     if options.target:
         targets = [options.target]
     else:
-        targets = DISTRO_TARGETS.keys()
+        targets = config.get('DISTRO_TARGETS').keys()
 
     # Write to a new list
     list_filename = patch_list_file()
@@ -54,7 +54,7 @@ def main(options, args):
                 if options.package and source['Package'] not in options.package:
                     continue
 
-                if not PACKAGELISTS.check_target(target, None, source["Package"]):
+                if not PackageLists().check_target(target, None, source["Package"]):
                     continue
 
                 # Publish slipped patches in preference to true-base ones
@@ -83,9 +83,10 @@ def publish_patch(distro, source, filename, list_file):
         os.unlink(publish_filename)
     os.link(filename, publish_filename)
 
-    logger.info("Published %s", tree.subdir(ROOT, publish_filename))
+    logger.info("Published %s", tree.subdir(config.get('ROOT'),
+                                            publish_filename))
     print >>list_file, "%s %s" % (source["Package"],
-                                  tree.subdir("%s/published" % ROOT,
+                                  tree.subdir("%s/published" % config.get('ROOT'),
                                               publish_filename))
 
     # Remove older patches
@@ -109,7 +110,8 @@ def publish_patch(distro, source, filename, list_file):
             src_filename = "%s/%s" % (dpatch_dir, dpatch)
             dest_filename = "%s/%s" % (output, dpatch)
 
-            logger.info("Published %s", tree.subdir(ROOT, dest_filename))
+            logger.info("Published %s", tree.subdir(config.get('ROOT'),
+                                                    dest_filename))
             tree.ensure(dest_filename)
             tree.copyfile(src_filename, dest_filename)
 

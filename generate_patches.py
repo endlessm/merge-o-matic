@@ -68,4 +68,5 @@ def generate_patch(base, distro, ours,
         tree.ensure(filename)
         save_patch_file(filename, base_source, our_source)
         save_basis(filename, base_version)
-        logging.info("Saved patch file: %s", tree.subdir(ROOT, filename))
+        logging.info("Saved patch file: %s", tree.subdir(config.get('ROOT'),
+                                                         filename))

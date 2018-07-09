@@ -64,7 +64,7 @@ def generate_dpatch(distro, source, pkg):
     logger.debug("%s: %s %s", distro, pkg, source["Version"])
 
     stamp = "%s/%s/dpatch-stamp-%s" \
-        % (ROOT, pkg.poolDirectory().path, source["Version"])
+        % (config.get('ROOT'), pkg.poolDirectory().path, source["Version"])
 
     if not os.path.isfile(stamp):
         open(stamp, "w").close()
@@ -76,7 +76,8 @@ def generate_dpatch(distro, source, pkg):
         try:
             dirname = dpatch_directory(distro, source)
             extract_dpatches(dirname, source)
-            logger.info("Saved dpatches: %s", tree.subdir(ROOT, dirname))
+            logger.info("Saved dpatches: %s", tree.subdir(config.get('ROOT'),
+                                                          dirname))
         finally:
             cleanup_source(source)
 

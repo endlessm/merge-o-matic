@@ -109,7 +109,7 @@ def main(options, args):
 
 def write_stats(target, stats):
     """Write out the collected stats."""
-    stats_file = "%s/stats.txt" % ROOT
+    stats_file = "%s/stats.txt" % config.get('ROOT')
     with open(stats_file, "a") as stf:
         stamp = time.strftime("%Y-%m-%d %H:%M", time.gmtime())
         text = " ".join("%s=%d" % (k, v) for k,v in stats.items())

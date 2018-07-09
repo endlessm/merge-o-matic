@@ -77,7 +77,7 @@ def main(options, args):
     if options.target:
         targets = [options.target]
     else:
-        targets = DISTRO_TARGETS.keys()
+        targets = config.get('DISTRO_TARGETS').keys()
 
     # Read from the stats file
     stats = read_stats()
@@ -139,7 +139,7 @@ def read_stats():
     """Read the stats history file."""
     stats = {}
 
-    stats_file = "%s/stats.txt" % ROOT
+    stats_file = "%s/stats.txt" % config.get('ROOT')
     with open(stats_file, "r") as stf:
         for line in stf:
             (date, time, target, info) = line.strip().split(" ", 3)
@@ -219,7 +219,7 @@ def pie_chart(target, current):
     data = zip([ LABELS[key] for key in ORDER ],
                info_to_data(None, current))
 
-    filename = "%s/merges/%s-now.png" % (ROOT, target)
+    filename = "%s/merges/%s-now.png" % (config.get('ROOT'), target)
     tree.ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
         ar = area.T(size=(300,250), legend=None,
@@ -249,7 +249,7 @@ def range_chart(target, history, start, today, events):
     (y_tic_interval, y_minor_tic_interval) = \
                      sources_intervals(max(d[-1] for d in data))
 
-    filename = "%s/merges/%s-trend.png" % (ROOT, target)
+    filename = "%s/merges/%s-trend.png" % (config.get('ROOT'), target)
     tree.ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
         ar = area.T(size=(450,225), legend=legend.T(),

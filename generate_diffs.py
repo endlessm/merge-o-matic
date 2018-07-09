@@ -89,10 +89,10 @@ def generate_diff(last, this):
             save_changes_file(changes_filename, this.getSources(),
                 last.getSources())
             logger.info("Saved changes file: %s",
-                          tree.subdir(ROOT, changes_filename))
+                          tree.subdir(config.get('ROOT'), changes_filename))
         except (ValueError, OSError):
             logger.error("dpkg-genchanges for %s failed",
-                          tree.subdir(ROOT, changes_filename))
+                          tree.subdir(config.get('ROOT'), changes_filename))
 
     logger.debug("Producing diff from %s to %s", this, last)
     diff_filename = diff_file(this.package.distro.name, this.getSources())
@@ -102,7 +102,8 @@ def generate_diff(last, this):
         unpack_source(last)
         save_patch_file(diff_filename, last.getSources(), this.getSources())
         save_basis(diff_filename, last.getSources()["Version"])
-        logger.info("Saved diff file: %s", tree.subdir(ROOT, diff_filename))
+        logger.info("Saved diff file: %s", tree.subdir(config.get('ROOT'),
+                                                       diff_filename))
 
 
 if __name__ == "__main__":
