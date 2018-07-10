@@ -120,11 +120,11 @@ class Distro(object):
         continue
       sourcedir = source["Directory"]
 
-      pooldir = PoolDirectory(self, component, source["Package"]).path
+      pooldir = PoolDirectory(self, component, source["Package"])
 
       for md5sum, size, name in files(source):
           url = "%s/%s/%s" % (mirror, sourcedir, name)
-          filename = "%s/%s/%s" % (config.get('ROOT'), pooldir, name)
+          filename = "%s/%s/%s" % (config.get('ROOT'), pooldir.path, name)
 
           if os.path.isfile(filename):
               if os.path.getsize(filename) == int(size):
@@ -140,6 +140,9 @@ class Distro(object):
               logger.error("Downloading %s failed", url)
               raise
           logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
+
+    if changed:
+      pooldir.updateSources()
 
     return changed
 
