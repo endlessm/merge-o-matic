@@ -55,7 +55,7 @@ def main(options, args):
 
     ROOT = config.get('ROOT')
     lockdir = "%s/.lock" % ROOT
-    codedir = os.path.dirname(__file__)
+    codedir = os.path.abspath(os.path.dirname(__file__))
     unpackeddir = "%s/unpacked" % ROOT
 
     # Some modules assume we're already here
