@@ -155,10 +155,10 @@ class SourceList(object):
   def __repr__(self):
     return repr(self._sources)
 
-  def findPackage(self, name):
+  def findPackage(self, name, version=None):
     for s in self._sources:
       try:
-        return s.distro.findPackage(name, searchDist=s.dist)
+        return s.distro.findPackage(name, searchDist=s.dist, version=version)
       except model.error.PackageNotFound:
         continue
     raise model.error.PackageNotFound, name
@@ -302,21 +302,28 @@ class Target(object):
   def __repr__(self):
     return "Target(%s)"%(self._name)
 
+  def findSourcePackage(self, package_name, version=None):
+    """Look for a source package in our source lists. Return all matches
+    from all sources.
+    """
+    ret = []
+    for srclist in self.getSourceLists(package_name):
+      try:
+        ret.extend(srclist.findPackage(package_name, version))
+      except model.error.PackageNotFound:
+        pass
+    return ret
+
   def findNearestVersion(self, version):
     assert(isinstance(version, model.PackageVersion))
     base = version.version.base()
     sources = []
-    for srclist in self.getSourceLists(version.package.name):
-      for src in srclist:
-        try:
-          for pkg in  src.distro.findPackage(version.package.name,
-              searchDist=src.dist):
-            for v in pkg.package.poolDirectory().getVersions():
-              pv = model.PackageVersion(pkg.package, v)
-              if pv not in sources:
-                sources.append(pv)
-        except model.error.PackageNotFound:
-          pass
+    for pkg in self.findSourcePackage(version.package.name):
+      for v in pkg.package.poolDirectory().getVersions():
+        pv = model.PackageVersion(pkg.package, v)
+        if pv not in sources:
+          sources.append(pv)
+
     for v in version.package.poolDirectory().getVersions():
       pv = model.PackageVersion(version.package, v)
       if pv not in sources:
