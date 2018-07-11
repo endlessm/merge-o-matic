@@ -25,6 +25,7 @@ import time
 import urllib
 import model
 import re
+import imp
 import model.error
 from deb.version import Version
 from os import path
@@ -42,11 +43,19 @@ def loadConfig(data):
 
 def get(*args, **kwargs):
   if configdb is None and 'MOM_TEST' not in os.environ:
-    MOM_CONFIG_PATH = "/etc/merge-o-matic"
-    sys.path.insert(1, MOM_CONFIG_PATH)
-    import momsettings
+    if 'MOM_CONFIG_PATH' in os.environ:
+      config_path = os.environ['MOM_CONFIG_PATH']
+    else:
+      config_path = '/etc/merge-o-matic/momsettings.py'
+
+    if os.path.isfile(config_path):
+      momsettings = imp.load_source('momsettings', config_path)
+    else:
+      logging.warning("Could not load config '%s', trying standard import",
+                      config_path)
+      import momsettings
+
     loadConfig(momsettings)
-    sys.path.remove(MOM_CONFIG_PATH)
 
   def _get(item, *args, **kwargs):
     global configdb
