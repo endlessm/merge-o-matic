@@ -72,6 +72,10 @@ def options(parser):
                       help="Distribution target to generate stats for")
 
 def main(options, args):
+    if options.package:
+      logger.info("Skipping stats since -p was specified.")
+      return
+
     logger.info('Drawing graphs...')
 
     if options.target:
