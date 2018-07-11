@@ -327,10 +327,10 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
         elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            if handle_file(left_stat, left_dir, left_name, left_distro,
-                           right_dir, right_stat, right_name, right_distro,
-                           base_stat, base_dir, merged_dir, filename,
-                           po_files):
+            if not handle_file(left_stat, left_dir, left_name, left_distro,
+                               right_dir, right_stat, right_name, right_distro,
+                               base_stat, base_dir, merged_dir, filename,
+                               po_files):
                 conflicts.append(filename)
 
         elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
@@ -383,10 +383,10 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
         if S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            if handle_file(left_stat, left_dir, left_name, left_distro,
-                           right_dir, right_stat, right_name, right_distro,
-                           None, None, merged_dir, filename,
-                           po_files):
+            if not handle_file(left_stat, left_dir, left_name, left_distro,
+                              right_dir, right_stat, right_name, right_distro,
+                              None, None, merged_dir, filename,
+                              po_files):
                 conflicts.append(filename)
 
         elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
@@ -424,7 +424,7 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
     # Handle po files separately as they need special merging
     for filename in po_files:
-        if merge_po(left_dir, right_dir, merged_dir, filename):
+        if not merge_po(left_dir, right_dir, merged_dir, filename):
             conflict_file(left_dir, left_distro, right_dir, right_distro,
                           merged_dir, filename)
             conflicts.append(filename)
@@ -443,25 +443,25 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
         try:
           merge_changelog(left_dir, right_dir, merged_dir, filename)
         except:
-          return True
+          return False
     elif filename.endswith(".po") and not \
             same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # two-way merge of po contents (do later)
         po_files.append(filename)
-        return False
+        return True
     elif filename.endswith(".pot") and not \
             same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # two-way merge of pot contents
-        if merge_pot(left_dir, right_dir, merged_dir, filename):
+        if not merge_pot(left_dir, right_dir, merged_dir, filename):
             conflict_file(left_dir, left_distro, right_dir, right_distro,
                           merged_dir, filename)
-            return True
+            return False
     elif base_stat is not None and S_ISREG(base_stat.st_mode):
         # was file in base: diff3 possible
-        if merge_file(left_dir, left_name, left_distro, base_dir,
+        if not merge_file(left_dir, left_name, left_distro, base_dir,
                       right_dir, right_name, right_distro, merged_dir,
                       filename):
-            return True
+            return False
     elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # same file in left and right
         logger.debug("%s and %s both turned into same file: %s",
@@ -472,11 +472,11 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
         # general file conflict
         conflict_file(left_dir, left_distro, right_dir, right_distro,
                       merged_dir, filename)
-        return True
+        return False
 
     # Apply permissions
     merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
-    return False
+    return True
 
 def same_file(left_stat, left_dir, right_stat, right_dir, filename):
     """Are two filesystem objects the same?"""
@@ -585,9 +585,9 @@ def merge_po(left_dir, right_dir, merged_dir, filename):
                    "-C", left_po, right_po, closest_pot))
     except (ValueError, OSError):
         logger.error("PO file merge failed: %s", filename)
-        return True
+        return False
 
-    return False
+    return True
 
 def merge_pot(left_dir, right_dir, merged_dir, filename):
     """Update a .po file using msgcat."""
@@ -603,9 +603,9 @@ def merge_pot(left_dir, right_dir, merged_dir, filename):
                    right_pot, left_pot))
     except (ValueError, OSError):
         logger.error("POT file merge failed: %s", filename)
-        return True
+        return False
 
-    return False
+    return True
 
 def find_closest_pot(po_file):
     """Find the closest .pot file to the po file given."""
@@ -657,12 +657,12 @@ def merge_file(left_dir, left_name, left_distro, base_dir,
                 logger.debug("binary file conflict: %s", filename)
                 conflict_file(left_dir, left_distro, right_dir, right_distro,
                               merged_dir, filename)
-                return True
+                return False
         else:
             logger.debug("Conflict in %s", filename)
-            return True
+            return False
     else:
-        return False
+        return True
 
 
 def merge_attr(base_dir, left_dir, right_dir, merged_dir, filename):
