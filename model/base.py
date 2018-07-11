@@ -1,4 +1,5 @@
 import config
+from glob import glob
 from util import tree, pathhash, shell
 import os
 from os import path
@@ -39,15 +40,21 @@ class Distro(object):
   def __repr__(self):
     return '<%s "%s">' % (self.__class__.__name__, self.name)
 
-  def newestSources(self, dist, component):
+  def newestPackageVersions(self, dist, component):
     sources = self.getSources(dist, component)
     newest = {}
     for source in sources:
       package = source["Package"]
-      if package not in newest or Version(source["Version"]) > Version(newest[package]["Version"]):
-        newest[package] = source
+      version = Version(source['Version'])
+      if package not in newest or version > newest[package]:
+        newest[package] = version
 
-    return [newest[x] for x in sorted(newest.keys())]
+    ret = []
+    for name in sorted(newest.keys()):
+      pkg = Package(self, dist, component, name)
+      ret.append(PackageVersion(pkg, newest[name]))
+
+    return ret
 
   @staticmethod
   def get(name):
@@ -120,11 +127,10 @@ class Distro(object):
         continue
       sourcedir = source["Directory"]
 
-      pooldir = PoolDirectory(self, component, source["Package"])
-
+      pkg = self.package(dist, component, source['Package'])
       for md5sum, size, name in files(source):
           url = "%s/%s/%s" % (mirror, sourcedir, name)
-          filename = "%s/%s/%s" % (config.get('ROOT'), pooldir.path, name)
+          filename = "%s/%s" % (pkg.poolPath, name)
 
           if os.path.isfile(filename):
               if os.path.getsize(filename) == int(size):
@@ -140,9 +146,6 @@ class Distro(object):
               logger.error("Downloading %s failed", url)
               raise
           logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
-
-    if changed:
-      pooldir.updateSources()
 
     return changed
 
@@ -223,7 +226,10 @@ class Distro(object):
     this distro does not have release subdirectories
     """
     sources = self.getSources(dist, component)
-    return map(lambda x:self.package(dist, component, x["Package"]), sources)
+    ret = map(lambda x:self.package(dist, component, x["Package"]), sources)
+    # Multiple versions of a package could exist in the sources.
+    # De-duplicate the returned list.
+    return list(set(ret))
 
   def config(self, *args, **kwargs):
     args = ("DISTROS", self.name) + args
@@ -284,95 +290,14 @@ class Distro(object):
         with open(self.sourcesFile(dist, component, False), "wb") as f:
             f.write(gzf.read())
 
-  def poolName(self, component):
-    """Return the subdirectory of 'pool' which will contain this distro's
+  def getPoolPath(self, component):
+    """Return the absolute path to the pool for a given component
     source packages for the given component.
     """
-    return "%s/%s"%(self.config('pool', default=self.name), component)
+    return "%s/pool/%s/%s" % (config.get('ROOT'), self.config('pool', default=self.name), component)
 
   def shouldExpire(self):
     return self.config('expire', default=False)
-
-class PoolDirectory(object):
-  def __init__(self, distro, component, package_name):
-    """Constructor
-
-    :param Distro distro: the relevant distro
-    :param str component: the component within the distro, e.g. "main"
-    :param str package_name: the name of a Debian source package
-    """
-    assert isinstance(distro, Distro), distro
-
-    self.distro = distro
-    self.component = component
-    self.package_name = package_name
-
-  @property
-  def path(self):
-    """Return something like 'pool/debian/main/libf/libfoo'"""
-    return "pool/%s/%s/%s" % (self.distro.poolName(self.component),
-        pathhash(self.package_name), self.package_name)
-
-  @property
-  def absolutePath(self):
-    """Return absolute path of PoolDirectory"""
-    return "%s/%s" % (config.get('ROOT'), self.path)
-
-  @property
-  def sourcesFilename(self):
-    """The absolute filename of the Sources file listing versions
-    of this package in this (distro, component), in any suite,
-    possibly including packages that are no longer referenced by
-    any suite.
-    """
-    return '%s/Sources' % self.absolutePath
-
-  def __repr__(self):
-    """Return something like
-    <PoolDirectory 'pool/debian/main/libf/libfoo'>
-    """
-    return '<%s %r>' % (self.__class__.__name__, self.path)
-
-  def getSourceStanzas(self):
-    """Parse the Sources file for a package in the pool."""
-    return ControlFile(self.sourcesFilename,
-        multi_para=True, signed=False).paras
-
-  def updateSources(self):
-    """Update the Sources file at sourcesFilename() to contain every
-    package/version in this pool directory.
-    """
-    pooldir = self.absolutePath
-    filename = self.sourcesFilename
-
-    if not os.path.isdir(pooldir):
-      return
-
-    logger.debug("Updating %s", filename)
-    with open(filename, "w") as sources:
-      shell.run(("apt-ftparchive", "sources", pooldir),
-          chdir=config.get('ROOT'),
-          stdout=sources)
-
-  def getVersions(self):
-    """Return all available versions of this package that were downloaded
-    into the pool in this or a previous run (possibly from another
-    suite). They are in no particular order.
-
-    For up-to-date results, call updateSources() first.
-    """
-    # This doesn't return PackageVersion instances because PackageVersion
-    # has a Package, and Package has a known suite (dist), whereas
-    # this object is independent of suites. In practice, most callers
-    # will wrap the returned Versions in PackageVersions, but never mind...
-    versions = []
-    try:
-      sources = self.getSourceStanzas()
-    except:
-      return versions
-    for source in sources:
-      versions.append(Version(source['Version']))
-    return versions
 
 class Package(object):
   """A Debian source package in a distribution."""
@@ -406,11 +331,11 @@ class Package(object):
   def __repr__(self):
     return self.__unicode__()
 
-  def poolDirectory(self):
-    """Return the pool directory that will contain
-    this source package's files, e.g. "pool/debian/main/h/hello".
-    """
-    return PoolDirectory(self.distro, self.component, self.name)
+  @property
+  def poolPath(self):
+    """Return something like 'pool/debian/main/libf/libfoo'"""
+    return "%s/%s/%s" % (self.distro.getPoolPath(self.component),
+        pathhash(self.name), self.name)
 
   def commitMerge(self):
     pass
@@ -453,6 +378,16 @@ class Package(object):
     """
     return self.distro.updatePool(self.dist, self.component, self.name)
 
+  def getPoolVersions(self):
+    """Return all available versions of this package in the pool as
+    PackageVersion objects. They are in no particular order.
+    """
+    versions = []
+    for f in glob(self.poolPath + '/*.dsc'):
+      dsc = ControlFile(f, multi_para=False, signed=True).para
+      versions.append(PackageVersion(self, Version(dsc['Version'])))
+    return versions
+
   def currentVersions(self):
     """Return all available versions of this package in self.distro.
     They are in no particular order.
@@ -494,19 +429,18 @@ class PackageVersion(object):
 
   def __unicode__(self):
     return "%s-%s"%(self.package, self.version)
-  
-  def getSources(self):
-    """Return the Sources stanza for this version of this package
-    as a dict of the form {"Field": "value"}, or raise PackageVersionNotFound.
-    """
-    for s in self.poolDirectory().getSourceStanzas():
-      if Version(s['Version']) == self.version:
-        return s
-    raise error.PackageVersionNotFound(self.package, self.version)
 
-  def poolDirectory(self):
-      """Return the package's pool directory."""
-      return self.package.poolDirectory()
+  @property
+  def dscFilename(self):
+      return "%s_%s.dsc" % (self.package.name, self.version.without_epoch)
+
+  @property
+  def dscPath(self):
+      """Return path to the .dsc file in the pool"""
+      return self.package.poolPath + '/' + self.dscFilename
+
+  def getDscContents(self):
+      return ControlFile(self.dscPath, multi_para=False, signed=True).para
 
 def files(source):
     """Return (md5sum, size, name) for each file.

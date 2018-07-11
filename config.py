@@ -319,13 +319,11 @@ class Target(object):
     base = version.version.base()
     sources = []
     for pkg in self.findSourcePackage(version.package.name):
-      for v in pkg.package.poolDirectory().getVersions():
-        pv = model.PackageVersion(pkg.package, v)
+      for pv in pkg.package.getPoolVersions():
         if pv not in sources:
           sources.append(pv)
 
-    for v in version.package.poolDirectory().getVersions():
-      pv = model.PackageVersion(version.package, v)
+    for pv in version.package.getPoolVersions():
       if pv not in sources:
         sources.append(pv)
     bases = []
@@ -357,8 +355,7 @@ class Target(object):
     pooldir = pkg.getCurrentSources()[0]['Directory']
     name = "%s_%s.dsc" % (pkg.name, version)
     url = "%s/%s/%s" % (mirror, pooldir, name)
-    ourPoolDir = pkg.poolDirectory()
-    outfile = "%s/%s" % (ourPoolDir.path, name)
+    outfile = "%s/%s" % (pkg.poolPath, name)
     logging.debug("Downloading %s to %s", url, outfile)
     try:
       self._getFile(url, outfile)
@@ -372,9 +369,8 @@ class Target(object):
       pass
     for md5sum, size, name in files(source.paras[0]):
       url = "%s/%s/%s" % (mirror, pooldir, name)
-      outfile = "%s/%s" % (ourPoolDir.path, name)
+      outfile = "%s/%s" % (pkg.poolPath, name)
       self._getFile(url, outfile, size)
-    ourPoolDir.updateSources()
     return True
   
   def fetchMissingVersion(self, package, version):

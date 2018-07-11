@@ -36,7 +36,7 @@ def options(parser):
                       default=None,
                       help="Process only this distribution target")
 
-def notify_action_needed(target, output_dir, source, report):
+def notify_action_needed(target, output_dir, report):
     try:
         json_mtime = os.path.getmtime(output_dir + '/REPORT.json')
     except OSError as e:
@@ -267,41 +267,39 @@ def main(options, args):
             logger.debug('Skipping %r distro %r: not an OBSDistro', target, d)
             continue
 
-        for source in d.newestSources(target.dist, target.component):
-            if options.package and source['Package'] not in options.package:
-                logger.debug('Skipping package %s: not selected',
-                        source['Package'])
+        for pkg in d.packages(target.dist, target.component):
+            if options.package and pkg.name not in options.package:
+                logger.debug('Skipping package %s: not selected', pkg.name)
                 continue
 
-            if source['Package'] in target.blacklist:
-                logger.debug('Skipping package %s: blacklisted',
-                        source['Package'])
+            if pkg.name in target.blacklist:
+                logger.debug('Skipping package %s: blacklisted', pkg.name)
                 continue
 
             try:
-                output_dir = result_dir(target.name, source['Package'])
+                output_dir = result_dir(target.name, pkg.name)
                 report = read_report(output_dir)
             except ValueError:
                 logger.debug('Skipping package %s: unable to read report',
-                    source['Package'])
+                             pkg.name)
                 continue
 
             if report.result == MergeResult.KEEP_OURS:
                 logger.debug('Skipping package %s: result=%s',
-                        source['Package'], report.result)
+                        pkg.name, report.result)
                 continue
 
             if (target.committable and report.result in (MergeResult.MERGED,
                     MergeResult.SYNC_THEIRS)):
                 logger.debug('Skipping package %s: result=%s, would already '
                         'have been committed',
-                        source['Package'], report.result)
+                        pkg.name, report.result)
                 continue
 
             try:
-                notify_action_needed(target, output_dir, source, report)
+                notify_action_needed(target, output_dir, report)
             except Exception:
-                logger.exception('Error processing %s:', source['Package'])
+                logger.exception('Error processing %s:', pkg.name)
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",

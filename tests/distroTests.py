@@ -37,11 +37,10 @@ class DistroTest(unittest.TestCase):
     self.assertEqual(len(pkgs), 1)
     pkg = pkgs[0].package
     pkg.updatePool()
-    pd = pkg.poolDirectory()
-    self.assertTrue(os.path.isdir(pd.absolutePath))
-    versions = pd.getVersions()
+    self.assertTrue(os.path.isdir(pkg.poolPath))
+    versions = pkg.getPoolVersions()
     self.assertEqual(len(versions), 1)
-    self.assertEqual(versions[0], foo.version)
+    self.assertEqual(versions[0].version, foo.version)
 
   # Test findPackage method
   def test_findPackage(self):
