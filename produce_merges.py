@@ -34,7 +34,7 @@ from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
 from merge_report import (MergeResult, MergeReport, read_report, write_report)
-from model.base import (PoolDirectory, PackageVersion, Package)
+from model.base import (PackageVersion, Package)
 from momversion import VERSION
 import config
 import model.error
@@ -278,8 +278,8 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
     right_distro = right.package.distro.name
 
     # See what format each is and whether they're both quilt
-    left_format = left.getSources()["Format"]
-    right_format = right.getSources()["Format"]
+    left_format = left.getDscContents()["Format"]
+    right_format = right.getDscContents()["Format"]
     both_formats_quilt = left_format == right_format == "3.0 (quilt)"
     if both_formats_quilt:
         logger.debug("Only merging debian directory since both "
@@ -778,11 +778,10 @@ def add_changelog(package, merged_version, left_distro, left_dist,
 def copy_in(output_dir, pkgver):
     """Make a copy of the source files."""
 
-    source = pkgver.getSources()
     pkg = pkgver.package
 
-    for md5sum, size, name in files(source):
-        src = "%s/%s/%s" % (config.get('ROOT'), pkg.poolDirectory().path, name)
+    for md5sum, size, name in files(pkgver.getDscContents()):
+        src = "%s/%s" % (pkg.poolPath, name)
         dest = "%s/%s" % (output_dir, name)
         if os.path.isfile(dest):
             os.unlink(dest)
@@ -792,7 +791,7 @@ def copy_in(output_dir, pkgver):
         except OSError, e:
           logger.exception("File not found: %s", src)
 
-    patch = patch_file(pkg.distro, source)
+    patch = patch_file(pkg.distro, pkgver)
     if os.path.isfile(patch):
         output = "%s/%s" % (output_dir, os.path.basename(patch))
         if not os.path.exists(output):
@@ -884,18 +883,17 @@ def create_source(package, version, since, output_dir, merged_dir):
     finally:
         tree.remove(parent)
 
-def create_patch(version, filename, merged_dir,
-                 basis_source, basis_dir):
+def create_patch(version, filename, merged_dir, basis, basis_dir):
     """Create the merged patch."""
 
     parent = tempfile.mkdtemp()
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, version))
-        tree.copytree(basis_dir, "%s/%s" % (parent, basis_source["Version"]))
+        tree.copytree(basis_dir, "%s/%s" % (parent, basis.version))
 
         with open(filename, "w") as diff:
             shell.run(("diff", "-pruN",
-                       basis_source["Version"], "%s" % version),
+                       str(basis.version), str(version)),
                       chdir=parent, stdout=diff, okstatus=(0, 1, 2))
             logger.info("Created %s", tree.subdir(config.get('ROOT'), filename))
 
@@ -926,98 +924,66 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
     if downstream_version is None:
       # sometimes read_changelog gets confused
       continue
+
     for upstream_version, upstream_text in upstream_versions:
-      if downstream_version == upstream_version:
-        logger.debug('%s looks like a possibility', downstream_version)
+      if downstream_version != upstream_version:
+        continue
 
+      logger.debug('%s looks like a possibility', downstream_version)
+
+      # See if we have this version in the target distro
+      try:
+        return target.distro.findPackage(downstream.package.name,
+                                         searchDist=target.dist,
+                                         version=downstream_version)[0]
+      except model.error.PackageNotFound:
+        pass
+
+      # See if we have this version in a source distro
+      source_lists = target.getSourceLists(downstream.package.name)
+      for sl in source_lists:
         try:
-          package_version = target.distro.findPackage(
-                  downstream.package.name, searchDist=target.dist,
-                  version=downstream_version)[0]
+          return sl.findPackage(downstream.package.name,
+                                version=downstream_version)[0]
         except model.error.PackageNotFound:
-          source_lists = target.getSourceLists(downstream.package.name)
-          sources = []
-          for sl in source_lists:
-            for source in sl:
-              sources.append(source)
+          pass
 
-          for source in sources:
-            base_dir = None
+      # See if we have this version archived in a pool somewhere
+      sources = []
+      for sl in source_lists:
+        for source in sl:
+          sources.append(source)
 
-            # First try to get it from one of its pool directories on disk.
-            # FIXME: if we have more than one source differing only
-            # by suite, this searches the corresponding pool directory
-            # that many times, because they share a pool directory.
-            # It would make more sense if we could just iterate over
-            # PoolDirectory instances... but then we wouldn't have a
-            # suite (dist) to make the necessary Package so we can hav
-            # a PackageVersion.
-            for component in source.distro.components():
-              pooldir = PoolDirectory(source.distro, component,
-                      downstream.package.name)
-              # In principle we could do this conditionally... but we've
-              # already decided we're going to try a merge, which takes
-              # orders of magnitude more time and I/O than apt-ftparchive
-              pooldir.updateSources()
+      for source in sources:
+        base_dir = None
 
-              if downstream_version in pooldir.getVersions():
-                try:
-                  package_version = PackageVersion(
-                      Package(source.distro, source.dist,
-                      component, downstream.package.name),
-                      downstream_version)
-                  base_dir = unpack_source(package_version)
-                except model.error.PackageNotFound:
-                  # ignore, try other source (distro, suite, component)
-                  # tuples
-                  pass
-                except Exception:
-                  logger.exception('unable to use version %s from %s:\n',
-                      downstream_version, pooldir)
-                else:
-                  return (package_version, base_dir)
+        # Try to get it from one of its pool directories on disk.
+        # FIXME: if we have more than one source differing only
+        # by suite, this searches the corresponding pool directory
+        # that many times, because they share a pool directory.
+        # It would make more sense if we could just iterate over
+        # pool directory instances... but then we wouldn't have a
+        # suite (dist) to make the necessary Package so we can hav
+        # a PackageVersion.
+        for component in source.distro.components():
+          pkg = Package(source.distro, source.dist, component,
+                        downstream.package.name)
+          for package_version in pkg.getPoolVersions():
+            if package_version.version == downstream_version:
+              return package_version
 
-            # Failing that, try to download it from some suite.
-            try:
-              package_version = source.distro.findPackage(
-                      downstream.package.name,
-                      searchDist=source.dist,
-                      version=downstream_version)[0]
-            except model.error.PackageNotFound:
-              continue
-            except Exception:
-              tried_bases.add(downstream_version)
-              logger.debug('unable to find %s in %s:\n',
-                      downstream_version, source, exc_info=1)
-              # go to next source
-              continue
-            else:
-              # no error finding it in this source
-              logger.debug('found %s in source distro', downstream_version)
-              break
-          else:
-            # run out of sources
-            tried_bases.add(downstream_version)
-            logger.debug('unable to find %s in any source distro',
-                downstream_version)
-            # go to next version
-            continue
-        else:
-          # no error finding it in the target
-          logger.debug('found %s in target distro', downstream_version)
-
+      # Maybe the old version is still present on the server, just
+      # not listed in the Sources file. Try to get it from there.
+      target.fetchMissingVersion(downstream.package.name, downstream_version)
+      # If that was successful, we'll now find it in a source distro
+      for sl in source_lists:
         try:
-          target.fetchMissingVersion(package_version.package,
-                  package_version.version)
-          base_dir = unpack_source(package_version)
-        except Exception:
-          logger.exception('unable to unpack %s:\n', package_version)
-        else:
-          logger.debug('base version for %s and %s is %s',
-                  downstream, upstream, package_version)
-          return (package_version, base_dir)
+          return sl.findPackage(downstream.package.name,
+                                version=downstream_version)[0]
+        except model.error.PackageNotFound:
+          pass
 
-        tried_bases.add(downstream_version)
+      tried_bases.add(downstream_version)
 
   raise NoBase('unable to find a usable base version for %s and %s' %
           (downstream, upstream))
@@ -1068,8 +1034,9 @@ def produce_merge(target, left, upstream, output_dir):
   try:
     downstream_versions = read_changelog(left_dir + '/debian/changelog')
     upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
-    base, base_dir = get_common_ancestor(target,
+    base = get_common_ancestor(target,
             left, downstream_versions, upstream, upstream_versions, tried_bases)
+    base_dir = unpack_source(base)
   except Exception as e:
     report.bases_not_found = sorted(tried_bases, reverse=True)
 
@@ -1170,7 +1137,7 @@ def produce_merge(target, left, upstream, output_dir):
     with tempfile.NamedTemporaryFile(suffix=".patch",
                                      dir="%s/tmp/" % config.get('ROOT')) as tmp_patch:
       create_patch(report.merged_version, tmp_patch.name, merged_dir,
-                   upstream.getSources(), upstream_dir)
+                   upstream, upstream_dir)
       cmd = ["diffstat", "-qlkp1", tmp_patch.name]
       diffstat_output = subprocess.check_output(cmd)
       diff_files = diffstat_output.splitlines()
@@ -1205,9 +1172,9 @@ def produce_merge(target, left, upstream, output_dir):
                    merged_dir=None)
 
       cleanup(merged_dir)
-      cleanup_source(upstream.getSources())
-      cleanup_source(base.getSources())
-      cleanup_source(left.getSources())
+      cleanup_source(upstream)
+      cleanup_source(base)
+      cleanup_source(left)
 
       return report
 
@@ -1244,19 +1211,19 @@ def produce_merge(target, left, upstream, output_dir):
     if result == MergeResult.MERGED:
       assert src_file.endswith('.dsc'), src_file
       dsc = ControlFile("%s/%s" % (output_dir, src_file), signed=True).para
-      report.build_metadata_changed = is_build_metadata_changed(left.getSources(), dsc)
+      report.build_metadata_changed = is_build_metadata_changed(left.getDscContents(), dsc)
       report.merged_files = [src_file] + [f[2] for f in files(dsc)]
       report.merged_patch = create_patch(report.merged_version,
               "%s/%s_%s_from-theirs.patch" % (output_dir, left.package.name,
                   report.merged_version),
               merged_dir,
-              upstream.getSources(),
+              upstream,
               upstream_dir)
       report.proposed_patch = create_patch(report.merged_version,
               "%s/%s_%s_from-ours.patch" % (output_dir, left.package.name,
                   report.merged_version),
               merged_dir,
-              left.getSources(),
+              left,
               left_dir)
     else:
       report.result = result
@@ -1273,9 +1240,9 @@ def produce_merge(target, left, upstream, output_dir):
                merged_dir=merged_dir)
   logger.info("Wrote output to %s", src_file)
   cleanup(merged_dir)
-  cleanup_source(upstream.getSources())
-  cleanup_source(base.getSources())
-  cleanup_source(left.getSources())
+  cleanup_source(upstream)
+  cleanup_source(base)
+  cleanup_source(left)
   return report
 
 if __name__ == "__main__":

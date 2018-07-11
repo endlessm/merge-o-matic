@@ -106,12 +106,11 @@ def main(options, args):
       # have both ubuntu/raring/main/hello and ubuntu/saucy/main/hello
       # in @packages, resulting in us updating the ubuntu/*/main/hello
       # pool directory twice. For the moment, we just live with it.
-      pd = pkg.poolDirectory()
-      logger.info("Updating %r from suite %s", pd, pkg.dist)
+      logger.info("Updating %s from suite %s", pkg.name, pkg.dist)
       pkg.updatePool()
-      logger.info("Available versions in %r:", pd)
-      for v in sorted(pd.getVersions()):
-        logger.info('- %s', v)
+      logger.info("Available versions:")
+      for pv in sorted(pkg.getPoolVersions()):
+        logger.info('- %s', pv.version)
 
 if __name__ == "__main__":
     run(main, usage="%prog [DISTRO...]",

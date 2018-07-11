@@ -49,24 +49,24 @@ def main(options, args):
         for target in targets:
             our_distro, our_dist, our_component = get_target_distro_dist_component(target)
             d = Distro.get(our_distro)
-            for source in d.newestSources(our_dist, our_component):
-                package = source["Package"]
-                if options.package and source['Package'] not in options.package:
+            for pv in d.newestPackageVersions(our_dist, our_component):
+                if options.package and pv.package.name not in options.package:
                     continue
 
-                if not PackageLists().check_target(target, None, source["Package"]):
+                if not PackageLists().check_target(target, None,
+                                                   pv.package.name):
                     continue
 
                 # Publish slipped patches in preference to true-base ones
-                slip_filename = patch_file(our_distro, source, True)
-                filename = patch_file(our_distro, source, False)
+                slip_filename = patch_file(our_distro, pv, True)
+                filename = patch_file(our_distro, pv, False)
 
                 if os.path.isfile(slip_filename):
-                    publish_patch(our_distro, source, slip_filename, list_file)
+                    publish_patch(our_distro, pv, slip_filename, list_file)
                 elif os.path.isfile(filename):
-                    publish_patch(our_distro, source, filename, list_file)
+                    publish_patch(our_distro, pv, filename, list_file)
                 else:
-                    unpublish_patch(our_distro, source)
+                    unpublish_patch(our_distro, pv)
     finally:
         list_file.close()
 
@@ -74,9 +74,9 @@ def main(options, args):
     os.rename(list_filename + ".new", list_filename)
 
 
-def publish_patch(distro, source, filename, list_file):
+def publish_patch(distro, pv, filename, list_file):
     """Publish the latest version of the patch for all to see."""
-    publish_filename = published_file(distro, source)
+    publish_filename = published_file(distro, pv)
 
     tree.ensure(publish_filename)
     if os.path.isfile(publish_filename):
@@ -85,7 +85,7 @@ def publish_patch(distro, source, filename, list_file):
 
     logger.info("Published %s", tree.subdir(config.get('ROOT'),
                                             publish_filename))
-    print >>list_file, "%s %s" % (source["Package"],
+    print >>list_file, "%s %s" % (pv.package,
                                   tree.subdir("%s/published" % config.get('ROOT'),
                                               publish_filename))
 
@@ -101,7 +101,7 @@ def publish_patch(distro, source, filename, list_file):
     if os.path.isdir(output):
         tree.remove(output)
 
-    dpatch_dir = dpatch_directory(distro, source)
+    dpatch_dir = dpatch_directory(distro, pv)
     if os.path.isdir(dpatch_dir):
         for dpatch in tree.walk(dpatch_dir):
             if not len(dpatch):
@@ -115,9 +115,9 @@ def publish_patch(distro, source, filename, list_file):
             tree.ensure(dest_filename)
             tree.copyfile(src_filename, dest_filename)
 
-def unpublish_patch(distro, source):
+def unpublish_patch(distro, pv):
     """Remove any published patch."""
-    publish_dir = os.path.dirname(published_file(distro, source))
+    publish_dir = os.path.dirname(published_file(distro, pv))
     cleanup(publish_dir)
 
 

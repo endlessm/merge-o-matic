@@ -85,55 +85,55 @@ def md5sum(filename):
 # Location functions
 # --------------------------------------------------------------------------- #
 
-def unpack_directory(source):
+def unpack_directory(pv):
     """Return the location of a local unpacked source."""
     return "%s/unpacked/%s/%s/%s" % (config.get('ROOT'),
-                                     pathhash(source["Package"]),
-                                     source["Package"], source["Version"])
+                                     pathhash(pv.package.name),
+                                     pv.package, pv.version)
 
-def changes_file(distro, source):
+def changes_file(distro, pv):
     """Return the location of a local changes file."""
     return "%s/changes/%s/%s/%s/%s_%s_source.changes" \
-           % (config.get('ROOT'), distro, pathhash(source["Package"]),
-              source["Package"], source["Package"], source["Version"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package, pv.package, pv.version)
 
-def dpatch_directory(distro, source):
+def dpatch_directory(distro, pv):
     """Return the directory where we put dpatches."""
     return "%s/dpatches/%s/%s/%s/%s" \
-           % (config.get('ROOT'), distro, pathhash(source["Package"]),
-              source["Package"], source["Version"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package, pv.version)
 
-def diff_directory(distro, source):
+def diff_directory(distro, pv):
     """Return the directory where we can find diffs."""
     return "%s/diffs/%s/%s/%s" \
-           % (config.get('ROOT'), distro, pathhash(source["Package"]),
-              source["Package"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package)
 
-def diff_file(distro, source):
+def diff_file(distro, pv):
     """Return the location of a local diff file."""
-    return "%s/%s_%s.patch" % (diff_directory(distro, source),
-                               source["Package"], source["Version"])
+    return "%s/%s_%s.patch" % (diff_directory(distro, pv),
+                               pv.package, pv.version)
 
-def patch_directory(distro, source):
+def patch_directory(distro, pv):
     """Return the directory where we can find local patch files."""
     return "%s/patches/%s/%s/%s" \
-           % (config.get('ROOT'), distro, pathhash(source["Package"]),
-              source["Package"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package)
 
-def patch_file(distro, source, slipped=False):
+def patch_file(distro, pv, slipped=False):
     """Return the location of a local patch file."""
-    path = "%s/%s_%s" % (patch_directory(distro, source),
-                         source["Package"], source["Version"])
+    path = "%s/%s_%s" % (patch_directory(distro, pv),
+                         pv.package, pv.version)
     if slipped:
         return path + ".slipped-patch"
     else:
         return path + ".patch"
 
-def published_file(distro, source):
+def published_file(distro, pv):
     """Return the location where published patches should be placed."""
     return "%s/published/%s/%s/%s_%s.patch" \
-           % (config.get('ROOT'), pathhash(source["Package"]),
-              source["Package"], source["Package"], source["Version"])
+           % (config.get('ROOT'), pathhash(pv.package.name),
+              pv.package, pv.package, pv.version)
 
 def patch_list_file():
     """Return the location of the patch list."""
@@ -156,9 +156,9 @@ def version_sort(sources):
     """Sort the source list by version number."""
     sources.sort(key=lambda x: Version(x["Version"]))
 
-def has_files(source):
+def has_files(pv):
     """Return true if source has a Files entry"""
-    return "Files" in source
+    return "Files" in pv.getDscContents()
 
 def files(source):
     """Return (md5sum, size, name) for each file."""
@@ -187,18 +187,12 @@ def save_basis(filename, version):
 
 def unpack_source(pv):
     """Unpack the given source and return location."""
-    source = pv.getSources()
-    destdir = unpack_directory(source)
+    destdir = unpack_directory(pv)
     if os.path.isdir(destdir):
         return destdir
 
-    srcdir = "%s/%s" % (config.get('ROOT'), pv.poolDirectory().path)
-    for md5sum, size, name in files(source):
-        if name.endswith(".dsc"):
-            dsc_file = name
-            break
-    else:
-        raise ValueError, "Missing dsc file"
+    srcdir = pv.package.poolPath
+    dsc_file = pv.dscPath
 
     logger.info("Unpacking %s from %s/%s", pv, srcdir, dsc_file)
 
@@ -222,22 +216,20 @@ def unpack_source(pv):
 
     return destdir
 
-def cleanup_source(source):
+def cleanup_source(pv):
     """Cleanup the given source's unpack location."""
-    cleanup(unpack_directory(source))
+    cleanup(unpack_directory(pv))
 
-def save_changes_file(filename, source, previous=None):
+def save_changes_file(filename, pv, previous=None):
     """Save a changes file for the given source."""
-    srcdir = unpack_directory(source)
-
-    filesdir = "%s/%s" % (config.get('ROOT'), source["Directory"])
+    srcdir = unpack_directory(pv)
 
     tree.ensure(filename)
     with open(filename, "w") as changes:
-        cmd = ("dpkg-genchanges", "-S", "-u%s" % filesdir)
+        cmd = ("dpkg-genchanges", "-S", "-u%s" % pv.package.poolPath)
         orig_cmd = cmd
         if previous is not None:
-            cmd += ("-v%s" % previous["Version"],)
+            cmd += ("-v%s" % previous.version,)
 
         try:
             shell.run(cmd, chdir=srcdir, stdout=changes)

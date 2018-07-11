@@ -23,7 +23,7 @@ import logging
 from momlib import *
 from util import tree, run
 from merge_report import (read_report, MergeResult)
-from model.base import (Distro, PoolDirectory)
+from model.base import Distro
 
 logger = logging.getLogger('expire_pool')
 
@@ -35,27 +35,26 @@ def main(options, args):
 
     # Run through our default distribution and use that for the base
     # package names.  Expire from all distributions.
-    for target in config.get('DISTRO_TARGETS').keys():
-        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
-        d = Distro.get(our_distro)
-        for source in d.getSources(our_dist, our_component):
-            if options.package and source['Package'] not in options.package:
+    for target in config.targets(args):
+        d = target.distro
+        for pkg in d.packages(target.dist, target.component):
+            if options.package and pkg.name not in options.package:
                 continue
 
             try:
-                output_dir = result_dir(target, source['Package'])
+                output_dir = result_dir(target, pkg.name)
                 report = read_report(output_dir)
                 base = report["base_version"]
             except ValueError:
                 logger.debug('Skipping package %s: unable to read merge report',
-                        source['Package'])
+                        pkg.name)
                 continue
 
             if report['result'] not in (MergeResult.SYNC_THEIRS,
                     MergeResult.KEEP_OURS, MergeResult.MERGED,
                     MergeResult.CONFLICTS):
                 logger.debug('Skipping expiry for package %s: result=%s',
-                        source['Package'], report['result'])
+                        pkg.name, report['result'])
                 continue
 
             if base is None:
@@ -63,86 +62,72 @@ def main(options, args):
                 # automatically expire any versions.
                 logger.debug('Skipping expiry for package %s: '
                         'no base version found (result=%s)',
-                        source['Package'], report['result'])
+                        pkg.name, report['result'])
                 continue
 
-            logger.debug("%s %s", source["Package"], source["Version"])
-            logger.debug("base is %s", base)
+            base = Version(base)
+            logger.debug("%s base is %s", pkg.name, base)
 
             for distro in distros:
                 if distro.shouldExpire():
                     for component in distro.components():
-                      expire_pool_sources(distro, component, source["Package"], base)
+                      distro_pkg = distro.package(target.dist, component, pkg.name)
+                      expire_pool_sources(distro_pkg, base)
 
 
-def expire_pool_sources(distro, component, package, base):
+def expire_pool_sources(pkg, base):
     """Remove sources older than the given base.
 
     If the base doesn't exist, then the newest source that is older is also
     kept.
     """
-    pooldir = PoolDirectory(distro, component, package)
-    try:
-        sources = pooldir.getSourceStanzas()
-    except Exception as e:
-        if isinstance(e, IOError) and e.errno == errno.ENOENT:
-            # keep relatively quiet about this
-            logger.debug('unable to read Sources file: %s', e)
-        else:
-            logger.exception('unable to read Sources file from %s:',
-                    pooldir.path)
-        return
+    pooldir = pkg.poolPath
 
     # Find sources older than the base, record the filenames of newer ones
     bases = []
     base_found = False
     keep = []
-    for source in sources:
-        if base > source["Version"]:
-            bases.append(source)
+    for pv in pkg.getPoolVersions():
+        if base > pv:
+            bases.append(pv)
         else:
-            if base == source["Version"]:
+            if base == pv.version():
                 base_found = True
-                logger.info("Leaving %s %s %s (is base)", distro, package,
-                             source["Version"])
+                logger.info("Leaving %s %s (is base)", distro, pv)
             else:
-                logger.info("Leaving %s %s %s (is newer)", distro, package,
-                             source["Version"])
+                logger.info("Leaving %s %s (is newer)", distro, pv)
 
-            keep.append(source)
+            keep.append(pv)
 
     # If the base wasn't found, we want the newest source below that
     if not base_found and len(bases):
         version_sort(bases)
-        source = bases.pop()
-        logger.info("Leaving %s %s %s (is newest before base)",
-                     distro, package, source["Version"])
+        pv = bases.pop()
+        logger.info("Leaving %s %s (is newest before base)",
+                     distro, pv)
 
-        keep.append(source)
+        keep.append(pv)
 
     # Identify filenames we don't want to delete
     keep_files = []
-    for source in keep:
-        if has_files(source):
-            for md5sum, size, name in files(source):
+    for pv in keep:
+        if has_files(pv):
+            for md5sum, size, name in files(pv):
                 keep_files.append(name)
 
     # Expire the older packages
     need_update = False
-    for source in bases:
-        logger.info("Expiring %s %s %s", distro, package, source["Version"])
+    for pv in bases:
+        logger.info("Expiring %s %s", distro, pv)
 
-        for md5sum, size, name in files(source):
+        for md5sum, size, name in files(pv):
             if name in keep_files:
-                logger.debug("Not removing %s/%s", pooldir.path, name)
+                logger.debug("Not removing %s/%s", pooldir, name)
                 continue
 
-            tree.remove("%s/%s/%s" % (config.get('ROOT'), pooldir.path, name))
-            logger.debug("Removed %s/%s", pooldir.path, name)
+            tree.remove("%s/%s" % (pooldir, name))
+            logger.debug("Removed %s/%s", pooldir, name)
             need_update = True
-
-    if need_update:
-        pooldir.updateSources()
 
 
 if __name__ == "__main__":

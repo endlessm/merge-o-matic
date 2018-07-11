@@ -22,8 +22,7 @@ import sys
 import urllib
 from momlib import *
 from config import *
-from model import Distro
-from model.base import PoolDirectory
+from model import Distro, Package
 import model.error
 from util import tree, run
 import config
@@ -44,14 +43,10 @@ def options(parser):
                       help="Source suite (aka distrorelease)")
 
 def package_version_present_in_sources(target, pkg, base):
-    for sl in target.getSourceLists(pkg.name):
-        for source in sl:
-            for component in source.distro.components():
-                pooldir = PoolDirectory(source.distro, component,
-                                        pkg.name)
-
-                if base in pooldir.getVersions():
-                    return True
+    for pv in target.findSourcePackage(pkg.name, base):
+      for pool_pv in pv.package.getPoolVersions():
+        if pool_pv.version == base:
+          return True
     return False
 
 def main(options, args):
@@ -88,7 +83,8 @@ def main(options, args):
         component = source.distro.components()[-1]
         logger.debug("Saving it into last source %s component %s",
                      source.distro, component)
-        poolDir = PoolDirectory(source.distro, component, pkg.name)
+        source_pkg = Package(source.distro, source.dist, component, pkg.name)
+        poolDir = source_pkg.poolPath
 
         tmpdir = mkdtemp()
         try:
@@ -98,19 +94,16 @@ def main(options, args):
             logger.warning("debsnap failed with code %d", rc)
             continue
 
-          if not os.path.exists(poolDir.path):
-              os.makedirs(poolDir.path)
+          if not os.path.exists(poolDir):
+              os.makedirs(poolDir)
 
           updated = False
           for filename in os.listdir(tmpdir):
-            if not os.path.exists(os.path.join(poolDir.path, filename)):
-              shutil.move(os.path.join(tmpdir, filename), poolDir.path)
+            if not os.path.exists(os.path.join(poolDir, filename)):
+              shutil.move(os.path.join(tmpdir, filename), poolDir)
               updated = True
         finally:
           shutil.rmtree(tmpdir)
-        
-        if updated:
-          poolDir.updateSources()
         
 
 if __name__ == "__main__":
