@@ -311,8 +311,6 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
             if not same_file(base_stat, base_dir, right_stat, right_dir,
                              filename):
                 # Changed on RHS
-                conflict_file(left_dir, left_distro, right_dir, right_distro,
-                              merged_dir, filename)
                 conflicts.append(filename)
 
         elif right_stat is None:
@@ -321,8 +319,6 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
             if not same_file(base_stat, base_dir, left_stat, left_dir,
                              filename):
                 # Changed on LHS
-                conflict_file(left_dir, left_distro, right_dir, right_distro,
-                              merged_dir, filename)
                 conflicts.append(filename)
 
         elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
@@ -353,8 +349,6 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
                           "%s/%s" % (merged_dir, filename))
         else:
             # all three differ, mark a conflict
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
             conflicts.append(filename)
 
     # Look for files in the left hand side that aren't in the base,
@@ -396,8 +390,6 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
         else:
             # they differ, mark a conflict
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
             conflicts.append(filename)
 
     # Copy new files on the right hand side only into the tree
@@ -425,12 +417,15 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
     # Handle po files separately as they need special merging
     for filename in po_files:
         if not merge_po(left_dir, right_dir, merged_dir, filename):
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
             conflicts.append(filename)
             continue
 
         merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
+
+    for conflict in conflicts:
+        conflict_file(left_dir, left_distro, right_dir, right_distro,
+                      merged_dir, conflict)
+
 
     return conflicts
 
@@ -453,8 +448,6 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
             same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # two-way merge of pot contents
         if not merge_pot(left_dir, right_dir, merged_dir, filename):
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
             return False
     elif base_stat is not None and S_ISREG(base_stat.st_mode):
         # was file in base: diff3 possible
@@ -470,8 +463,6 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
                       "%s/%s" % (merged_dir, filename))
     else:
         # general file conflict
-        conflict_file(left_dir, left_distro, right_dir, right_distro,
-                      merged_dir, filename)
         return False
 
     # Apply permissions
@@ -655,8 +646,6 @@ def merge_file(left_dir, left_name, left_distro, base_dir,
                               "%s/%s" % (merged_dir, filename))
             else:
                 logger.debug("binary file conflict: %s", filename)
-                conflict_file(left_dir, left_distro, right_dir, right_distro,
-                              merged_dir, filename)
                 return False
         else:
             logger.debug("Conflict in %s", filename)
