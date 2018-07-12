@@ -429,45 +429,55 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
     return conflicts
 
-def handle_file(left_stat, left_dir, left_name, left_distro,
+def merge_file_contents(left_stat, left_dir, left_name, left_distro,
                 right_dir, right_stat, right_name, right_distro,
                 base_stat, base_dir, merged_dir, filename, po_files):
-    """Handle the common case of a file in both left and right."""
     if filename == "debian/changelog":
         # two-way merge of changelogs
         try:
           merge_changelog(left_dir, right_dir, merged_dir, filename)
+          return True
         except:
           return False
-    elif filename.endswith(".po") and not \
-            same_file(left_stat, left_dir, right_stat, right_dir, filename):
+    elif filename.endswith(".po"):
         # two-way merge of po contents (do later)
         po_files.append(filename)
         return True
-    elif filename.endswith(".pot") and not \
-            same_file(left_stat, left_dir, right_stat, right_dir, filename):
+    elif filename.endswith(".pot"):
         # two-way merge of pot contents
-        if not merge_pot(left_dir, right_dir, merged_dir, filename):
-            return False
+        return merge_pot(left_dir, right_dir, merged_dir, filename)
     elif base_stat is not None and S_ISREG(base_stat.st_mode):
         # was file in base: diff3 possible
-        if not merge_file(left_dir, left_name, left_distro, base_dir,
-                      right_dir, right_name, right_distro, merged_dir,
-                      filename):
-            return False
-    elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
-        # same file in left and right
+        return diff3_merge(left_dir, left_name, left_distro, base_dir,
+                          right_dir, right_name, right_distro, merged_dir,
+                          filename)
+    else:
+        # general file conflict
+        return False
+
+def handle_file(left_stat, left_dir, left_name, left_distro,
+                right_dir, right_stat, right_name, right_distro,
+                base_stat, base_dir, merged_dir, filename, po_files):
+    """Handle the common case of a file in both left and right."""
+    ret = True
+
+    if same_file(left_stat, left_dir, right_stat, right_dir, filename):
+        # same file contents in left and right
         logger.debug("%s and %s both turned into same file: %s",
                       left_distro, right_distro, filename)
         tree.copyfile("%s/%s" % (left_dir, filename),
                       "%s/%s" % (merged_dir, filename))
     else:
-        # general file conflict
-        return False
+        ret = merge_file_contents(left_stat, left_dir, left_name, left_distro,
+                                  right_dir, right_stat, right_name,
+                                  right_distro, base_stat, base_dir,
+                                  merged_dir, filename, po_files)
 
-    # Apply permissions
-    merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
-    return True
+    # Merge file permissions
+    if ret:
+      merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
+
+    return ret
 
 def same_file(left_stat, left_dir, right_stat, right_dir, filename):
     """Are two filesystem objects the same?"""
@@ -608,8 +618,8 @@ def find_closest_pot(po_file):
         return None
 
 
-def merge_file(left_dir, left_name, left_distro, base_dir,
-               right_dir, right_name, right_distro, merged_dir, filename):
+def diff3_merge(left_dir, left_name, left_distro, base_dir,
+                right_dir, right_name, right_distro, merged_dir, filename):
     """Merge a file using diff3."""
     dest = "%s/%s" % (merged_dir, filename)
     tree.ensure(dest)
