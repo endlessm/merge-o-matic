@@ -266,20 +266,13 @@ def is_build_metadata_changed(left_source, right_source):
     return False
 
 
-def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
+def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
+             right_dir, right_name, right_format, right_distro, merged_dir):
     """Do the heavy lifting of comparing and merging."""
-    logger.debug("Producing merge in %s", tree.subdir(config.get('ROOT'), merged_dir))
+    logger.debug("Producing merge in %s", merged_dir)
     conflicts = []
     po_files = []
 
-    left_name = left.package.name
-    left_distro = left.package.distro.name
-    right_name = right.package.name
-    right_distro = right.package.distro.name
-
-    # See what format each is and whether they're both quilt
-    left_format = left.getDscContents()["Format"]
-    right_format = right.getDscContents()["Format"]
     both_formats_quilt = left_format == right_format == "3.0 (quilt)"
     if both_formats_quilt:
         logger.debug("Only merging debian directory since both "
@@ -1118,8 +1111,14 @@ def produce_merge(target, left, upstream, output_dir):
   logger.info("Merging %s..%s onto %s", upstream, base, left)
 
   try:
-    conflicts = do_merge(left_dir, left, base_dir,
-                         upstream_dir, upstream, merged_dir)
+    conflicts = do_merge(left_dir, left.package.name,
+                         left.getDscContents()['Format'],
+                         left.package.distro.name,
+                         base_dir,
+                         upstream_dir, upstream.package.name,
+                         upstream.getDscContents()['Format'],
+                         upstream.package.distro.name,
+                         merged_dir)
   except OSError as e:
     cleanup(merged_dir)
     logger.exception("Could not merge %s, probably bad files?", left)
