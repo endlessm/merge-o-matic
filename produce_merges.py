@@ -265,12 +265,29 @@ def is_build_metadata_changed(left_source, right_source):
 
     return False
 
+class MergeData(object):
+  def __init__(self):
+    ### Changes made relative to the right version
+    self.added_files = set()
+    self.removed_files = set()
+    self.modified_files = set()
+
+    ### Unsolved problems
+
+    # Files that generated conflicts when merging
+    self.conflicts = set()
+
+  @property
+  def total_modifications(self):
+    """Total number of modifications made relative to the right version"""
+    return len(self.added_files) + len(self.removed_files) + \
+           len(self.modified_files)
 
 def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
              right_dir, right_name, right_format, right_distro, merged_dir):
     """Do the heavy lifting of comparing and merging."""
     logger.debug("Producing merge in %s", merged_dir)
-    conflicts = []
+    result = MergeData()
     po_files = []
 
     both_formats_quilt = left_format == right_format == "3.0 (quilt)"
@@ -311,7 +328,9 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
             if not same_file(base_stat, base_dir, right_stat, right_dir,
                              filename):
                 # Changed on RHS
-                conflicts.append(filename)
+                result.conflicts.add(filename)
+            else:
+                result.removed_files.add(filename)
 
         elif right_stat is None:
             # Removed on RHS only
@@ -319,15 +338,14 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
             if not same_file(base_stat, base_dir, left_stat, left_dir,
                              filename):
                 # Changed on LHS
-                conflicts.append(filename)
+                result.conflicts.add(filename)
 
         elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            if not handle_file(left_stat, left_dir, left_name, left_distro,
-                               right_dir, right_stat, right_name, right_distro,
-                               base_stat, base_dir, merged_dir, filename,
-                               po_files):
-                conflicts.append(filename)
+            handle_file(left_stat, left_dir, left_name, left_distro,
+                        right_dir, right_stat, right_name, right_distro,
+                        base_stat, base_dir,
+                        merged_dir, filename, po_files, result)
 
         elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
             # left and right are the same, doesn't matter which we keep
@@ -347,9 +365,10 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
                           left_distro, filename)
             tree.copyfile("%s/%s" % (left_dir, filename),
                           "%s/%s" % (merged_dir, filename))
+            result.modified_files.add(filename)
         else:
             # all three differ, mark a conflict
-            conflicts.append(filename)
+            result.conflicts.add(filename)
 
     # Look for files in the left hand side that aren't in the base,
     # conflict if new on both sides or copy into the tree
@@ -370,6 +389,7 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
             logger.debug("new in %s: %s", left_distro, filename)
             tree.copyfile("%s/%s" % (left_dir, filename),
                           "%s/%s" % (merged_dir, filename))
+            result.added_files.add(filename)
             continue
 
         left_stat = os.lstat("%s/%s" % (left_dir, filename))
@@ -377,11 +397,10 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
         if S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            if not handle_file(left_stat, left_dir, left_name, left_distro,
-                              right_dir, right_stat, right_name, right_distro,
-                              None, None, merged_dir, filename,
-                              po_files):
-                conflicts.append(filename)
+            handle_file(left_stat, left_dir, left_name, left_distro,
+                        right_dir, right_stat, right_name, right_distro,
+                        None, None, merged_dir, filename,
+                        po_files, result)
 
         elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
             # left and right are the same, doesn't matter which we keep
@@ -390,7 +409,7 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
 
         else:
             # they differ, mark a conflict
-            conflicts.append(filename)
+            result.conflicts.add(filename)
 
     # Copy new files on the right hand side only into the tree
     for filename in tree.walk(right_dir):
@@ -417,18 +436,21 @@ def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
     # Handle po files separately as they need special merging
     for filename in po_files:
         if not merge_po(left_dir, right_dir, merged_dir, filename):
-            conflicts.append(filename)
+            result.conflicts.add(filename)
             continue
 
-        merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
+        merge_attr(base_dir, left_dir, right_dir, merged_dir, filename, result)
+        result.modified_files.add(filename)
 
-    for conflict in conflicts:
+    for conflict in result.conflicts:
         conflict_file(left_dir, left_distro, right_dir, right_distro,
                       merged_dir, conflict)
 
+    return result
 
-    return conflicts
-
+# Returns a tuple of two booleans:
+# 1. conflicts: True if the merge attempt generated conflicts
+# 2. deferred: True if we'll handle this file in a later stage
 def merge_file_contents(left_stat, left_dir, left_name, left_distro,
                 right_dir, right_stat, right_name, right_distro,
                 base_stat, base_dir, merged_dir, filename, po_files):
@@ -436,30 +458,32 @@ def merge_file_contents(left_stat, left_dir, left_name, left_distro,
         # two-way merge of changelogs
         try:
           merge_changelog(left_dir, right_dir, merged_dir, filename)
-          return True
+          return False, False
         except:
-          return False
+          return True, False
     elif filename.endswith(".po"):
         # two-way merge of po contents (do later)
         po_files.append(filename)
-        return True
+        return False, True
     elif filename.endswith(".pot"):
         # two-way merge of pot contents
-        return merge_pot(left_dir, right_dir, merged_dir, filename)
+        ret = merge_pot(left_dir, right_dir, merged_dir, filename)
+        return not ret, False
     elif base_stat is not None and S_ISREG(base_stat.st_mode):
         # was file in base: diff3 possible
-        return diff3_merge(left_dir, left_name, left_distro, base_dir,
+        ret = diff3_merge(left_dir, left_name, left_distro, base_dir,
                           right_dir, right_name, right_distro, merged_dir,
                           filename)
+        return not ret, False
     else:
         # general file conflict
-        return False
+        return True, False
 
 def handle_file(left_stat, left_dir, left_name, left_distro,
                 right_dir, right_stat, right_name, right_distro,
-                base_stat, base_dir, merged_dir, filename, po_files):
+                base_stat, base_dir, merged_dir, filename, po_files, result):
     """Handle the common case of a file in both left and right."""
-    ret = True
+    do_attrs = True
 
     if same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # same file contents in left and right
@@ -468,16 +492,23 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
         tree.copyfile("%s/%s" % (left_dir, filename),
                       "%s/%s" % (merged_dir, filename))
     else:
-        ret = merge_file_contents(left_stat, left_dir, left_name, left_distro,
-                                  right_dir, right_stat, right_name,
-                                  right_distro, base_stat, base_dir,
-                                  merged_dir, filename, po_files)
+        conflicts, deferred = \
+            merge_file_contents(left_stat, left_dir, left_name, left_distro,
+                                right_dir, right_stat, right_name,
+                                right_distro, base_stat, base_dir,
+                                merged_dir, filename, po_files)
+        if conflicts:
+            result.conflicts.add(filename)
+            do_attrs = False
+
+        if deferred:
+            do_attrs = False
+        else:
+            result.modified_files.add(filename)
 
     # Merge file permissions
-    if ret:
-      merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
-
-    return ret
+    if do_attrs:
+        merge_attr(base_dir, left_dir, right_dir, merged_dir, filename, result)
 
 def same_file(left_stat, left_dir, right_stat, right_dir, filename):
     """Are two filesystem objects the same?"""
@@ -664,27 +695,28 @@ def diff3_merge(left_dir, left_name, left_distro, base_dir,
         return True
 
 
-def merge_attr(base_dir, left_dir, right_dir, merged_dir, filename):
+def merge_attr(base_dir, left_dir, right_dir, merged_dir, filename, result):
     """Set initial and merge changed attributes."""
     if base_dir is not None \
            and os.path.isfile("%s/%s" % (base_dir, filename)) \
            and not os.path.islink("%s/%s" % (base_dir, filename)):
         set_attr(base_dir, merged_dir, filename)
-        apply_attr(base_dir, left_dir, merged_dir, filename)
-        apply_attr(base_dir, right_dir, merged_dir, filename)
+        apply_attr(base_dir, left_dir, merged_dir, filename, result)
+        apply_attr(base_dir, right_dir, merged_dir, filename, result)
     else:
         set_attr(right_dir, merged_dir, filename)
-        apply_attr(right_dir, left_dir, merged_dir, filename)
+        apply_attr(right_dir, left_dir, merged_dir, filename, result)
 
 def set_attr(src_dir, dest_dir, filename):
     """Set the initial attributes."""
     mode = os.stat("%s/%s" % (src_dir, filename)).st_mode & 0777
     os.chmod("%s/%s" % (dest_dir, filename), mode)
 
-def apply_attr(base_dir, src_dir, dest_dir, filename):
+def apply_attr(base_dir, src_dir, dest_dir, filename, result):
     """Apply attribute changes from one side to a file."""
     src_stat = os.stat("%s/%s" % (src_dir, filename))
     base_stat = os.stat("%s/%s" % (base_dir, filename))
+    changed = False
 
     for shift in range(0, 9):
         bit = 1 << shift
@@ -692,10 +724,16 @@ def apply_attr(base_dir, src_dir, dest_dir, filename):
         # Permission bit added
         if not base_stat.st_mode & bit and src_stat.st_mode & bit:
             change_attr(dest_dir, filename, bit, shift, True)
+            changed = True
 
         # Permission bit removed
         if base_stat.st_mode & bit and not src_stat.st_mode & bit:
             change_attr(dest_dir, filename, bit, shift, False)
+            changed = True
+
+    if changed:
+        result.modified_files.add(filename)
+
 
 def change_attr(dest_dir, filename, bit, shift, add):
     """Apply a single attribute change."""
@@ -1110,14 +1148,14 @@ def produce_merge(target, left, upstream, output_dir):
   logger.info("Merging %s..%s onto %s", upstream, base, left)
 
   try:
-    conflicts = do_merge(left_dir, left.package.name,
-                         left.getDscContents()['Format'],
-                         left.package.distro.name,
-                         base_dir,
-                         upstream_dir, upstream.package.name,
-                         upstream.getDscContents()['Format'],
-                         upstream.package.distro.name,
-                         merged_dir)
+    merge_data = do_merge(left_dir, left.package.name,
+                          left.getDscContents()['Format'],
+                          left.package.distro.name,
+                          base_dir,
+                          upstream_dir, upstream.package.name,
+                          upstream.getDscContents()['Format'],
+                          upstream.package.distro.name,
+                          merged_dir)
   except OSError as e:
     cleanup(merged_dir)
     logger.exception("Could not merge %s, probably bad files?", left)
@@ -1126,26 +1164,10 @@ def produce_merge(target, left, upstream, output_dir):
     report.write_report(output_dir)
     return report
 
-  # Hack. Create a temporary merged patch to see what's changed. It
-  # would be better to track the changes through do_merge and return
-  # them.
-  if len(conflicts) == 0:
-    changelog_only = False
-    tree.ensure("%s/tmp/" % config.get('ROOT'))
-    with tempfile.NamedTemporaryFile(suffix=".patch",
-                                     dir="%s/tmp/" % config.get('ROOT')) as tmp_patch:
-      create_patch(report.merged_version, tmp_patch.name, merged_dir,
-                   upstream, upstream_dir)
-      cmd = ["diffstat", "-qlkp1", tmp_patch.name]
-      diffstat_output = subprocess.check_output(cmd)
-      diff_files = diffstat_output.splitlines()
-      logger.debug("Files differing from upstream:\n%s",
-                   "\n".join(diff_files))
-      if len(diff_files) == 0 or diff_files == ["debian/changelog"]:
-        changelog_only = True
-
-    if changelog_only:
-      # Sync to upstream since this is just noise
+  if len(merge_data.conflicts) == 0 and merge_data.total_modifications == 1 \
+     and len(merge_data.modified_files) == 1 \
+     and 'debian/changelog' in merge_data.modified_files:
+      # Sync to upstream if the only remaining change is in the changelog
       logger.info("Syncing %s to %s since only changes are in changelog",
                   left, upstream)
       if not os.path.isdir(output_dir):
@@ -1176,7 +1198,7 @@ def produce_merge(target, left, upstream, output_dir):
 
       return report
 
-  if 'debian/changelog' not in conflicts:
+  if 'debian/changelog' not in merge_data.conflicts:
     try:
       add_changelog(left.package.name, report.merged_version, left.package.distro.name, left.package.dist,
                     upstream.package.distro.name, upstream.package.dist, merged_dir)
@@ -1195,10 +1217,10 @@ def produce_merge(target, left, upstream, output_dir):
   report.build_metadata_changed = False
   report.merged_dir = output_dir
 
-  if len(conflicts):
+  if len(merge_data.conflicts):
     src_file = create_tarball(left.package.name, report.merged_version, output_dir, merged_dir)
     report.result = MergeResult.CONFLICTS
-    report.conflicts = sorted(conflicts)
+    report.conflicts = sorted(merge_data.conflicts)
     report.merge_failure_tarball = src_file
     report.merged_dir = None
   else:
