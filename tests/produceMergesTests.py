@@ -267,12 +267,12 @@ class DoMergeTest(unittest.TestCase):
     self.clone_dir(self.left_dir, self.right_dir)
     self.clone_dir(self.left_dir, self.base_dir)
 
-    conflicts = do_merge(self.left_dir, 'foo', '', 'left',
-                         self.base_dir,
-                         self.right_dir, 'foo', '', 'right',
-                         self.merged_dir)
+    result = do_merge(self.left_dir, 'foo', '', 'left',
+                      self.base_dir,
+                      self.right_dir, 'foo', '', 'right',
+                      self.merged_dir)
 
-    self.assertEqual(len(conflicts), 0)
+    self.assertEqual(len(result.conflicts), 0)
     self.assertEqual(stat.S_IMODE(os.stat(self.merged_dir + '/file1').st_mode),
                      0755)
     self.assertEqual(os.readlink(self.merged_dir + '/link1'), 'file1')
@@ -305,12 +305,12 @@ class DoMergeTest(unittest.TestCase):
     # Modify a file on the left side
     open(self.left_dir + '/dir1/file3', 'a').write('three')
 
-    conflicts = do_merge(self.left_dir, 'foo', '', 'left',
-                         self.base_dir,
-                         self.right_dir, 'foo', '', 'right',
-                         self.merged_dir)
+    result = do_merge(self.left_dir, 'foo', '', 'left',
+                      self.base_dir,
+                      self.right_dir, 'foo', '', 'right',
+                      self.merged_dir)
 
-    self.assertEqual(len(conflicts), 0)
+    self.assertEqual(len(result.conflicts), 0)
     self.assertTrue(os.path.exists(self.merged_dir + '/file1'))
     self.assertFalse(os.path.exists(self.merged_dir + '/file2'))
     self.assertTrue(os.path.exists(self.merged_dir + '/dir1/file3'))
@@ -326,12 +326,12 @@ class DoMergeTest(unittest.TestCase):
     os.mkdir(self.left_dir + '/debian')
     open(self.left_dir + '/debian/newfile2', 'w').write('New file2')
 
-    conflicts = do_merge(self.left_dir, 'foo', '3.0 (quilt)', 'left',
-                         self.base_dir,
-                         self.right_dir, 'foo', '3.0 (quilt)', 'right',
-                         self.merged_dir)
+    result = do_merge(self.left_dir, 'foo', '3.0 (quilt)', 'left',
+                      self.base_dir,
+                      self.right_dir, 'foo', '3.0 (quilt)', 'right',
+                      self.merged_dir)
 
-    self.assertEqual(len(conflicts), 0)
+    self.assertEqual(len(result.conflicts), 0)
     self.assertFalse(os.path.exists(self.merged_dir + '/newfile'))
     self.assertTrue(os.path.exists(self.merged_dir + '/debian/newfile2'))
 
@@ -348,12 +348,12 @@ class DoMergeTest(unittest.TestCase):
     os.chmod(self.left_dir + '/file2', 0755)
     open(self.left_dir + '/file2', 'a').write('2')
 
-    conflicts = do_merge(self.left_dir, 'foo', '', 'left',
-                         self.base_dir,
-                         self.right_dir, 'foo', '', 'right',
-                         self.merged_dir)
+    result = do_merge(self.left_dir, 'foo', '', 'left',
+                      self.base_dir,
+                      self.right_dir, 'foo', '', 'right',
+                      self.merged_dir)
 
-    self.assertEqual(len(conflicts), 0)
+    self.assertEqual(len(result.conflicts), 0)
     self.assertEqual(stat.S_IMODE(os.stat(self.merged_dir + '/file1').st_mode),
                      0600)
     self.assertEqual(stat.S_IMODE(os.stat(self.merged_dir + '/file2').st_mode),
@@ -380,12 +380,12 @@ class DoMergeTest(unittest.TestCase):
     # Remove a link on the right
     os.unlink(self.right_dir + '/link3')
 
-    conflicts = do_merge(self.left_dir, 'foo', '', 'left',
-                         self.base_dir,
-                         self.right_dir, 'foo', '', 'right',
-                         self.merged_dir)
+    result = do_merge(self.left_dir, 'foo', '', 'left',
+                      self.base_dir,
+                      self.right_dir, 'foo', '', 'right',
+                      self.merged_dir)
 
-    self.assertEqual(len(conflicts), 0)
+    self.assertEqual(len(result.conflicts), 0)
     self.assertEqual(os.readlink(self.merged_dir + '/link1'), 'file1')
     self.assertEqual(os.readlink(self.merged_dir + '/linkL'), 'fileNewL')
     self.assertEqual(os.readlink(self.merged_dir + '/linkR'), 'fileNewR')
@@ -429,16 +429,16 @@ class DoMergeTest(unittest.TestCase):
     os.unlink(self.right_dir + '/file3')
     os.symlink('rightconflict', self.right_dir + '/file3')
 
-    conflicts = do_merge(self.left_dir, 'foo', '', 'left',
-                         self.base_dir,
-                         self.right_dir, 'foo', '', 'right',
-                         self.merged_dir)
+    result = do_merge(self.left_dir, 'foo', '', 'left',
+                      self.base_dir,
+                      self.right_dir, 'foo', '', 'right',
+                      self.merged_dir)
 
-    self.assertEqual(len(conflicts), 6)
-    self.assertIn('file1', conflicts)
-    self.assertIn('file2', conflicts)
-    self.assertIn('file3', conflicts)
-    self.assertIn('file4', conflicts)
-    self.assertIn('link1', conflicts)
-    self.assertIn('link4', conflicts)
+    self.assertEqual(len(result.conflicts), 6)
+    self.assertIn('file1', result.conflicts)
+    self.assertIn('file2', result.conflicts)
+    self.assertIn('file3', result.conflicts)
+    self.assertIn('file4', result.conflicts)
+    self.assertIn('link1', result.conflicts)
+    self.assertIn('link4', result.conflicts)
 
