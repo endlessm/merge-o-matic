@@ -484,7 +484,14 @@ def handle_file(left_stat, left_dir, left_name, left_distro,
     """Handle the common case of a file in both left and right."""
     do_attrs = True
 
-    if same_file(left_stat, left_dir, right_stat, right_dir, filename):
+    if base_stat and \
+          same_file(base_stat, base_dir, left_stat, left_dir, filename):
+        # same file contents in base and left, meaning that the left
+        # side was unmodified, so take the right side as-is
+        logger.debug("%s was unmodified on the left", filename)
+        tree.copyfile("%s/%s" % (right_dir, filename),
+                      "%s/%s" % (merged_dir, filename))
+    elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
         # same file contents in left and right
         logger.debug("%s and %s both turned into same file: %s",
                       left_distro, right_distro, filename)
