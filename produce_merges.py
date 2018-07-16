@@ -130,6 +130,78 @@ def options(parser):
                       action="append",
                       help="Only process packages listed in this file")
 
+# Handle the merge of a specific package, returning the new merge report,
+# or None if there was already a merge report that is still valid.
+def handle_package(output_dir, target, pkg, our_version):
+  upstream = find_upstream(target, pkg, our_version)
+  if upstream is None:
+    logger.info("%s not available upstream, skipping", our_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.KEEP_OURS
+    report.merged_version = our_version.version
+    return report
+
+  try:
+    report = read_report(output_dir)
+    # See if sync_upstream_packages already set
+    if not options.force and \
+          pkg.name in target.sync_upstream_packages and \
+          Version(report['right_version']) == upstream.version and \
+          Version(report['left_version']) == our_version.version and \
+          Version(report['merged_version']) == upstream.version and \
+          report['result'] == MergeResult.SYNC_THEIRS:
+        logger.info("sync to upstream for %s [ours=%s, theirs=%s] "
+                    "already produced, skipping run", pkg,
+                    our_version.version, upstream.version)
+        return None
+    elif (not options.force and
+          Version(report['right_version']) == upstream.version and
+          Version(report['left_version']) == our_version.version and
+          # we'll retry the merge if there was an unexpected
+          # failure, a missing base or an unknown result last time
+          report['result'] in (MergeResult.KEEP_OURS,
+                MergeResult.SYNC_THEIRS, MergeResult.MERGED,
+                MergeResult.CONFLICTS)):
+      logger.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
+      return None
+  except (AttributeError, ValueError, KeyError):
+    pass
+
+  if our_version >= upstream:
+    logger.info("our version %s >= their version %s, skipping",
+                our_version, upstream)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version, right=upstream)
+    report.target = target.name
+    report.result = MergeResult.KEEP_OURS
+    report.merged_version = our_version.version
+    return report
+  elif our_version < upstream and \
+        pkg.name in target.sync_upstream_packages:
+    logger.info("Syncing to %s per sync_upstream_packages", upstream)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version, right=upstream)
+    report.target = target.name
+    report.result = MergeResult.SYNC_THEIRS
+    report.merged_version = upstream.version
+    report.message = "Using version in upstream distro per " \
+                     "sync_upstream_packages configuration"
+    return report
+
+  logger.info("local: %s, upstream: %s", our_version, upstream)
+
+  try:
+    return produce_merge(target, our_version, upstream, output_dir)
+  except ValueError as e:
+    logger.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
+    report = MergeReport(left=our_version, right=upstream)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not produce merge: %s' % e
+    return report
+
 def main(options, args):
     logger.info('Producing merges...')
 
@@ -176,79 +248,9 @@ def main(options, args):
             logger.debug('our version: %s', our_version)
 
           output_dir = result_dir(target.name, pkg.name)
-
-          upstream = find_upstream(target, pkg, our_version)
-          if upstream is None:
-            logger.info("%s not available upstream, skipping", our_version)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version)
-            report.target = target.name
-            report.result = MergeResult.KEEP_OURS
-            report.merged_version = our_version.version
+          report = handle_package(output_dir, target, pkg, our_version)
+          if report is not None:
             report.write_report(output_dir)
-            continue
-
-          try:
-            report = read_report(output_dir)
-            # See if sync_upstream_packages already set
-            if not options.force and \
-               pkg.name in target.sync_upstream_packages and \
-               Version(report['right_version']) == upstream.version and \
-               Version(report['left_version']) == our_version.version and \
-               Version(report['merged_version']) == upstream.version and \
-               report['result'] == MergeResult.SYNC_THEIRS:
-                logger.info("sync to upstream for %s [ours=%s, theirs=%s] "
-                            "already produced, skipping run", pkg,
-                            our_version.version, upstream.version)
-                continue
-            elif (not options.force and
-                    Version(report['right_version']) == upstream.version and
-                    Version(report['left_version']) == our_version.version and
-                    # we'll retry the merge if there was an unexpected
-                    # failure, a missing base or an unknown result last time
-                    report['result'] in (MergeResult.KEEP_OURS,
-                        MergeResult.SYNC_THEIRS, MergeResult.MERGED,
-                        MergeResult.CONFLICTS)):
-              logger.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
-              continue
-          except (AttributeError, ValueError, KeyError):
-            pass
-
-          if our_version >= upstream:
-            logger.info("our version %s >= their version %s, skipping",
-                    our_version, upstream)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.KEEP_OURS
-            report.merged_version = our_version.version
-            report.write_report(output_dir)
-            continue
-          elif our_version < upstream and \
-               pkg.name in target.sync_upstream_packages:
-            logger.info("Syncing to %s per sync_upstream_packages", upstream)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.SYNC_THEIRS
-            report.merged_version = upstream.version
-            report.message = "Using version in upstream distro per " \
-                             "sync_upstream_packages configuration"
-            report.write_report(output_dir)
-            continue
-
-          logger.info("local: %s, upstream: %s", our_version, upstream)
-
-          try:
-            produce_merge(target, our_version, upstream, output_dir)
-          except ValueError as e:
-            logger.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.FAILED
-            report.message = 'Could not produce merge: %s' % e
-            report.write_report(output_dir)
-            continue
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""
@@ -1001,7 +1003,7 @@ def get_common_ancestor(target, downstream, downstream_versions, upstream,
 
       # Maybe the old version is still present on the server, just
       # not listed in the Sources file. Try to get it from there.
-      target.fetchMissingVersion(downstream.package.name, downstream_version)
+      target.fetchMissingVersion(downstream.package, downstream_version)
       # If that was successful, we'll now find it in a source distro
       for sl in source_lists:
         try:
