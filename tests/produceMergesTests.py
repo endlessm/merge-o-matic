@@ -112,6 +112,31 @@ class FindUnstableUpstreamTest(unittest.TestCase):
     self.assertEqual(upstream.version, '2.1')
     self.assertTrue(upstream > pkg_version)
 
+
+class HandlePackageTest(unittest.TestCase):
+  def setUp(self):
+    self.target_repo, self.source_repo = testhelper.standard_simple_config()
+
+  # Target has foo-2.0
+  # Source has foo-1.0
+  # Target version should be kept because it's newer
+  def test_ourVersionNewer(self):
+    testhelper.build_and_import_simple_package('foo', '2.0',
+                                               self.target_repo)
+    testhelper.build_and_import_simple_package('foo', '1.0',
+                                               self.source_repo)
+
+    target = config.targets()[0]
+    testhelper.update_all_distro_sources()
+    testhelper.update_all_distro_source_pools()
+    our_version = target.distro.findPackage('foo', version='2.0')[0]
+
+    output_dir = result_dir(target.name, 'foo')
+    report = produce_merges.handle_package(output_dir, target,
+                                           our_version.package, our_version)
+    self.assertEqual(report.result, MergeResult.KEEP_OURS)
+
+
 class ProduceMergeTest(unittest.TestCase):
   def setUp(self):
     self.target_repo, self.source1_repo, self.source2_repo = \
