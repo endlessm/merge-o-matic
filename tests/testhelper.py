@@ -189,11 +189,11 @@ def build_and_import_simple_package(name, version, repo):
 # Download Sources metadata for all distros (targets and upstreams)
 def update_all_distro_sources():
   for target in config.targets():
-    target.distro.updateSources(target.dist, target.component)
+    target.distro.updateSources(target.dist)
 
     for upstreamList in target.getAllSourceLists():
       for source in upstreamList:
-        source.distro.updateSources(source.dist, source.distro.components()[0])
+        source.distro.updateSources(source.dist)
 
 def update_all_distro_source_pools():
   for target in config.targets():

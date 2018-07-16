@@ -40,7 +40,7 @@ def main(options, args):
     for target in config.targets(args):
       logger.info("Updating sources for %s", target)
       d = target.distro
-      d.updateSources(target.dist, target.component)
+      d.updateSources(target.dist)
 
       pairs = []
       for stanza in d.getSources(target.dist, target.component):
@@ -52,10 +52,10 @@ def main(options, args):
       for upstreamList in target.getAllSourceLists():
         for source in upstreamList:
           if source not in upstreamSources:
-            for component in source.distro.components():
-              logger.info("Updating upstream sources for %s/%s", source, component)
-              source.distro.updateSources(source.dist, component)
+            logger.info("Updating upstream sources for %s", source)
+            source.distro.updateSources(source.dist)
 
+            for component in source.distro.components():
               pairs = []
               for stanza in source.distro.getSources(source.dist, component):
                 pairs.append((stanza.get('Package'),

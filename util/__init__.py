@@ -41,6 +41,8 @@ def get_option_parser(usage=None, description=None):
                       callback=verbose_callback, help="Be more noisy")
     parser.add_option("-p", "--package", type="string", metavar="PACKAGE", action="append",
                       help="Process only this package")
+    parser.add_option("-f", "--force", action="store_true",
+                      help="Force processing (ignore caches and previous merges)")
     return parser
 
 

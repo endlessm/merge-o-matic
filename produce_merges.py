@@ -109,9 +109,6 @@ def find_upstream(target, pkg, our_version):
   return upstream
 
 def options(parser):
-    parser.add_option("-f", "--force", action="store_true",
-                      help="Force creation of merges")
-
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
                       default=None,
                       help="Source distribution")

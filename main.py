@@ -40,8 +40,6 @@ import merge_status
 import expire_pool
 
 def options(parser):
-    parser.add_option("-f", "--force", action="store_true",
-                      help="Force creation of patches and merges")
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       help="Process only this distribution target")
     parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")

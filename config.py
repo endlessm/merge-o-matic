@@ -360,7 +360,7 @@ class Target(object):
     logging.info("Saved %s", filename)
 
   def _tryFetch(self, pkg, version):
-    mirror = pkg.distro.mirrorURL(pkg.dist, pkg.component)
+    mirror = pkg.distro.mirrorURL()
     pooldir = pkg.getCurrentSources()[0]['Directory']
     name = "%s_%s.dsc" % (pkg.name, version)
     url = "%s/%s/%s" % (mirror, pooldir, name)

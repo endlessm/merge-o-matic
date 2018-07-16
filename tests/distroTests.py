@@ -20,7 +20,7 @@ class DistroTest(unittest.TestCase):
     source = upstreamList[0]
     component = source.distro.components()[0]
 
-    source.distro.updateSources(source.dist, component)
+    source.distro.updateSources(source.dist)
     sources = source.distro.getSources(source.dist, component)
     self.assertEqual(len(sources), 1)
     self.assertEqual(sources[0].get('Package'), 'foo')

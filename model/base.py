@@ -9,6 +9,9 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 import gzip
 
+import apt
+import apt_pkg
+
 import error
 
 logger = logging.getLogger('model.base')
@@ -77,26 +80,8 @@ class Distro(object):
     self.parent = parent
     self.name = name
 
-  def sourcesURL(self, dist, component):
-    """Return the absolute URL to Sources.gz for the given release
-    and component in this distribution. If it is not configured
-    specially in sources_urls, the mirror is assumed to follow the
-    standard apt layout (MIRROR/dists/RELEASE/COMPONENT/source/Sources.gz).
-    """
-    if (dist, component) in self.config("sources_urls", default={}):
-      return self.config("sources_urls")[(dist, component)]
-    mirror = self.mirrorURL(dist, component)
-    url = mirror + "/dists"
-    if dist is not None:
-      url += "/" + dist
-    if component is not None:
-      url += "/" + component
-    return url + "/source/Sources.gz"
-
-  def mirrorURL(self, dist, component):
-    """Return the absolute URL of the top of the mirror for the given
-    release and component in this distribution.
-    """
+  def mirrorURL(self):
+    """Return the absolute URL of the top of the mirror"""
     return self.config("mirror")
 
   def updatePool(self, dist, component, package=None):
@@ -117,7 +102,7 @@ class Distro(object):
       logger.debug('Downloading package "%s" from %s/%s/%s into %s pool',
           package, self, dist, component, self)
 
-    mirror = self.mirrorURL(dist, component)
+    mirror = self.mirrorURL()
     sources = self.getSources(dist, component)
 
     changed = False
@@ -238,7 +223,13 @@ class Distro(object):
       return self.parent.config(*(args[2:]), **kwargs)
     return ret
 
-  def sourcesFile(self, dist, component, compressed=True):
+  def getDistDir(self, dist):
+    path = '/'.join((config.get("ROOT"), 'dists', self.name))
+    if dist is not None:
+      path = "%s-%s"%(path, dist)
+    return path
+
+  def sourcesFile(self, dist, component):
     """Return the absolute filename of the cached Sources file.
 
     @param dist a release codename like "precise", or None if this
@@ -248,15 +239,23 @@ class Distro(object):
     @param compressed if True, return the path to Sources.gz
     """
     if self.parent:
-      return self.parent.sourcesFile(dist, component, compressed)
-    if compressed:
-      return "%s.gz"%(self.sourcesFile(dist, component, False))
-    path = '/'.join((config.get("ROOT"), 'dists', self.name))
-    if dist is not None:
-      path = "%s-%s"%(path, dist)
-    if component is not None:
-      path = "%s/%s" % (path, component)
-    return '/'.join((path, 'source', 'Sources'))
+      return self.parent.sourcesFile(dist, component)
+
+    # We use python-apt to download the sources file. Unfortunately it
+    # doesn't offer an API to find the path of the downloaded file.
+    # The closest thing would be to use apt_pkg.SourceList(),
+    # .read_main_list() then check the resultant .list.index_files.
+    # The filename is listed there in the "describe" property in addition to
+    # other bits of information.
+    # That doesn't seem great, so just attempt to find the file directly.
+    path = self.getDistDir(dist)
+    file_match = '*_%s_%s_source_Sources' % (dist.replace('/', '_'), component)
+    files = glob(os.path.join(path, 'var/lib/apt/lists', file_match))
+    if len(files) == 1:
+        return files[0]
+
+    # If there are no Sources then no file was downloaded.
+    return None
 
   def getSources(self, dist, component):
     """Parse a cached Sources file. Return its stanzas, each representing
@@ -264,31 +263,37 @@ class Distro(object):
     """
 
     filename = self.sourcesFile(dist, component)
+    if filename is None:
+      return {}
+
     if filename not in Distro.SOURCES_CACHE:
         Distro.SOURCES_CACHE[filename] = ControlFile(filename, multi_para=True,
                                               signed=False)
 
     return Distro.SOURCES_CACHE[filename].paras
 
-  def updateSources(self, dist, component):
-    """Update a Sources file."""
-    url = self.sourcesURL(dist, component)
-    filename = self.sourcesFile(dist, component)
+  def updateSources(self, dist):
+    path = self.getDistDir(dist)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-    logger.debug("Downloading %s", url)
+    # Create needed directories
+    for d in ['etc/apt/apt.conf.d', 'etc/apt/preferences.d',
+              'var/lib/apt/lists/partial',
+              'var/cache/apt/archives/partial', 'var/lib/dpkg']:
+        repo_dir = os.path.join(path, d)
+        if not os.path.exists(repo_dir):
+            os.makedirs(repo_dir)
 
-    try:
-        if not os.path.isdir(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename))
-        urllib.URLopener().retrieve(url, filename)
-    except IOError:
-        logger.error("Downloading %s failed", url)
-        raise
+    # Create sources.list
+    sources_list = os.path.join(path, 'etc/apt/sources.list')
+    with open(sources_list, 'w') as f:
+        f.write('deb-src [trusted=yes] %s %s %s\n' % (self.mirrorURL(), dist, " ".join(self.components())))
 
-    logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
-    with gzip.open(self.sourcesFile(dist, component)) as gzf:
-        with open(self.sourcesFile(dist, component, False), "wb") as f:
-            f.write(gzf.read())
+    # Setup configuration
+    apt_pkg.config.set('Dir', path)
+    cache = apt.Cache(rootdir=path)
+    cache.update()
 
   def getPoolPath(self, component):
     """Return the absolute path to the pool for a given component
