@@ -34,79 +34,15 @@ from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
 from merge_report import (MergeResult, MergeReport, read_report, write_report)
-from model.base import (PackageVersion, Package)
+from model.base import (PackageVersion, Package, UpdateInfo)
 from momversion import VERSION
 import config
 import model.error
-
-# Regular expression for top of debian/changelog
-CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
-                   re.IGNORECASE)
 
 logger = logging.getLogger('produce_merges')
 
 class NoBase(Exception):
     pass
-
-def find_upstream(target, pkg, our_version):
-  upstream = None
-
-  for srclist in target.getSourceLists(pkg.name, include_unstable=False):
-    for src in srclist:
-      logger.debug('considering source %s', src)
-      try:
-        for possible in src.distro.findPackage(pkg.name, searchDist=src.dist):
-          logger.debug('- contains version %s', possible)
-          if upstream is None or possible > upstream:
-            logger.debug('  - that version is the best yet seen')
-            upstream = possible
-      except model.error.PackageNotFound:
-        pass
-
-  # There are two situations in which we will look in unstable distros
-  # for a better version:
-  try_unstable = False
-
-  # 1. If our version is newer than the stable upstream version, we
-  #    assume that our version was sourced from unstable, so let's
-  #    check for an update there.
-  #    However we must use the base version for the comparison here,
-  #    otherwise we would consider our version 1.0-1endless1 newer
-  #    than the stable 1.0-1 and look in unstable for an update.
-  if upstream is not None and our_version >= upstream:
-    our_base_version = our_version.version.base()
-    logger.info("our version %s >= their version %s, checking base version %s", our_version, upstream, our_base_version)
-    if our_base_version > upstream.version:
-      logger.info("base version still newer than their version, checking in unstable")
-      try_unstable = True
-
-  # 2. If we didn't find any upstream version at all, it's possible
-  #    that it's a brand new package where our version was imported
-  #    from unstable, so let's see if we can find a better version
-  #    there.
-  if upstream is None:
-    try_unstable = True
-
-  # However, if this package has been assigned a specific source,
-  # we'll honour that.
-  if target.packageHasSpecificSource(pkg.name):
-    try_unstable = False
-
-  if try_unstable:
-    for srclist in target.unstable_sources:
-      for src in srclist:
-        logger.debug('considering unstable source %s', src)
-        try:
-          for possible in src.distro.findPackage(pkg.name,
-                      searchDist=src.dist):
-            logger.debug('- contains version %s', possible)
-            if upstream is None or possible > upstream:
-              logger.debug('  - that version is the best yet seen')
-              upstream = possible
-        except model.error.PackageNotFound:
-          pass
-
-  return upstream
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
@@ -133,14 +69,64 @@ def options(parser):
 # Handle the merge of a specific package, returning the new merge report,
 # or None if there was already a merge report that is still valid.
 def handle_package(output_dir, target, pkg, our_version):
-  upstream = find_upstream(target, pkg, our_version)
-  if upstream is None:
-    logger.info("%s not available upstream, skipping", our_version)
+  update_info = UpdateInfo(pkg)
+
+  if update_info.version is None:
+    logger.error('UpdateInfo version %s does not match our version %s"',
+                 update_info.version, our_version)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not find update info for version %s' % our_version
+    return report
+
+  if update_info.upstream_version is None \
+      or our_version.version >= update_info.upstream_version:
+    logger.debug("No updated upstream version available for %s", our_version)
     cleanup(output_dir)
     report = MergeReport(left=our_version)
     report.target = target.name
     report.result = MergeResult.KEEP_OURS
     report.merged_version = our_version.version
+    return report
+
+  if update_info.base_version is None:
+    logger.info("No base version available for %s", our_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.NO_BASE
+    return report
+
+  upstream = None
+  base = None
+  pool_versions = target.getAllPoolVersions(pkg.name)
+  for pv in pool_versions:
+    if pv.version == update_info.upstream_version:
+      upstream = pv
+    if pv.version == update_info.base_version:
+      base = pv
+
+  if upstream is None:
+    logger.error('Could not find upstream version %s in pool',
+                 update_info.upstream_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not find upstream version %s in pool' \
+                     % update_info.upstream_version
+    return report
+
+  if base is None:
+    logger.error('Could not find base version %s in pool',
+                 update_info.base_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not find base version %s in pool' \
+                     % update_info.base_version
     return report
 
   try:
@@ -169,17 +155,7 @@ def handle_package(output_dir, target, pkg, our_version):
   except (AttributeError, ValueError, KeyError):
     pass
 
-  if our_version >= upstream:
-    logger.info("our version %s >= their version %s, skipping",
-                our_version, upstream)
-    cleanup(output_dir)
-    report = MergeReport(left=our_version, right=upstream)
-    report.target = target.name
-    report.result = MergeResult.KEEP_OURS
-    report.merged_version = our_version.version
-    return report
-  elif our_version < upstream and \
-        pkg.name in target.sync_upstream_packages:
+  if pkg.name in target.sync_upstream_packages:
     logger.info("Syncing to %s per sync_upstream_packages", upstream)
     cleanup(output_dir)
     report = MergeReport(left=our_version, right=upstream)
@@ -193,7 +169,7 @@ def handle_package(output_dir, target, pkg, our_version):
   logger.info("local: %s, upstream: %s", our_version, upstream)
 
   try:
-    return produce_merge(target, our_version, upstream, output_dir)
+    return produce_merge(target, base, our_version, upstream, output_dir)
   except ValueError as e:
     logger.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
     report = MergeReport(left=our_version, right=upstream)
@@ -227,8 +203,6 @@ def main(options, args):
         d = target.distro
         for pkg in d.packages(target.dist, target.component):
           if options.package is not None and pkg.name not in options.package:
-            logger.debug('skipping package %s: not the selected package',
-                         pkg.name)
             continue
           if len(includes) and pkg.name not in includes:
             logger.info('skipping package %s: not in include list', pkg.name)
@@ -241,16 +215,19 @@ def main(options, args):
             continue
           logger.info('considering package %s', pkg.name)
           if options.version:
-            our_version = Version(options.version)
+            our_version = PackageVersion(pkg, Version(options.version))
             logger.debug('our version: %s (from command line)', our_version)
           else:
             our_version = pkg.newestVersion()
             logger.debug('our version: %s', our_version)
 
           output_dir = result_dir(target.name, pkg.name)
-          report = handle_package(output_dir, target, pkg, our_version)
-          if report is not None:
-            report.write_report(output_dir)
+          try:
+            report = handle_package(output_dir, target, pkg, our_version)
+            if report is not None:
+              report.write_report(output_dir)
+          except Exception:
+            logging.exception('Failed handling merge for %s', pkg)
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""
@@ -574,37 +551,6 @@ def merge_changelog(left_dir, right_dir, merged_dir, filename):
             print >>output, left_text
 
     return False
-
-def read_changelog(filename):
-    """Return a parsed changelog file."""
-    entries = []
-
-    with open(filename) as cl:
-        (ver, text) = (None, "")
-        for line in cl:
-            match = CL_RE.search(line)
-            if match:
-                try:
-                    ver = Version(match.group(2))
-                except ValueError:
-                    ver = None
-
-                text += line
-            elif line.startswith(" -- "):
-                if ver is None:
-                    ver = Version("0")
-
-                text += line
-                entries.append((ver, text))
-                (ver, text) = (None, "")
-            elif len(line.strip()) or ver is not None:
-                text += line
-
-    if len(text):
-        entries.append((ver, text))
-
-    return entries
-
 
 def merge_po(left_dir, right_dir, merged_dir, filename):
     """Update a .po file using msgcat or msgmerge."""
@@ -952,78 +898,6 @@ def read_package_list(filename):
 
     return packages
 
-def get_common_ancestor(target, downstream, downstream_versions, upstream,
-        upstream_versions, tried_bases):
-  logger.debug('looking for common ancestor of %s and %s',
-          downstream.version, upstream.version)
-  for downstream_version, downstream_text in downstream_versions:
-    if downstream_version is None:
-      # sometimes read_changelog gets confused
-      continue
-
-    for upstream_version, upstream_text in upstream_versions:
-      if downstream_version != upstream_version:
-        continue
-
-      logger.debug('%s looks like a possibility', downstream_version)
-
-      # See if we have this version in the target distro
-      try:
-        return target.distro.findPackage(downstream.package.name,
-                                         searchDist=target.dist,
-                                         version=downstream_version)[0]
-      except model.error.PackageNotFound:
-        pass
-
-      # See if we have this version in a source distro
-      source_lists = target.getSourceLists(downstream.package.name)
-      for sl in source_lists:
-        try:
-          return sl.findPackage(downstream.package.name,
-                                version=downstream_version)[0]
-        except model.error.PackageNotFound:
-          pass
-
-      # See if we have this version archived in a pool somewhere
-      sources = []
-      for sl in source_lists:
-        for source in sl:
-          sources.append(source)
-
-      for source in sources:
-        base_dir = None
-
-        # Try to get it from one of its pool directories on disk.
-        # FIXME: if we have more than one source differing only
-        # by suite, this searches the corresponding pool directory
-        # that many times, because they share a pool directory.
-        # It would make more sense if we could just iterate over
-        # pool directory instances... but then we wouldn't have a
-        # suite (dist) to make the necessary Package so we can hav
-        # a PackageVersion.
-        for component in source.distro.components():
-          pkg = Package(source.distro, source.dist, component,
-                        downstream.package.name)
-          for package_version in pkg.getPoolVersions():
-            if package_version.version == downstream_version:
-              return package_version
-
-      # Maybe the old version is still present on the server, just
-      # not listed in the Sources file. Try to get it from there.
-      target.fetchMissingVersion(downstream.package, downstream_version)
-      # If that was successful, we'll now find it in a source distro
-      for sl in source_lists:
-        try:
-          return sl.findPackage(downstream.package.name,
-                                version=downstream_version)[0]
-        except model.error.PackageNotFound:
-          pass
-
-      tried_bases.add(downstream_version)
-
-  raise NoBase('unable to find a usable base version for %s and %s' %
-          (downstream, upstream))
-
 def save_changelog(output_dir, cl_versions, pv, bases, limit=None):
   fh = None
   name = None
@@ -1051,10 +925,11 @@ def save_changelog(output_dir, cl_versions, pv, bases, limit=None):
 
   return name
 
-def produce_merge(target, left, upstream, output_dir):
+def produce_merge(target, base, left, upstream, output_dir):
 
   left_dir = unpack_source(left)
   upstream_dir = unpack_source(upstream)
+  base_dir = unpack_source(base)
 
   report = MergeReport(left=left, right=upstream)
   report.target = target.name
@@ -1063,47 +938,23 @@ def produce_merge(target, left, upstream, output_dir):
 
   cleanup(output_dir)
 
-  # Try to find the newest common ancestor
-  tried_bases = set()
-  downstream_versions = None
-  upstream_versions = None
-  try:
-    downstream_versions = read_changelog(left_dir + '/debian/changelog')
-    upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
-    base = get_common_ancestor(target,
-            left, downstream_versions, upstream, upstream_versions, tried_bases)
-    base_dir = unpack_source(base)
-  except Exception as e:
-    report.bases_not_found = sorted(tried_bases, reverse=True)
+  downstream_versions = read_changelog(left_dir + '/debian/changelog')
+  upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
 
-    if isinstance(e, NoBase):
-      report.result = MergeResult.NO_BASE
-      logger.info('%s', e)
-    else:
-      report.result = MergeResult.FAILED
-      report.message = 'error finding base version: %s' % e
-      logger.exception('error finding base version:\n')
-
-    if downstream_versions:
-      report.left_changelog = save_changelog(output_dir, downstream_versions,
-          left, set(), 1)
-
-    if upstream_versions:
-      report.right_changelog = save_changelog(output_dir, upstream_versions,
-          upstream, set(), 1)
-
-    report.write_report(output_dir)
-    return report
-
-  stop_at = set([base.version]).union(tried_bases)
   report.left_changelog = save_changelog(output_dir, downstream_versions,
-      left, stop_at)
+      left, [base.version])
+
+  # If the base is a common ancestor, log everything from the ancestor
+  # to the current version. Otherwise just log the first entry.
+  limit = 1
+  for upstream_version, text in upstream_versions:
+    if upstream_version == base.version:
+      limit = None
+      break
   report.right_changelog = save_changelog(output_dir, upstream_versions,
-      upstream, stop_at)
+      upstream, [base.version], limit)
 
   report.set_base(base)
-  report.bases_not_found = sorted(tried_bases, reverse=True)
-
   logger.info('base version: %s', base.version)
 
   generate_patch(base, left.package.distro, left, slipped=False, force=False,

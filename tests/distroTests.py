@@ -35,10 +35,10 @@ class DistroTest(unittest.TestCase):
     target = config.targets()[0]
     pkgs = target.distro.findPackage(foo.name, searchDist=target.dist)
     self.assertEqual(len(pkgs), 1)
-    pkg = pkgs[0].package
-    pkg.updatePool()
-    self.assertTrue(os.path.isdir(pkg.poolPath))
-    versions = pkg.getPoolVersions()
+    pv = pkgs[0]
+    pv.download()
+    self.assertTrue(os.path.isdir(pv.package.poolPath))
+    versions = pv.package.getPoolVersions()
     self.assertEqual(len(versions), 1)
     self.assertEqual(versions[0].version, foo.version)
 

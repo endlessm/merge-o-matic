@@ -328,7 +328,7 @@ class MergeReport(object):
             raise AttributeError('Insufficient detail in report: our '
                     'distro is missing')
 
-        if self.result != MergeResult.KEEP_OURS:
+        if self.result not in (MergeResult.KEEP_OURS, MergeResult.FAILED):
             if self.right_version is None:
                 raise AttributeError('Insufficient detail in report: '
                         'their version is missing')

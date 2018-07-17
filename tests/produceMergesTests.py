@@ -13,129 +13,6 @@ from testhelper import config_add_distro_from_repo, config_add_distro_sources
 from merge_report import MergeResult
 from produce_merges import do_merge
 
-class FindUpstreamTest(unittest.TestCase):
-  def setUp(self):
-    self.target_repo, self.source_repo = testhelper.standard_simple_config()
-
-  # Target distro has foo-1.0
-  # Source distro has foo-2.0
-  # Target should be upgraded to foo-2.0
-  def test_sourceIsNewer(self):
-    testhelper.build_and_import_simple_package('foo', '1.0', self.target_repo)
-    testhelper.build_and_import_simple_package('foo', '2.0', self.source_repo)
-    testhelper.update_all_distro_sources()
-
-    target = config.targets()[0]
-    pkg_version = target.distro.findPackage('foo', version='1.0')[0]
-
-    upstream = produce_merges.find_upstream(target, pkg_version.package,
-                                            pkg_version)
-    self.assertEqual(upstream.package.name, 'foo')
-    self.assertEqual(upstream.version, '2.0')
-    self.assertTrue(upstream > pkg_version)
-
-  # Target distro has foo-1.0
-  # No upstream version available
-  def test_noUpstream(self):
-    testhelper.build_and_import_simple_package('foo', '1.0', self.target_repo)
-    testhelper.update_all_distro_sources()
-
-    target = config.targets()[0]
-    pkg_version = target.distro.findPackage('foo', version='1.0')[0]
-
-    upstream = produce_merges.find_upstream(target, pkg_version.package,
-                                            pkg_version)
-    self.assertIsNone(upstream)
-
-  # Target distro has foo-4.0
-  # Source distro has foo-3.0
-  # Target should not be upgraded
-  def test_targetIsNewer(self):
-    testhelper.build_and_import_simple_package('foo', '4.0', self.target_repo)
-    testhelper.build_and_import_simple_package('foo', '3.0', self.source_repo)
-    testhelper.update_all_distro_sources()
-
-    target = config.targets()[0]
-    pkg_version = target.distro.findPackage('foo', version='4.0')[0]
-
-    upstream = produce_merges.find_upstream(target, pkg_version.package,
-                                            pkg_version)
-    self.assertEqual(upstream.package.name, 'foo')
-    self.assertEqual(upstream.version, '3.0')
-    self.assertTrue(pkg_version > upstream)
-
-class FindUnstableUpstreamTest(unittest.TestCase):
-  def setUp(self):
-    self.target_repo, self.stable_source_repo, self.unstable_source_repo = \
-      testhelper.standard_simple_config(num_unstable_sources=1)
-
-  # Target distro has foo-2.3
-  # Stable source distro has foo-2.1
-  # Unstable source distro has foo-2.4
-  # Target should be updated to unstable source, since it is already
-  # newer than the stable version.
-  def test_upstreamFromUnstable(self):
-    testhelper.build_and_import_simple_package('foo', '2.3', self.target_repo)
-    testhelper.build_and_import_simple_package('foo', '2.1',
-                                               self.stable_source_repo)
-    testhelper.build_and_import_simple_package('foo', '2.4',
-                                               self.unstable_source_repo)
-    testhelper.update_all_distro_sources()
-
-    target = config.targets()[0]
-    pkg_version = target.distro.findPackage('foo', version='2.3')[0]
-
-    upstream = produce_merges.find_upstream(target, pkg_version.package,
-                                            pkg_version)
-    self.assertEqual(upstream.package.name, 'foo')
-    self.assertEqual(upstream.version, '2.4')
-    self.assertTrue(upstream > pkg_version)
-
-  # Target distro has foo-2.0
-  # Stable source distro has foo-2.1
-  # Unstable source distro has foo-2.4
-  # Target should be updated to stable source, ignoring unstable
-  def test_upstreamFromStable(self):
-    testhelper.build_and_import_simple_package('foo', '2.0', self.target_repo)
-    testhelper.build_and_import_simple_package('foo', '2.1',
-                                               self.stable_source_repo)
-    testhelper.build_and_import_simple_package('foo', '2.4',
-                                               self.unstable_source_repo)
-    testhelper.update_all_distro_sources()
-
-    target = config.targets()[0]
-    pkg_version = target.distro.findPackage('foo', version='2.0')[0]
-
-    upstream = produce_merges.find_upstream(target, pkg_version.package,
-                                            pkg_version)
-    self.assertEqual(upstream.package.name, 'foo')
-    self.assertEqual(upstream.version, '2.1')
-    self.assertTrue(upstream > pkg_version)
-
-
-class HandlePackageTest(unittest.TestCase):
-  def setUp(self):
-    self.target_repo, self.source_repo = testhelper.standard_simple_config()
-
-  # Target has foo-2.0
-  # Source has foo-1.0
-  # Target version should be kept because it's newer
-  def test_ourVersionNewer(self):
-    testhelper.build_and_import_simple_package('foo', '2.0',
-                                               self.target_repo)
-    testhelper.build_and_import_simple_package('foo', '1.0',
-                                               self.source_repo)
-
-    target = config.targets()[0]
-    testhelper.update_all_distro_sources()
-    testhelper.update_all_distro_source_pools()
-    our_version = target.distro.findPackage('foo', version='2.0')[0]
-
-    output_dir = result_dir(target.name, 'foo')
-    report = produce_merges.handle_package(output_dir, target,
-                                           our_version.package, our_version)
-    self.assertEqual(report.result, MergeResult.KEEP_OURS)
-
 
 class ProduceMergeTest(unittest.TestCase):
   def setUp(self):
@@ -161,8 +38,8 @@ class ProduceMergeTest(unittest.TestCase):
     upstream = target.findSourcePackage(foo.name, '2.0')[0]
 
     output_dir = result_dir(target.name, foo.name)
-    report = produce_merges.produce_merge(target, our_version, upstream,
-                                          output_dir)
+    report = produce_merges.produce_merge(target, our_version, our_version,
+                                          upstream, output_dir)
     self.assertEqual(report.result, MergeResult.SYNC_THEIRS)
     self.assertEqual(report.merged_version, upstream.version)
 
@@ -190,9 +67,10 @@ class ProduceMergeTest(unittest.TestCase):
 
     our_version = target.distro.findPackage(package.name, version='1.0-1mom1')[0]
     upstream = target.findSourcePackage(package.name, version='1.2-1')[0]
+    base = target.findSourcePackage(package.name, version='1.0-1')[0]
 
     output_dir = result_dir(target.name, package.name)
-    report = produce_merges.produce_merge(target, our_version, upstream,
+    report = produce_merges.produce_merge(target, base, our_version, upstream,
                                           output_dir)
     self.assertEqual(report.result, MergeResult.SYNC_THEIRS)
     self.assertEqual(report.merged_version, upstream.version)
@@ -222,9 +100,10 @@ class ProduceMergeTest(unittest.TestCase):
 
     our_version = target.distro.findPackage(package.name, version='1.0-1mom1')[0]
     upstream = target.findSourcePackage(package.name, version='1.2-1')[0]
+    base = target.findSourcePackage(package.name, version='1.0-1')[0]
 
     output_dir = result_dir(target.name, package.name)
-    report = produce_merges.produce_merge(target, our_version, upstream,
+    report = produce_merges.produce_merge(target, base, our_version, upstream,
                                           output_dir)
     self.assertEqual(report.result, MergeResult.MERGED)
     self.assertTrue(report.merged_version > upstream.version)
@@ -255,9 +134,10 @@ class ProduceMergeTest(unittest.TestCase):
 
     our_version = target.distro.findPackage(package.name, version='1.0-1mom1')[0]
     upstream = target.findSourcePackage(package.name, version='1.2-1')[0]
+    base = target.findSourcePackage(package.name, version='1.0-1')[0]
 
     output_dir = result_dir(target.name, package.name)
-    report = produce_merges.produce_merge(target, our_version, upstream,
+    report = produce_merges.produce_merge(target, base, our_version, upstream,
                                           output_dir)
     self.assertEqual(report.result, MergeResult.CONFLICTS)
 
