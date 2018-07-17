@@ -24,7 +24,7 @@ import logging
 
 from momlib import *
 from deb.version import Version
-from model import Distro
+from model import Distro, UpdateInfo
 from util import run
 import config
 
@@ -63,20 +63,17 @@ def main(options, args):
       stats["repackaged"] = 0
       stats["modified"] = 0
       for pkg in target.distro.packages(target.dist, target.component):
-        stats['total'] += 1
-
-        upstream = None
-        for srclist in target.getSourceLists(pkg.name, include_unstable=False):
-          for src in srclist:
-            try:
-              for possible in src.distro.findPackage(pkg.name,
-                      searchDist=src.dist):
-                if upstream is None or possible > upstream:
-                  upstream = possible
-            except model.error.PackageNotFound:
-              pass
+        update_info = UpdateInfo(pkg)
+        upstream = update_info.upstream_version
+        base = update_info.base_version
 
         our_version = pkg.newestVersion()
+        if our_version.version != update_info.version:
+          logger.debug("Skip %s, no UpdateInfo", pkg.name)
+          continue
+
+        stats['total'] += 1
+
         logger.debug("%s: %s, upstream: %s", target.distro,
             our_version, upstream)
         if upstream is None:
@@ -84,18 +81,16 @@ def main(options, args):
           stats["local"] += 1
           continue
 
-        base = target.findNearestVersion(our_version)
-
-        if our_version.version == upstream.version:
+        if our_version.version == upstream:
           logger.debug("%s: unmodified", pkg)
           stats["unmodified"] += 1
         elif base > upstream:
           logger.debug("%s: locally repackaged", pkg)
           stats["repackaged"] += 1
-        elif our_version.version == base.version:
+        elif our_version.version == base:
           logger.debug("%s: needs sync", pkg)
           stats["needs-sync"] += 1
-        elif our_version.version < upstream.version:
+        elif our_version.version < upstream:
           logger.debug("%s: needs merge", pkg)
           stats["needs-merge"] += 1
         elif "-0co" in str(our_version.version):

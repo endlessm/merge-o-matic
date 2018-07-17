@@ -27,7 +27,6 @@ from momversion import VERSION
 from util import run
 import config
 import update_sources
-import get_missing_bases
 import generate_diffs
 import generate_dpatches
 import publish_patches
@@ -85,12 +84,6 @@ def main(options, args):
 
         # Update the Sources files against new packages that have been downloaded
         update_sources.main(options, args)
-
-        try:
-            # Try to download missing base versions from the source distro pool
-            get_missing_bases.main(options, args)
-        except:
-            logger.exception('Failed to get missing bases:')
 
         # Generate changes, diffs and patches
         generate_diffs.main(options, args)

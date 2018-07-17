@@ -55,6 +55,10 @@ try:
 except ImportError:
     from elementtree import ElementTree
 
+# Regular expression for top of debian/changelog
+CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
+                   re.IGNORECASE)
+
 logger = logging.getLogger('momlib')
 
 # --------------------------------------------------------------------------- #
@@ -489,3 +493,34 @@ def remove_old_comments(status_file, merges):
 
         for line in new_lines:
             file_comments.write(line)
+
+
+def read_changelog(filename):
+    """Return a parsed changelog file."""
+    entries = []
+
+    with open(filename) as cl:
+        (ver, text) = (None, "")
+        for line in cl:
+            match = CL_RE.search(line)
+            if match:
+                try:
+                    ver = Version(match.group(2))
+                except ValueError:
+                    ver = None
+
+                text += line
+            elif line.startswith(" -- "):
+                if ver is None:
+                    ver = Version("0")
+
+                text += line
+                entries.append((ver, text))
+                (ver, text) = (None, "")
+            elif len(line.strip()) or ver is not None:
+                text += line
+
+    if len(text):
+        entries.append((ver, text))
+
+    return entries

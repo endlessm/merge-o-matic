@@ -23,7 +23,7 @@ import tempfile
 import json
 import time
 import urllib
-import model
+from model import Distro, Package
 import re
 import imp
 import model.error
@@ -107,7 +107,7 @@ class Source(object):
     assert dist is None or isinstance(dist, str), dist
 
     super(Source, self).__init__()
-    self._distro = model.Distro.get(distro)
+    self._distro = Distro.get(distro)
     self._dist = dist
 
   @property
@@ -212,7 +212,7 @@ class Target(object):
   @property
   def distro(self):
     """Return the Distro for our "distro" configuration item."""
-    return model.Distro.get(self.config('distro'))
+    return Distro.get(self.config('distro'))
 
   @property
   def dist(self):
@@ -323,80 +323,21 @@ class Target(object):
         pass
     return ret
 
-  def findNearestVersion(self, version):
-    assert(isinstance(version, model.PackageVersion))
-    base = version.version.base()
-    sources = []
-    for pkg in self.findSourcePackage(version.package.name):
-      for pv in pkg.package.getPoolVersions():
-        if pv not in sources:
-          sources.append(pv)
+  def getAllPoolVersions(self, package_name):
+    """Find all available versions of the given package available in the pool.
+    Looks in the target and all the sources."""
+    ret = []
 
-    for pv in version.package.getPoolVersions():
-      if pv not in sources:
-        sources.append(pv)
-    bases = []
-    for source in sources:
-      if base == source.version:
-        return source
-      elif base <= Version(re.sub("build[0-9]+$", "", str(source.version))) and source not in bases:
-        bases.append(source)
-    bases.append(version)
-    bases.sort()
-    return bases[0]
+    pkg = Package(self.distro, self.dist, self.component, package_name)
+    ret.extend(pkg.getPoolVersions())
 
-  def _getFile(self, url, filename, size=None):
-    if os.path.isfile(filename):
-        if size is None or os.path.getsize(filename) == int(size):
-            return
+    for srclist in self.getAllSourceLists():
+      for source in srclist:
+        for component in source.distro.components():
+          pkg = Package(source.distro, source.dist, component, package_name)
+          ret.extend(pkg.getPoolVersions())
 
-    logging.debug("Downloading %s", url)
-    tree.ensure(filename)
-    try:
-        urllib.URLopener().retrieve(url, filename)
-    except IOError as e:
-        logging.error("Downloading %s failed: %s", url, e.args)
-        raise
-    logging.info("Saved %s", filename)
-
-  def _tryFetch(self, pkg, version):
-    mirror = pkg.distro.mirrorURL()
-    pooldir = pkg.getCurrentSources()[0]['Directory']
-    name = "%s_%s.dsc" % (pkg.name, version)
-    url = "%s/%s/%s" % (mirror, pooldir, name)
-    outfile = "%s/%s" % (pkg.poolPath, name)
-    logging.debug("Downloading %s to %s", url, outfile)
-    try:
-      self._getFile(url, outfile)
-    except IOError:
-      logging.debug("Could not download %s.", url)
-      return False
-    source = ControlFile()
-    try:
-      source.open(outfile, signed=True, multi_para=True)
-    except:
-      pass
-    for md5sum, size, name in files(source.paras[0]):
-      url = "%s/%s/%s" % (mirror, pooldir, name)
-      outfile = "%s/%s" % (pkg.poolPath, name)
-      self._getFile(url, outfile, size)
-    return True
-  
-  def fetchMissingVersion(self, package, version):
-    for srclist in self.getSourceLists(package.name):
-      for src in srclist:
-        try:
-          for pkg in src.distro.findPackage(package.name, searchDist=src.dist,
-                  version=version):
-            if self._tryFetch(pkg.package, version):
-              return
-        except model.error.PackageNotFound:
-          logging.debug('%s/%s not found in %r', package.name, version,
-                  src)
-          continue
-        except IOError, e:
-          logging.exception("Could not download %s_%s", package.name, version)
-          continue
+    return ret
 
 def targets(names=[]):
   """If names is non-empty, return a Target for each entry, or raise an

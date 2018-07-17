@@ -197,12 +197,12 @@ def update_all_distro_sources():
 
 def update_all_distro_source_pools():
   for target in config.targets():
-    target.distro.updatePool(target.dist, target.component)
+    target.distro.downloadPackage(target.dist, target.component)
 
     for upstreamList in target.getAllSourceLists():
       for source in upstreamList:
         for component in source.distro.components():
-          source.distro.updatePool(source.dist, component)
+          source.distro.downloadPackage(source.dist, component)
 
 # Setup basic test config environment
 def setup_test_config():

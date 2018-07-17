@@ -8,6 +8,7 @@ import urllib
 from deb.controlfile import ControlFile
 from deb.version import Version
 import gzip
+import json
 
 import apt
 import apt_pkg
@@ -84,7 +85,7 @@ class Distro(object):
     """Return the absolute URL of the top of the mirror"""
     return self.config("mirror")
 
-  def updatePool(self, dist, component, package=None):
+  def downloadPackage(self, dist, component, package=None, version=None):
     """Populate the 'pool' directory by downloading Debian source packages
     from the given release and component.
 
@@ -110,6 +111,10 @@ class Distro(object):
     for source in sources:
       if package != source["Package"] and not (package is None):
         continue
+      if package is not None and version is not None \
+          and source["Version"] != str(version):
+        continue
+
       sourcedir = source["Directory"]
 
       pkg = self.package(dist, component, source['Package'])
@@ -374,14 +379,16 @@ class Package(object):
       if left_version < right_version:
         tree.ensure("%s/%s" % (output_dir, "REPORT"))
 
-  def updatePool(self):
-    """Download all available versions of this package from
-    (self.distro, self.dist, self.component) into the pool.
+  def download(self, version=None):
+    """Download this package from (self.distro, self.dist, self.component)
+    into the pool. If no version is specified, all available versions will be
+    downloaded.
 
     :return: True if the pool changed
     :rtype: bool
     """
-    return self.distro.updatePool(self.dist, self.component, self.name)
+    return self.distro.downloadPackage(self.dist, self.component, self.name,
+                                       version)
 
   def getPoolVersions(self):
     """Return all available versions of this package in the pool as
@@ -446,6 +453,71 @@ class PackageVersion(object):
 
   def getDscContents(self):
       return ControlFile(self.dscPath, multi_para=False, signed=True).para
+
+  def download(self):
+    self.package.download(self.version)
+
+class UpdateInfo(object):
+  def __init__(self, package):
+    self.package = package
+    self.path = os.path.join(config.get('ROOT'), 'baseinfo',
+                             package.distro.name, package.name)
+
+    if os.path.exists(self.path):
+      self.data = json.load(open(self.path, 'r'))
+    else:
+      self.data = {}
+
+  def __unicode__(self):
+    return '%s (version=%s base=%s upstream=%s)' % \
+           (self.package, self.version, self.base_version,
+            self.upstream_version)
+
+  def __str__(self):
+    return self.__unicode__()
+
+  def save(self):
+    base_path = os.path.dirname(self.path)
+    if not os.path.exists(base_path):
+      os.makedirs(base_path)
+
+    json.dump(self.data, open(self.path, 'w'))
+
+  @property
+  def version(self):
+    return Version(self.data['version']) if 'version' in self.data else None
+
+  def set_version(self, version):
+    self.data['version'] = str(version)
+
+  @property
+  def base_version(self):
+    if 'base_version' in self.data:
+      return Version(self.data['base_version'])
+    else:
+      return None
+
+  def set_base_version(self, version):
+    if version is None:
+      if 'base_version' in self.data:
+        del self.data['base_version']
+    else:
+      self.data['base_version'] = str(version)
+
+  @property
+  def upstream_version(self):
+    if 'upstream_version' in self.data:
+      return Version(self.data['upstream_version'])
+    else:
+      return None
+
+  def set_upstream_version(self, version):
+    if version is None:
+      if 'upstream_version' in self.data:
+        del self.data['upstream_version']
+    else:
+      self.data['upstream_version'] = str(version)
+
 
 def files(source):
     """Return (md5sum, size, name) for each file.
