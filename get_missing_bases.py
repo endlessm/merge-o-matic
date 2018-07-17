@@ -28,8 +28,13 @@ from util import tree, run
 import config
 import subprocess
 from tempfile import mkdtemp
+from urlparse import urljoin
+import json
+import urllib2
 
 logger = logging.getLogger('update_sources')
+
+BASE_URL = 'http://snapshot.debian.org'
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
@@ -48,6 +53,52 @@ def package_version_present_in_sources(target, pkg, base):
         if pool_pv.version == base:
           return True
     return False
+
+def get_file_hash_from_fileinfo(data, filename):
+  for filehash, files in data['fileinfo'].iteritems():
+    for fileinfo in files:
+      if fileinfo['name'] == filename:
+        return filehash
+  return None
+
+def download_file(url, output_path):
+    try:
+      fd = urllib2.urlopen(url)
+      with open(output_path, 'w') as output:
+        output.write(fd.read())
+      return True
+    except urllib2.HTTPError, e:
+      logger.exception('Failed to download %s', url)
+      return False
+
+def fetch_from_snapshot(package_name, version, output_dir):
+    url = '%s/mr/package/%s/%s/srcfiles?fileinfo=1' % \
+          (BASE_URL, package_name, version)
+    try:
+      fd = urllib2.urlopen(url)
+      data = json.load(fd)
+    except urllib2.HTTPError, e:
+      logger.exception('Failed to download %s', url)
+      return False
+
+    dsc_name = '%s_%s.dsc' % (package_name, version)
+    dsc_hash = get_file_hash_from_fileinfo(data, dsc_name)
+    dsc_path = os.path.join(output_dir, dsc_name)
+
+    url = '%s/file/%s' % (BASE_URL, dsc_hash)
+    if not download_file(url, dsc_path):
+      return False
+
+    dsc_data = ControlFile(dsc_path, multi_para=False, signed=True).para
+    for filehash, size, filename in files(dsc_data):
+      snapshot_hash = get_file_hash_from_fileinfo(data, filename)
+      url = '%s/file/%s' % (BASE_URL, snapshot_hash)
+      path = os.path.join(output_dir, filename)
+      if not download_file(url, path):
+        return False
+
+    return True
+
 
 def main(options, args):
     logger.info('Trying to download missing base versions for 3-way merge...')
@@ -76,6 +127,11 @@ def main(options, args):
         logger.debug("Attempting to fetch missing base %s for %s",
                      base, pkg.newestVersion())
 
+        tmpdir = mkdtemp()
+        if not fetch_from_snapshot(pkg.name, str(base), tmpdir):
+          shutil.rmtree(tmpdir)
+          continue
+
         # For lack of a better place, we save the missing base version under
         # the very last source distro in the list.
         source_list = target.getSourceLists(pkg.name)[-1]
@@ -86,25 +142,14 @@ def main(options, args):
         source_pkg = Package(source.distro, source.dist, component, pkg.name)
         poolDir = source_pkg.poolPath
 
-        tmpdir = mkdtemp()
-        try:
-          rc = subprocess.call(['debsnap', '-d', tmpdir, '-f', '-v', pkg.name,
-                                str(base)])
-          if rc != 0:
-            logger.warning("debsnap failed with code %d", rc)
-            continue
+        if not os.path.exists(poolDir):
+          os.makedirs(poolDir)
 
-          if not os.path.exists(poolDir):
-              os.makedirs(poolDir)
+        for filename in os.listdir(tmpdir):
+          if not os.path.exists(os.path.join(poolDir, filename)):
+            shutil.move(os.path.join(tmpdir, filename), poolDir)
 
-          updated = False
-          for filename in os.listdir(tmpdir):
-            if not os.path.exists(os.path.join(poolDir, filename)):
-              shutil.move(os.path.join(tmpdir, filename), poolDir)
-              updated = True
-        finally:
-          shutil.rmtree(tmpdir)
-        
+        shutil.rmtree(tmpdir)
 
 if __name__ == "__main__":
     run(main, options, usage="%prog]",
