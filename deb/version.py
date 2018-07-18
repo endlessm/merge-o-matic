@@ -19,6 +19,8 @@
 
 import re
 
+import config
+
 
 # Regular expressions make validating things easy
 valid_epoch = re.compile(r'^[0-9]+$')
@@ -141,8 +143,9 @@ class Version(object):
 
             return text[:idx]
         v = strip_suffix(str(self), "build")
+        if config.get('LOCAL_SUFFIX') is not None:
+          v = strip_suffix(v, config.get('LOCAL_SUFFIX'))
         v = strip_suffix(v, "co")
-        v = strip_suffix(v, "endless")
         v = strip_suffix(v, "ubuntu")
         if v.endswith("-"):
             v += "0"

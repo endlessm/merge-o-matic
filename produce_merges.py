@@ -1114,7 +1114,7 @@ def produce_merge(target, left, upstream, output_dir):
   generate_patch(base, upstream.package.distro, upstream, slipped=False,
           force=False, unpacked=True)
 
-  report.merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
+  report.merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX')+'1')
 
   if base >= upstream:
     logger.info("Nothing to be done: %s >= %s", base, upstream)
