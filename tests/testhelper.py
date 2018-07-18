@@ -115,10 +115,18 @@ class TestPackage(object):
     quiet_exec(args)
     self.version = version
 
-  def create_orig(self):
+  def create_orig(self, subdir=None):
     output_file = self.base_path + '/' + self.name + '_' + \
-                  deb.version.Version(self.version).upstream + '.orig.tar.xz'
-    quiet_exec([ 'tar', '--exclude', 'debian', '-C', self.pkg_path, '-cJf',
+                  deb.version.Version(self.version).upstream + '.orig'
+    if subdir is not None:
+      output_file += '-%s' % subdir
+    output_file += '.tar.xz'
+
+    path = self.pkg_path
+    if subdir is not None:
+      path = os.path.join(path, subdir)
+
+    quiet_exec([ 'tar', '--exclude', 'debian', '-C', path, '-cJf',
                  output_file, '.' ])
 
   def build(self):
