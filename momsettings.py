@@ -166,4 +166,4 @@ defineDist('uderivative', 'badger', ['raring+updates'], False,
 # Ubuntu's patched hello_1.2-3 package would be hello_1.2-3ubuntu1,
 # hello_1.2-3ubuntu2, etc., so they would use "ubuntu1" in their
 # MOM installation.
-LOCAL_SUFFIX = "local1"
+LOCAL_SUFFIX = "local"

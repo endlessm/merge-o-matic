@@ -204,6 +204,14 @@ def update_all_distro_source_pools():
         for component in source.distro.components():
           source.distro.updatePool(source.dist, component)
 
+# Setup basic test config environment
+def setup_test_config():
+  config.loadConfig(imp.new_module('testconfig'))
+  config.configdb.LOCAL_SUFFIX = 'mom'
+  config.configdb.MOM_EMAIL = 'admin@merge-our-misc.com'
+  config.configdb.MOM_NAME = 'Merge Our Misc'
+  config.configdb.MOM_URL = 'http://www.merge-our-misc.com'
+
 # Create a new config root directory, cleaning up any that came before
 def config_create_root():
   # Clean up old root
@@ -212,12 +220,7 @@ def config_create_root():
      and os.path.isdir(config.configdb.ROOT):
     shutil.rmtree(config.configdb.ROOT)
 
-  config.loadConfig(imp.new_module('testconfig'))
-  config.configdb.LOCAL_SUFFIX = 'mom'
-  config.configdb.MOM_EMAIL = 'admin@merge-our-misc.com'
-  config.configdb.MOM_NAME = 'Merge Our Misc'
-  config.configdb.MOM_URL = 'http://www.merge-our-misc.com'
-
+  setup_test_config()
   config.configdb.ROOT = tempfile.mkdtemp(prefix='momtest.')
 
   global __last_config_root
