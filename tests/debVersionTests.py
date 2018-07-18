@@ -19,3 +19,11 @@ class BaseTest(unittest.TestCase):
     self.assertEqual(base.upstream, '1.2.3')
     self.assertEqual(base.revision, '4')
     self.assertEqual(str(base), '2:1.2.3-4')
+
+class EpochTest(unittest.TestCase):
+  # Some Debian packages explicitly state epoch zero. If that's what the
+  # metadata states then we have to be careful not to drop that when
+  # converting to a string.
+  def test_zeroEpoch(self):
+    version = Version('0:1.2.3-4')
+    self.assertEqual(str(version), '0:1.2.3-4')
