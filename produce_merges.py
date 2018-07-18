@@ -811,20 +811,22 @@ def create_tarball(package, version, output_dir, merged_dir):
 def create_source(package, version, since, output_dir, merged_dir):
     """Create a source package without conflicts."""
     contained = "%s-%s" % (package, version.upstream)
-    filename = "%s_%s.dsc" % (package, version.without_epoch)
+    dsc_filename = "%s_%s.dsc" % (package, version.without_epoch)
 
     tree.ensure("%s/tmp/" % config.get('ROOT'))
     parent = tempfile.mkdtemp(dir="%s/tmp/" % config.get('ROOT'))
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
 
-        for ext in ['gz', 'bz2', 'xz']:
-            orig_filename = "%s_%s.orig.tar.%s" % (package, version.upstream,
-                                                   ext)
-            if os.path.isfile("%s/%s" % (output_dir, orig_filename)):
-                os.link("%s/%s" % (output_dir, orig_filename),
-                        "%s/%s" % (parent, orig_filename))
-                break
+        match = '%s_%s.orig(-\w+)?.tar.(gz|bz2|xz)$' \
+                % (re.escape(package), re.escape(version.upstream))
+        for filename in os.listdir(output_dir):
+            if re.match(match, filename) is None:
+                continue
+            path = os.path.join(output_dir, filename)
+            if os.path.isfile(path):
+                os.link(path,
+                        "%s/%s" % (parent, filename))
 
         cmd = ("dpkg-source",)
         if version.revision is not None and since.upstream != version.upstream:
@@ -849,18 +851,18 @@ def create_source(package, version, since, output_dir, merged_dir):
         else:
             logger.debug("dpkg-source succeeded:\n%s\n", dpkg_source_output)
 
-        if os.path.isfile("%s/%s" % (parent, filename)):
-            logger.info("Created dpkg-source %s", filename)
+        if os.path.isfile("%s/%s" % (parent, dsc_filename)):
+            logger.info("Created dpkg-source %s", dsc_filename)
             for name in os.listdir(parent):
                 src = "%s/%s" % (parent, name)
                 dest = "%s/%s" % (output_dir, name)
                 if os.path.isfile(src) and not os.path.isfile(dest):
                     os.link(src, dest)
 
-            return (MergeResult.MERGED, None, os.path.basename(filename))
+            return (MergeResult.MERGED, None, os.path.basename(dsc_filename))
         else:
             message = ("dpkg-source did not produce expected filename %s" %
-                tree.subdir(config.get('ROOT'), filename))
+                tree.subdir(config.get('ROOT'), dsc_filename))
             logger.warning("%s", message)
             return (MergeResult.FAILED,
                     "unable to build merged source package (%s)" % message,

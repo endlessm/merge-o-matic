@@ -141,6 +141,45 @@ class ProduceMergeTest(unittest.TestCase):
                                           output_dir)
     self.assertEqual(report.result, MergeResult.CONFLICTS)
 
+  # Base version foo-2.0-1
+  # Target has foo-2.0-1mom1 with a new file
+  # Source has foo-3.0-1 with another new file
+  # Package has multiple orig files
+  # Merge should succeed
+  def test_multipleOrig(self):
+    package = testhelper.TestPackage('foo', '2.0-1')
+    os.makedirs(package.pkg_path + '/mydir')
+    open(package.pkg_path + '/mydir/mainfile', 'w').write('hello')
+    package.create_orig()
+    package.create_orig(subdir='mydir')
+    package.build()
+    self.source1_repo.importPackage(package)
+
+    forked = copy(package)
+    forked.changelog_entry(version='2.0-1mom1')
+    open(forked.pkg_path + '/debian/new.file', 'w').write('hello')
+    forked.build()
+    self.target_repo.importPackage(forked)
+
+    package.changelog_entry(version='3.0-1')
+    open(package.pkg_path + '/debian/new.file2', 'w').write('another')
+    package.create_orig()
+    package.create_orig(subdir='mydir')
+    package.build()
+    self.source2_repo.importPackage(package)
+
+    target = config.targets()[0]
+    testhelper.update_all_distro_sources()
+    testhelper.update_all_distro_source_pools()
+
+    our_version = target.distro.findPackage(package.name, version='2.0-1mom1')[0]
+    upstream = target.findSourcePackage(package.name, version='3.0-1')[0]
+    base = target.findSourcePackage(package.name, version='2.0-1')[0]
+
+    output_dir = result_dir(target.name, package.name)
+    report = produce_merges.produce_merge(target, base, our_version, upstream,
+                                          output_dir)
+    self.assertEqual(report.result, MergeResult.MERGED)
 
 class DoMergeTest(unittest.TestCase):
   def setUp(self):
