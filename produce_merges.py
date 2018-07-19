@@ -747,9 +747,8 @@ def add_changelog(package, merged_version, left_distro, left_dist,
             print >>new_changelog, ("%s (%s) UNRELEASED; urgency=low"
                                     % (package, merged_version))
             print >>new_changelog
-            print >>new_changelog, "  * Merge from %s %s.  Remaining changes:" \
+            print >>new_changelog, "  * Merge from %s %s." \
                   % (right_distro.title(), right_dist)
-            print >>new_changelog, "    - SUMMARISE HERE"
             print >>new_changelog
             print >>new_changelog, (" -- %s <%s>  " % (config.get('MOM_NAME'),
                                                        config.get('MOM_EMAIL')) +
