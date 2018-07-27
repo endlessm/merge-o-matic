@@ -545,6 +545,8 @@ def produce_merge(target, base, left, upstream, output_dir):
       report.merged_version = upstream.version
       report.merged_patch = report.right_patch
       report.merged_files = report.right_files
+      report.notes.append('Synced to upstream version because the changelog ' \
+                          + 'was the only modified file')
 
       write_report(report,
                    left=left,

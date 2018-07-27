@@ -95,6 +95,15 @@ Please check that it's OK to update to the newer version.</p>
 <pre><code>{{ report.genchanges }}</code></pre>
 {% endif %}
 
+{% if report.notes %}
+<h2>Merge notes</h2>
+<ul>
+  {% for c in report.notes %}
+  <li>{{ c }}</li>
+  {% endfor %}
+</ul>
+{% endif %} {# notes #}
+
 <div>
 <h2>Merge details</h2>
 
