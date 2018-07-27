@@ -173,6 +173,11 @@ def main(options, args):
                                                report['right_suite'])
           comment += "\n\nMerge report is available at %s"%('/'.join((config.get('MOM_URL'), subdir(config.get('ROOT'), output_dir), 'REPORT.html')))
 
+          if report['notes']:
+            comment += '\n\nMerge notes:'
+            for note in report['notes']:
+              comment += '\n - %s' % note
+
           # The newlines seem to cause create_submit_request to send
           # UTF-32 over the wire, which OBS promptly chokes on. Encode
           # the message to UTF-8 first.

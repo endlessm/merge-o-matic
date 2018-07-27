@@ -71,6 +71,7 @@ class ProduceMergeTest(unittest.TestCase):
                                           output_dir)
     self.assertEqual(report.result, MergeResult.SYNC_THEIRS)
     self.assertEqual(report.merged_version, upstream.version)
+    self.assertTrue(len(report.notes) > 0)
 
   # Base version foo-1.0-1
   # Target has foo-1.0-1mom1 with a new file

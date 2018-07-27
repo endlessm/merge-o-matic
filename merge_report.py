@@ -212,6 +212,7 @@ class MergeReport(object):
             'committed_to',
             'commit_detail',
             'obs_request_url',
+            'notes',
             )
 
     def __init__(self, left=None, right=None, base=None):
@@ -225,6 +226,7 @@ class MergeReport(object):
         self.merged_files = []
         self.build_metadata_changed = True
         self.conflicts = []
+        self.notes = []
         self.committed = False
         self.result = MergeResult.UNKNOWN
 
