@@ -1,4 +1,5 @@
 import unittest
+from subprocess import check_call
 import config
 import testhelper
 import produce_merges

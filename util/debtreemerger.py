@@ -1,6 +1,9 @@
 import os
 import logging
+import shutil
+import subprocess
 from stat import *
+from tempfile import mkdtemp
 
 from momlib import *
 from util import tree
@@ -71,6 +74,9 @@ class DebTreeMerger(object):
     self.right_distro = right_distro
     self.base_dir = base_dir
     self.merged_dir = merged_dir
+
+    # Specific merge-related information to flag to the maintainer
+    self.notes = []
 
     # Changes pending as part of the merge
     self.pending_changes = {}
@@ -321,11 +327,96 @@ class DebTreeMerger(object):
     # Handle po files separately as they need special merging
     self.handle_po_files()
 
+    # Intelligently handle added quilt patches
+    self.handle_quilt_patches()
+
     # Now apply the remaining changes through simple means
     self.apply_pending_changes()
 
     for conflict in self.conflicts:
         self.conflict_file(conflict)
+
+  def handle_quilt_patches(self):
+    if 'debian/patches/series' not in self.pending_changes:
+      return
+
+    # In order to apply patches in the right order etc. we need to have
+    # the final series file (it might need a merge)
+    if self.apply_pending_change_to_file('debian/patches/series') is None:
+      logging.debug('Skip quilt patches handling as series file conflicted')
+      return
+
+    # Create a temporary copy of the package where we will experiment with
+    # patches
+    tmpdir = mkdtemp(prefix='mom.quilt.')
+    os.rmdir(tmpdir)
+    shutil.copytree(self.merged_dir, tmpdir)
+
+    try:
+      self.__iterate_quilt_patches(tmpdir)
+    finally:
+      shutil.rmtree(tmpdir)
+
+  def __iterate_quilt_patches(self, tmpdir):
+    # Put our downstream-added patches in place. Must be done
+    # before we 'quilt push' the preceding patch to avoid quilt being
+    # unhappy.
+    for filename, change_type in self.pending_changes.iteritems():
+      if filename.startswith('debian/patches/') \
+          and filename.endswith('.patch') \
+          and change_type == self.PENDING_ADD:
+        shutil.copy2(os.path.join(self.left_dir, filename),
+                     os.path.join(tmpdir, filename))
+
+    quiltexec = {'env': {'QUILT_PATCHES': 'debian/patches'}, 'cwd': tmpdir}
+
+    # Go over every quilt patch in the series, and attempt to fix any of
+    # our patches that are broken.
+    while True:
+      proc = subprocess.Popen(['quilt', 'next'], stdout=subprocess.PIPE,
+                              **quiltexec)
+      patch, stderr = proc.communicate()
+      if proc.returncode != 0:
+        logging.debug('quilt next failed, assuming end of series')
+        return
+
+      patch = patch.strip()
+      logging.debug('Next patch is %s', patch)
+
+      if patch not in self.pending_changes \
+          or self.pending_changes[patch] != self.PENDING_ADD:
+        # Only work on patches that we added in our version
+        logging.debug('%s is not our patch, apply and skip', patch)
+        rc = subprocess.call(['quilt', 'push'], **quiltexec)
+        if rc != 0:
+          logging.warning('Failed to apply base patch %s', patch)
+          return
+        continue
+
+      # Try to apply with no fuzz, like Debian does
+      rc = subprocess.call(['quilt', 'push', '--fuzz=0'], **quiltexec)
+      if rc == 0:
+        # Patch applied without fuzz, nothing to do
+        logging.debug('%s applied without fuzz, nothing to do', patch)
+        continue
+
+      # Try applying with fuzz
+      logging.debug('%s failed to apply, trying with fuzz', patch)
+      rc = subprocess.call(['quilt', 'push'], **quiltexec)
+      if rc == 0:
+        # Patch applies with fuzz, refresh it
+        logging.debug('%s now applied, refreshing', patch)
+        self.notes.append('%s was refreshed to eliminate fuzz' % patch)
+        subprocess.check_call(['quilt', 'refresh'], **quiltexec)
+        shutil.copy2(os.path.join(tmpdir, patch),
+                     os.path.join(self.merged_dir, patch))
+        del self.pending_changes[patch]
+        self.record_change(patch, self.FILE_ADDED)
+      else:
+        logging.debug('%s still failed to apply', patch)
+        self.notes.append('Our patch %s fails to apply to the new version' \
+                          % patch)
+        return
 
   # Handle po files separately as they need special merging
   def handle_po_files(self):

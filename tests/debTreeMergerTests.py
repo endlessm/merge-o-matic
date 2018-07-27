@@ -3,6 +3,7 @@ import os
 import shutil
 import stat
 from tempfile import mkdtemp
+from subprocess import check_call, CalledProcessError
 import unittest
 
 import testhelper
@@ -216,3 +217,47 @@ class DebTreeMergerTest(unittest.TestCase):
     self.assertIn('file4', merger.conflicts)
     self.assertIn('link1', merger.conflicts)
     self.assertIn('link4', merger.conflicts)
+
+  # Debian only accepts quilt patches with no fuzz.
+  # Here we test our functionality to auto-refresh fuzzy quilt patches.
+  # A quilt patch is added on the left side, touching a file which has
+  # some fuzz-inducing whitespace changes on the right side.
+  def test_fuzzyQuiltPatch(self):
+    open(self.base_dir + '/mainfile', 'w').write('5\n6\n7')
+    open(self.left_dir + '/mainfile', 'w').write('5\n6\n7')
+    os.makedirs(self.left_dir + '/debian/patches')
+
+    quiltexec = {'env': {'QUILT_PATCHES': 'debian/patches'},
+                 'cwd': self.left_dir}
+
+    check_call(['quilt', 'new', 'test.patch'], **quiltexec)
+    check_call(['quilt', 'add', 'mainfile'], **quiltexec)
+    open(self.left_dir + '/mainfile', 'w').write('5\nsix\n7')
+    check_call(['quilt', 'refresh'], **quiltexec)
+    check_call(['quilt', 'pop'], **quiltexec)
+    shutil.rmtree(self.left_dir + '/.pc')
+
+    # Make a whitespace change on line 1 to introduce fuzz
+    open(self.right_dir + '/mainfile', 'w').write('5 \n6\n7')
+
+    # Check that the original patch indeed fails to apply on the right
+    with self.assertRaises(CalledProcessError):
+      check_call(['patch', '-p1', '--fuzz=0', '--dry-run', '-i',
+                  self.left_dir + '/debian/patches/test.patch'],
+                 cwd=self.right_dir)
+
+    merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
+                           self.right_dir, 'foo', '3.0 (quilt)', 'right',
+                           self.base_dir,
+                           self.merged_dir)
+    merger.run()
+
+    self.assertEqual(len(merger.conflicts), 0)
+    self.assertIn('debian/patches/series', merger.changes_made)
+    self.assertIn('debian/patches/test.patch', merger.changes_made)
+    self.assertEqual(merger.total_changes_made, 2)
+
+    # Check that the new patch applies without fuzz
+    check_call(['patch', '-p1', '--fuzz=0', '--dry-run', '-i',
+                           'debian/patches/test.patch'],
+                          cwd=self.merged_dir)
