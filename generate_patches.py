@@ -30,34 +30,29 @@ import config
 def generate_patch(base, distro, ours,
                    slipped=False, force=False, unpacked=False):
     """Generate a patch file for the given comparison."""
-    base_source = base.getSources()
-    our_source = ours.getSources()
-    our_version = Version(our_source["Version"])
-    base_version = Version(base_source["Version"])
-
-    if base_version > our_version:
+    if base.version > ours.version:
         # Allow comparison of source -1 against our -0coX (slipped)
         if not slipped:
             return
-        elif our_version.revision is None:
+        elif ours.version.revision is None:
             return
-        elif not our_version.revision.startswith("0co"):
+        elif not ours.version.revision.startswith("0co"):
             return
-        elif base_version.revision != "1":
+        elif base.version.revision != "1":
             return
-        elif base_version.upstream != our_version.upstream:
+        elif base.version.upstream != ours.version.upstream:
             return
-        elif base_version.epoch != our_version.epoch:
+        elif base.version.epoch != ours.version.epoch:
             return
 
         logging.debug("Allowing comparison of -1 against -0coX")
-    elif base_version == our_version:
+    elif base.version == ours.version:
         return
 
-    filename = patch_file(distro, our_source, slipped)
+    filename = patch_file(distro, ours, slipped)
     if not force:
         basis = read_basis(filename)
-        if basis is not None and basis == base_version:
+        if basis is not None and basis == base.version:
             return
 
     if not os.path.exists(filename):
@@ -66,6 +61,7 @@ def generate_patch(base, distro, ours,
             unpack_source(ours)
 
         tree.ensure(filename)
-        save_patch_file(filename, base_source, our_source)
-        save_basis(filename, base_version)
-        logging.info("Saved patch file: %s", tree.subdir(ROOT, filename))
+        save_patch_file(filename, base, ours)
+        save_basis(filename, base.version)
+        logging.info("Saved patch file: %s", tree.subdir(config.get('ROOT'),
+                                                         filename))

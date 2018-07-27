@@ -38,51 +38,46 @@ def main(options, args):
 
     for target in config.targets(args):
       d = target.distro
-      for source in d.newestSources(target.dist, target.component):
-        if options.package and source['Package'] not in options.package:
+      for pkg in d.packages(target.dist, target.component):
+        if options.package and pkg.name not in options.package:
           continue
-        if source['Package'] in target.blacklist:
+        if pkg.name in target.blacklist:
           logger.debug("%s is blacklisted,skipping", source['Package'])
           continue
-        try:
-          pkg = d.package(target.dist, target.component,
-              source['Package'])
-        except model.error.PackageNotFound, e:
-          logger.exception("FIXME: Spooky stuff going on with %s.", d)
-          continue
-        sources = pkg.poolDirectory().getSourceStanzas()
-        version_sort(sources)
-        for source in sources:
+
+        pvs = pkg.getPoolVersions()
+        pvs.sort()
+        for pv in pvs:
           try:
-            generate_dpatch(d.name, source, pkg.newestVersion())
+            generate_dpatch(d.name, pv)
           except model.error.PackageNotFound:
             logger.exception("Could not find %s/%s for unpacking. How odd.",
-                pkg, source['Version'])
+                pkg, version)
 
-def generate_dpatch(distro, source, pkg):
+def generate_dpatch(distro, pv):
     """Generate the extracted patches."""
-    logger.debug("%s: %s %s", distro, pkg, source["Version"])
+    logger.debug("%s: %s", distro, pv)
 
-    stamp = "%s/%s/dpatch-stamp-%s" \
-        % (ROOT, pkg.poolDirectory().path, source["Version"])
+    stamp = "%s/dpatch-stamp-%s" % (pv.package.poolPath, pv.version)
 
     if not os.path.isfile(stamp):
         open(stamp, "w").close()
 
         try:
-            unpack_source(pkg)
+            unpack_source(pv)
         except ValueError:
-            logger.exception("Could not unpack %s!", pkg)
+            logger.exception("Could not unpack %s!", pv)
         try:
-            dirname = dpatch_directory(distro, source)
-            extract_dpatches(dirname, source)
-            logger.info("Saved dpatches: %s", tree.subdir(ROOT, dirname))
+            dirname = dpatch_directory(distro, pv)
+            extract_dpatches(dirname, pv)
+            logger.info("Saved dpatches: %s", tree.subdir(config.get('ROOT'),
+                                                          dirname))
         finally:
-            cleanup_source(source)
+            cleanup_source(pv)
 
-def extract_dpatches(dirname, source):
+def extract_dpatches(dirname, pv):
     """Extract patches from debian/patches."""
-    srcdir = unpack_directory(source)
+    srcdir = unpack_directory(pv)
     patchdir = "%s/debian/patches" % srcdir
 
     if not os.path.isdir(patchdir):

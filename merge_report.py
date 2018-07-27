@@ -42,7 +42,7 @@ from util.jinja import patch_environment
 logger = logging.getLogger('merge_report')
 
 jinja_env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.dirname(__file__) + '/templates'),
+    loader=jinja2.FileSystemLoader(os.path.abspath(os.path.dirname(__file__)) + '/templates'),
     autoescape=True)
 patch_environment(jinja_env)
 
@@ -246,8 +246,8 @@ class MergeReport(object):
             self.base_distro = base.package.distro.name
             self.base_suite = base.package.dist
             self.base_component = base.package.component
-            self.base_pool_dir = base.package.poolDirectory().path
-            self.base_files = [f[2] for f in files(base.getSources())]
+            self.base_pool_dir = base.package.poolPath
+            self.base_files = [f[2] for f in files(base.getDscContents())]
 
     def set_right(self, right):
         if right is None:
@@ -263,8 +263,8 @@ class MergeReport(object):
             self.right_suite = right.package.dist
             self.right_component = right.package.component
             self.right_version = right.version
-            self.right_pool_dir = right.package.poolDirectory().path
-            self.right_files = [f[2] for f in files(right.getSources())]
+            self.right_pool_dir = right.package.poolPath
+            self.right_files = [f[2] for f in files(right.getDscContents())]
 
     def set_left(self, left):
         if left is None:
@@ -280,8 +280,8 @@ class MergeReport(object):
             self.left_suite = left.package.dist
             self.left_component = left.package.component
             self.left_version = left.version
-            self.left_pool_dir = left.package.poolDirectory().path
-            self.left_files = [f[2] for f in files(left.getSources())]
+            self.left_pool_dir = left.package.poolPath
+            self.left_files = [f[2] for f in files(left.getDscContents())]
 
             if isinstance(left.package.distro, OBSDistro):
                 self.obs_project = left.package.distro.obsProject(
@@ -328,7 +328,7 @@ class MergeReport(object):
             raise AttributeError('Insufficient detail in report: our '
                     'distro is missing')
 
-        if self.result != MergeResult.KEEP_OURS:
+        if self.result not in (MergeResult.KEEP_OURS, MergeResult.FAILED):
             if self.right_version is None:
                 raise AttributeError('Insufficient detail in report: '
                         'their version is missing')
@@ -467,17 +467,9 @@ def write_text_report(left, left_patch,
     assert package == right.package.name, (package, right.package.name)
 
     assert isinstance(left, PackageVersion)
-    left_source = left.getSources()
     left_distro = left.package.distro.name
 
-    if base is None:
-        base_source = None
-    else:
-        assert isinstance(base, PackageVersion)
-        base_source = base.getSources()
-
     assert isinstance(right, PackageVersion)
-    right_source = right.getSources()
     right_distro = right.package.distro.name
 
     filename = "%s/REPORT" % output_dir
@@ -517,21 +509,21 @@ def write_text_report(left, left_patch,
 
         # Base version and files
         if tried_bases:
-            # We print this even if base_source is not None: we want to
+            # We print this even if base is not None: we want to
             # record the better base versions we tried and failed to find
             print >>report, "missing base version(s):"
             for v in tried_bases:
                 print >>report, " %s" % v
 
-        if base_source is not None:
-            print >>report, "base: %s" % base_source["Version"]
-            for md5sum, size, name in files(base_source):
+        if base is not None:
+            print >>report, "base: %s" % base.version
+            for md5sum, size, name in files(base.getDscContents()):
                 print >>report, "    %s" % name
         print >>report
 
         # Left version and files
-        print >>report, "our distro (%s): %s" % (left_distro, left_source["Version"])
-        for md5sum, size, name in files(left_source):
+        print >>report, "our distro (%s): %s" % (left_distro, left.version)
+        for md5sum, size, name in files(left.getDscContents()):
             print >>report, "    %s" % name
         print >>report
         if left_patch is not None:
@@ -540,8 +532,8 @@ def write_text_report(left, left_patch,
             print >>report
 
         # Right version and files
-        print >>report, "source distro (%s): %s" % (right_distro, right_source["Version"])
-        for md5sum, size, name in files(right_source):
+        print >>report, "source distro (%s): %s" % (right_distro, right.version)
+        for md5sum, size, name in files(right.getDscContents()):
             print >>report, "    %s" % name
         print >>report
         if right_patch is not None:
@@ -554,7 +546,7 @@ def write_text_report(left, left_patch,
         print >>report, "Generated Result"
         print >>report, "================"
         print >>report
-        if base_source is None:
+        if base is None:
             print >>report, fill("Failed to merge because the base version "
                                  "required for a 3-way diff is missing from %s pool. "
                                  "You will need to either merge manually; or add the "
@@ -651,7 +643,7 @@ def write_text_report(left, left_patch,
                 print >>report
 
             if merged_version.revision is not None \
-                and Version(left_source["Version"]).upstream != merged_version.upstream:
+                and left.version.upstream != merged_version.upstream:
                 sa_arg = " -sa"
             else:
                 sa_arg = ""
@@ -666,7 +658,7 @@ def write_text_report(left, left_patch,
                                 "correct .changes file:")
             print >>report
             print >>report, "  $ dpkg-genchanges -S -v%s%s" \
-                % (left_source["Version"], sa_arg)
+                % (left.version, sa_arg)
 
 def write_report(report,
                  left,

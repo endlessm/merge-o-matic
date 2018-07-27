@@ -34,14 +34,10 @@ from deb.version import Version
 from generate_patches import generate_patch
 from util import tree, shell, run
 from merge_report import (MergeResult, MergeReport, read_report, write_report)
-from model.base import (PoolDirectory, PackageVersion, Package)
+from model.base import (PackageVersion, Package, UpdateInfo)
 from momversion import VERSION
 import config
 import model.error
-
-# Regular expression for top of debian/changelog
-CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
-                   re.IGNORECASE)
 
 logger = logging.getLogger('produce_merges')
 
@@ -73,6 +69,118 @@ def options(parser):
                       action="append",
                       help="Only process packages listed in this file")
 
+# Handle the merge of a specific package, returning the new merge report,
+# or None if there was already a merge report that is still valid.
+def handle_package(output_dir, target, pkg, our_version):
+  update_info = UpdateInfo(pkg)
+
+  if update_info.version is None:
+    logger.error('UpdateInfo version %s does not match our version %s"',
+                 update_info.version, our_version)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not find update info for version %s' % our_version
+    return report
+
+  if update_info.upstream_version is None \
+      or our_version.version >= update_info.upstream_version:
+    logger.debug("No updated upstream version available for %s", our_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.KEEP_OURS
+    report.merged_version = our_version.version
+    return report
+
+  if update_info.base_version is None:
+    logger.info("No base version available for %s", our_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.NO_BASE
+    return report
+
+  upstream = None
+  base = None
+  pool_versions = target.getAllPoolVersions(pkg.name)
+  for pv in pool_versions:
+    if pv.version == update_info.upstream_version:
+      upstream = pv
+    if pv.version == update_info.base_version:
+      base = pv
+
+  if upstream is None:
+    logger.error('Could not find upstream version %s in pool',
+                 update_info.upstream_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not find upstream version %s in pool' \
+                     % update_info.upstream_version
+    return report
+
+  if base is None:
+    logger.error('Could not find base version %s in pool',
+                 update_info.base_version)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not find base version %s in pool' \
+                     % update_info.base_version
+    return report
+
+  try:
+    report = read_report(output_dir)
+    # See if sync_upstream_packages already set
+    if not options.force and \
+          pkg.name in target.sync_upstream_packages and \
+          Version(report['right_version']) == upstream.version and \
+          Version(report['left_version']) == our_version.version and \
+          Version(report['merged_version']) == upstream.version and \
+          report['result'] == MergeResult.SYNC_THEIRS:
+        logger.info("sync to upstream for %s [ours=%s, theirs=%s] "
+                    "already produced, skipping run", pkg,
+                    our_version.version, upstream.version)
+        return None
+    elif (not options.force and
+          Version(report['right_version']) == upstream.version and
+          Version(report['left_version']) == our_version.version and
+          # we'll retry the merge if there was an unexpected
+          # failure, a missing base or an unknown result last time
+          report['result'] in (MergeResult.KEEP_OURS,
+                MergeResult.SYNC_THEIRS, MergeResult.MERGED,
+                MergeResult.CONFLICTS)):
+      logger.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
+      return None
+  except (AttributeError, ValueError, KeyError):
+    pass
+
+  if pkg.name in target.sync_upstream_packages:
+    logger.info("Syncing to %s per sync_upstream_packages", upstream)
+    cleanup(output_dir)
+    report = MergeReport(left=our_version, right=upstream)
+    report.target = target.name
+    report.result = MergeResult.SYNC_THEIRS
+    report.merged_version = upstream.version
+    report.message = "Using version in upstream distro per " \
+                     "sync_upstream_packages configuration"
+    return report
+
+  logger.info("local: %s, upstream: %s", our_version, upstream)
+
+  try:
+    return produce_merge(target, base, our_version, upstream, output_dir)
+  except ValueError as e:
+    logger.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
+    report = MergeReport(left=our_version, right=upstream)
+    report.target = target.name
+    report.result = MergeResult.FAILED
+    report.message = 'Could not produce merge: %s' % e
+    return report
+
 def main(options, args):
     logger.info('Producing merges...')
 
@@ -98,8 +206,6 @@ def main(options, args):
         d = target.distro
         for pkg in d.packages(target.dist, target.component):
           if options.package is not None and pkg.name not in options.package:
-            logger.debug('skipping package %s: not the selected package',
-                         pkg.name)
             continue
           if len(includes) and pkg.name not in includes:
             logger.info('skipping package %s: not in include list', pkg.name)
@@ -112,142 +218,19 @@ def main(options, args):
             continue
           logger.info('considering package %s', pkg.name)
           if options.version:
-            our_version = Version(options.version)
+            our_version = PackageVersion(pkg, Version(options.version))
             logger.debug('our version: %s (from command line)', our_version)
           else:
             our_version = pkg.newestVersion()
             logger.debug('our version: %s', our_version)
-          upstream = None
-
-          for srclist in target.getSourceLists(pkg.name, include_unstable=False):
-            for src in srclist:
-              logger.debug('considering source %s', src)
-              try:
-                for possible in src.distro.findPackage(pkg.name,
-                    searchDist=src.dist):
-                  logger.debug('- contains version %s', possible)
-                  if upstream is None or possible > upstream:
-                    logger.debug('  - that version is the best yet seen')
-                    upstream = possible
-              except model.error.PackageNotFound:
-                pass
 
           output_dir = result_dir(target.name, pkg.name)
-
-          # There are two situations in which we will look in unstable distros
-          # for a better version:
-          try_unstable = False
-      
-          # 1. If our version is newer than the stable upstream version, we
-          #    assume that our version was sourced from unstable, so let's
-          #    check for an update there.
-          #    However we must use the base version for the comparison here,
-          #    otherwise we would consider our version 1.0-1endless1 newer
-          #    than the stable 1.0-1 and look in unstable for an update.
-          if upstream is not None and our_version >= upstream:
-            our_base_version = our_version.version.base()
-            logger.info("our version %s >= their version %s, checking base version %s", our_version, upstream, our_base_version)
-            if our_base_version > upstream.version:
-              logger.info("base version still newer than their version, checking in unstable")
-              try_unstable = True
-
-          # 2. If we didn't find any upstream version at all, it's possible
-          #    that it's a brand new package where our version was imported
-          #    from unstable, so let's see if we can find a better version
-          #    there.
-          if upstream is None:
-            try_unstable = True
-
-          # However, if this package has been assigned a specific source,
-          # we'll honour that.
-          if target.packageHasSpecificSource(pkg.name):
-            try_unstable = False
-
-          if try_unstable:
-            for srclist in target.unstable_sources:
-              for src in srclist:
-                logger.debug('considering unstable source %s', src)
-                try:
-                  for possible in src.distro.findPackage(pkg.name,
-                      searchDist=src.dist):
-                    logger.debug('- contains version %s', possible)
-                    if upstream is None or possible > upstream:
-                      logger.debug('  - that version is the best yet seen')
-                      upstream = possible
-                except model.error.PackageNotFound:
-                  pass
-
-          if upstream is None:
-            logger.info("%s not available upstream, skipping", our_version)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version)
-            report.target = target.name
-            report.result = MergeResult.KEEP_OURS
-            report.merged_version = our_version.version
-            report.write_report(output_dir)
-            continue
-
           try:
-            report = read_report(output_dir)
-            # See if sync_upstream_packages already set
-            if not options.force and \
-               pkg.name in target.sync_upstream_packages and \
-               Version(report['right_version']) == upstream.version and \
-               Version(report['left_version']) == our_version.version and \
-               Version(report['merged_version']) == upstream.version and \
-               report['result'] == MergeResult.SYNC_THEIRS:
-                logger.info("sync to upstream for %s [ours=%s, theirs=%s] "
-                            "already produced, skipping run", pkg,
-                            our_version.version, upstream.version)
-                continue
-            elif (not options.force and
-                    Version(report['right_version']) == upstream.version and
-                    Version(report['left_version']) == our_version.version and
-                    # we'll retry the merge if there was an unexpected
-                    # failure, a missing base or an unknown result last time
-                    report['result'] in (MergeResult.KEEP_OURS,
-                        MergeResult.SYNC_THEIRS, MergeResult.MERGED,
-                        MergeResult.CONFLICTS)):
-              logger.info("merge for %s [ours=%s, theirs=%s] already produced, skipping run", pkg, our_version.version, upstream.version)
-              continue
-          except (AttributeError, ValueError, KeyError):
-            pass
-
-          if our_version >= upstream:
-            logger.info("our version %s >= their version %s, skipping",
-                    our_version, upstream)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.KEEP_OURS
-            report.merged_version = our_version.version
-            report.write_report(output_dir)
-            continue
-          elif our_version < upstream and \
-               pkg.name in target.sync_upstream_packages:
-            logger.info("Syncing to %s per sync_upstream_packages", upstream)
-            cleanup(output_dir)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.SYNC_THEIRS
-            report.merged_version = upstream.version
-            report.message = "Using version in upstream distro per " \
-                             "sync_upstream_packages configuration"
-            report.write_report(output_dir)
-            continue
-
-          logger.info("local: %s, upstream: %s", our_version, upstream)
-
-          try:
-            produce_merge(target, our_version, upstream, output_dir)
-          except ValueError as e:
-            logger.exception("Could not produce merge, perhaps %s changed components upstream?", pkg)
-            report = MergeReport(left=our_version, right=upstream)
-            report.target = target.name
-            report.result = MergeResult.FAILED
-            report.message = 'Could not produce merge: %s' % e
-            report.write_report(output_dir)
-            continue
+            report = handle_package(output_dir, target, pkg, our_version)
+            if report is not None:
+              report.write_report(output_dir)
+          except Exception:
+            logging.exception('Failed handling merge for %s', pkg)
 
 def is_build_metadata_changed(left_source, right_source):
     """Return true if the two sources have different build-time metadata."""
@@ -261,21 +244,31 @@ def is_build_metadata_changed(left_source, right_source):
 
     return False
 
+class MergeData(object):
+  def __init__(self):
+    ### Changes made relative to the right version
+    self.added_files = set()
+    self.removed_files = set()
+    self.modified_files = set()
 
-def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
+    ### Unsolved problems
+
+    # Files that generated conflicts when merging
+    self.conflicts = set()
+
+  @property
+  def total_modifications(self):
+    """Total number of modifications made relative to the right version"""
+    return len(self.added_files) + len(self.removed_files) + \
+           len(self.modified_files)
+
+def do_merge(left_dir, left_name, left_format, left_distro, base_dir,
+             right_dir, right_name, right_format, right_distro, merged_dir):
     """Do the heavy lifting of comparing and merging."""
-    logger.debug("Producing merge in %s", tree.subdir(ROOT, merged_dir))
-    conflicts = []
+    logger.debug("Producing merge in %s", merged_dir)
+    result = MergeData()
     po_files = []
 
-    left_name = left.package.name
-    left_distro = left.package.distro.name
-    right_name = right.package.name
-    right_distro = right.package.distro.name
-
-    # See what format each is and whether they're both quilt
-    left_format = left.getSources()["Format"]
-    right_format = right.getSources()["Format"]
     both_formats_quilt = left_format == right_format == "3.0 (quilt)"
     if both_formats_quilt:
         logger.debug("Only merging debian directory since both "
@@ -314,9 +307,9 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
             if not same_file(base_stat, base_dir, right_stat, right_dir,
                              filename):
                 # Changed on RHS
-                conflict_file(left_dir, left_distro, right_dir, right_distro,
-                              merged_dir, filename)
-                conflicts.append(filename)
+                result.conflicts.add(filename)
+            else:
+                result.removed_files.add(filename)
 
         elif right_stat is None:
             # Removed on RHS only
@@ -324,17 +317,14 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
             if not same_file(base_stat, base_dir, left_stat, left_dir,
                              filename):
                 # Changed on LHS
-                conflict_file(left_dir, left_distro, right_dir, right_distro,
-                              merged_dir, filename)
-                conflicts.append(filename)
+                result.conflicts.add(filename)
 
         elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            if handle_file(left_stat, left_dir, left_name, left_distro,
-                           right_dir, right_stat, right_name, right_distro,
-                           base_stat, base_dir, merged_dir, filename,
-                           po_files):
-                conflicts.append(filename)
+            handle_file(left_stat, left_dir, left_name, left_distro,
+                        right_dir, right_stat, right_name, right_distro,
+                        base_stat, base_dir,
+                        merged_dir, filename, po_files, result)
 
         elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
             # left and right are the same, doesn't matter which we keep
@@ -354,11 +344,10 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
                           left_distro, filename)
             tree.copyfile("%s/%s" % (left_dir, filename),
                           "%s/%s" % (merged_dir, filename))
+            result.modified_files.add(filename)
         else:
             # all three differ, mark a conflict
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
-            conflicts.append(filename)
+            result.conflicts.add(filename)
 
     # Look for files in the left hand side that aren't in the base,
     # conflict if new on both sides or copy into the tree
@@ -379,6 +368,7 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
             logger.debug("new in %s: %s", left_distro, filename)
             tree.copyfile("%s/%s" % (left_dir, filename),
                           "%s/%s" % (merged_dir, filename))
+            result.added_files.add(filename)
             continue
 
         left_stat = os.lstat("%s/%s" % (left_dir, filename))
@@ -386,11 +376,10 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
 
         if S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            if handle_file(left_stat, left_dir, left_name, left_distro,
-                           right_dir, right_stat, right_name, right_distro,
-                           None, None, merged_dir, filename,
-                           po_files):
-                conflicts.append(filename)
+            handle_file(left_stat, left_dir, left_name, left_distro,
+                        right_dir, right_stat, right_name, right_distro,
+                        None, None, merged_dir, filename,
+                        po_files, result)
 
         elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
             # left and right are the same, doesn't matter which we keep
@@ -399,9 +388,7 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
 
         else:
             # they differ, mark a conflict
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
-            conflicts.append(filename)
+            result.conflicts.add(filename)
 
     # Copy new files on the right hand side only into the tree
     for filename in tree.walk(right_dir):
@@ -427,59 +414,87 @@ def do_merge(left_dir, left, base_dir, right_dir, right, merged_dir):
 
     # Handle po files separately as they need special merging
     for filename in po_files:
-        if merge_po(left_dir, right_dir, merged_dir, filename):
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
-            conflicts.append(filename)
+        if not merge_po(left_dir, right_dir, merged_dir, filename):
+            result.conflicts.add(filename)
             continue
 
-        merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
+        merge_attr(base_dir, left_dir, right_dir, merged_dir, filename, result)
+        result.modified_files.add(filename)
 
-    return conflicts
+    for conflict in result.conflicts:
+        conflict_file(left_dir, left_distro, right_dir, right_distro,
+                      merged_dir, conflict)
 
-def handle_file(left_stat, left_dir, left_name, left_distro,
+    return result
+
+# Returns a tuple of two booleans:
+# 1. conflicts: True if the merge attempt generated conflicts
+# 2. deferred: True if we'll handle this file in a later stage
+def merge_file_contents(left_stat, left_dir, left_name, left_distro,
                 right_dir, right_stat, right_name, right_distro,
                 base_stat, base_dir, merged_dir, filename, po_files):
-    """Handle the common case of a file in both left and right."""
     if filename == "debian/changelog":
         # two-way merge of changelogs
         try:
           merge_changelog(left_dir, right_dir, merged_dir, filename)
+          return False, False
         except:
-          return True
-    elif filename.endswith(".po") and not \
-            same_file(left_stat, left_dir, right_stat, right_dir, filename):
+          return True, False
+    elif filename.endswith(".po"):
         # two-way merge of po contents (do later)
         po_files.append(filename)
-        return False
-    elif filename.endswith(".pot") and not \
-            same_file(left_stat, left_dir, right_stat, right_dir, filename):
+        return False, True
+    elif filename.endswith(".pot"):
         # two-way merge of pot contents
-        if merge_pot(left_dir, right_dir, merged_dir, filename):
-            conflict_file(left_dir, left_distro, right_dir, right_distro,
-                          merged_dir, filename)
-            return True
+        ret = merge_pot(left_dir, right_dir, merged_dir, filename)
+        return not ret, False
     elif base_stat is not None and S_ISREG(base_stat.st_mode):
         # was file in base: diff3 possible
-        if merge_file(left_dir, left_name, left_distro, base_dir,
-                      right_dir, right_name, right_distro, merged_dir,
-                      filename):
-            return True
+        ret = diff3_merge(left_dir, left_name, left_distro, base_dir,
+                          right_dir, right_name, right_distro, merged_dir,
+                          filename)
+        return not ret, False
+    else:
+        # general file conflict
+        return True, False
+
+def handle_file(left_stat, left_dir, left_name, left_distro,
+                right_dir, right_stat, right_name, right_distro,
+                base_stat, base_dir, merged_dir, filename, po_files, result):
+    """Handle the common case of a file in both left and right."""
+    do_attrs = True
+
+    if base_stat and \
+          same_file(base_stat, base_dir, left_stat, left_dir, filename):
+        # same file contents in base and left, meaning that the left
+        # side was unmodified, so take the right side as-is
+        logger.debug("%s was unmodified on the left", filename)
+        tree.copyfile("%s/%s" % (right_dir, filename),
+                      "%s/%s" % (merged_dir, filename))
     elif same_file(left_stat, left_dir, right_stat, right_dir, filename):
-        # same file in left and right
+        # same file contents in left and right
         logger.debug("%s and %s both turned into same file: %s",
                       left_distro, right_distro, filename)
         tree.copyfile("%s/%s" % (left_dir, filename),
                       "%s/%s" % (merged_dir, filename))
     else:
-        # general file conflict
-        conflict_file(left_dir, left_distro, right_dir, right_distro,
-                      merged_dir, filename)
-        return True
+        conflicts, deferred = \
+            merge_file_contents(left_stat, left_dir, left_name, left_distro,
+                                right_dir, right_stat, right_name,
+                                right_distro, base_stat, base_dir,
+                                merged_dir, filename, po_files)
+        if conflicts:
+            result.conflicts.add(filename)
+            do_attrs = False
 
-    # Apply permissions
-    merge_attr(base_dir, left_dir, right_dir, merged_dir, filename)
-    return False
+        if deferred:
+            do_attrs = False
+        else:
+            result.modified_files.add(filename)
+
+    # Merge file permissions
+    if do_attrs:
+        merge_attr(base_dir, left_dir, right_dir, merged_dir, filename, result)
 
 def same_file(left_stat, left_dir, right_stat, right_dir, filename):
     """Are two filesystem objects the same?"""
@@ -540,37 +555,6 @@ def merge_changelog(left_dir, right_dir, merged_dir, filename):
 
     return False
 
-def read_changelog(filename):
-    """Return a parsed changelog file."""
-    entries = []
-
-    with open(filename) as cl:
-        (ver, text) = (None, "")
-        for line in cl:
-            match = CL_RE.search(line)
-            if match:
-                try:
-                    ver = Version(match.group(2))
-                except ValueError:
-                    ver = None
-
-                text += line
-            elif line.startswith(" -- "):
-                if ver is None:
-                    ver = Version("0")
-
-                text += line
-                entries.append((ver, text))
-                (ver, text) = (None, "")
-            elif len(line.strip()) or ver is not None:
-                text += line
-
-    if len(text):
-        entries.append((ver, text))
-
-    return entries
-
-
 def merge_po(left_dir, right_dir, merged_dir, filename):
     """Update a .po file using msgcat or msgmerge."""
     merged_po = "%s/%s" % (merged_dir, filename)
@@ -588,9 +572,9 @@ def merge_po(left_dir, right_dir, merged_dir, filename):
                    "-C", left_po, right_po, closest_pot))
     except (ValueError, OSError):
         logger.error("PO file merge failed: %s", filename)
-        return True
+        return False
 
-    return False
+    return True
 
 def merge_pot(left_dir, right_dir, merged_dir, filename):
     """Update a .po file using msgcat."""
@@ -606,9 +590,9 @@ def merge_pot(left_dir, right_dir, merged_dir, filename):
                    right_pot, left_pot))
     except (ValueError, OSError):
         logger.error("POT file merge failed: %s", filename)
-        return True
+        return False
 
-    return False
+    return True
 
 def find_closest_pot(po_file):
     """Find the closest .pot file to the po file given."""
@@ -620,8 +604,8 @@ def find_closest_pot(po_file):
         return None
 
 
-def merge_file(left_dir, left_name, left_distro, base_dir,
-               right_dir, right_name, right_distro, merged_dir, filename):
+def diff3_merge(left_dir, left_name, left_distro, base_dir,
+                right_dir, right_name, right_distro, merged_dir, filename):
     """Merge a file using diff3."""
     dest = "%s/%s" % (merged_dir, filename)
     tree.ensure(dest)
@@ -658,37 +642,36 @@ def merge_file(left_dir, left_name, left_distro, base_dir,
                               "%s/%s" % (merged_dir, filename))
             else:
                 logger.debug("binary file conflict: %s", filename)
-                conflict_file(left_dir, left_distro, right_dir, right_distro,
-                              merged_dir, filename)
-                return True
+                return False
         else:
             logger.debug("Conflict in %s", filename)
-            return True
+            return False
     else:
-        return False
+        return True
 
 
-def merge_attr(base_dir, left_dir, right_dir, merged_dir, filename):
+def merge_attr(base_dir, left_dir, right_dir, merged_dir, filename, result):
     """Set initial and merge changed attributes."""
     if base_dir is not None \
            and os.path.isfile("%s/%s" % (base_dir, filename)) \
            and not os.path.islink("%s/%s" % (base_dir, filename)):
         set_attr(base_dir, merged_dir, filename)
-        apply_attr(base_dir, left_dir, merged_dir, filename)
-        apply_attr(base_dir, right_dir, merged_dir, filename)
+        apply_attr(base_dir, left_dir, merged_dir, filename, result)
+        apply_attr(base_dir, right_dir, merged_dir, filename, result)
     else:
         set_attr(right_dir, merged_dir, filename)
-        apply_attr(right_dir, left_dir, merged_dir, filename)
+        apply_attr(right_dir, left_dir, merged_dir, filename, result)
 
 def set_attr(src_dir, dest_dir, filename):
     """Set the initial attributes."""
     mode = os.stat("%s/%s" % (src_dir, filename)).st_mode & 0777
     os.chmod("%s/%s" % (dest_dir, filename), mode)
 
-def apply_attr(base_dir, src_dir, dest_dir, filename):
+def apply_attr(base_dir, src_dir, dest_dir, filename, result):
     """Apply attribute changes from one side to a file."""
     src_stat = os.stat("%s/%s" % (src_dir, filename))
     base_stat = os.stat("%s/%s" % (base_dir, filename))
+    changed = False
 
     for shift in range(0, 9):
         bit = 1 << shift
@@ -696,10 +679,16 @@ def apply_attr(base_dir, src_dir, dest_dir, filename):
         # Permission bit added
         if not base_stat.st_mode & bit and src_stat.st_mode & bit:
             change_attr(dest_dir, filename, bit, shift, True)
+            changed = True
 
         # Permission bit removed
         if base_stat.st_mode & bit and not src_stat.st_mode & bit:
             change_attr(dest_dir, filename, bit, shift, False)
+            changed = True
+
+    if changed:
+        result.modified_files.add(filename)
+
 
 def change_attr(dest_dir, filename, bit, shift, add):
     """Apply a single attribute change."""
@@ -758,11 +747,11 @@ def add_changelog(package, merged_version, left_distro, left_dist,
             print >>new_changelog, ("%s (%s) UNRELEASED; urgency=low"
                                     % (package, merged_version))
             print >>new_changelog
-            print >>new_changelog, "  * Merge from %s %s.  Remaining changes:" \
+            print >>new_changelog, "  * Merge from %s %s." \
                   % (right_distro.title(), right_dist)
-            print >>new_changelog, "    - SUMMARISE HERE"
             print >>new_changelog
-            print >>new_changelog, (" -- %s <%s>  " % (MOM_NAME, MOM_EMAIL) +
+            print >>new_changelog, (" -- %s <%s>  " % (config.get('MOM_NAME'),
+                                                       config.get('MOM_EMAIL')) +
                                     time.strftime("%a, %d %b %Y %H:%M:%S %z"))
             print >>new_changelog
             for line in changelog:
@@ -773,11 +762,10 @@ def add_changelog(package, merged_version, left_distro, left_dist,
 def copy_in(output_dir, pkgver):
     """Make a copy of the source files."""
 
-    source = pkgver.getSources()
     pkg = pkgver.package
 
-    for md5sum, size, name in files(source):
-        src = "%s/%s/%s" % (ROOT, pkg.poolDirectory().path, name)
+    for md5sum, size, name in files(pkgver.getDscContents()):
+        src = "%s/%s" % (pkg.poolPath, name)
         dest = "%s/%s" % (output_dir, name)
         if os.path.isfile(dest):
             os.unlink(dest)
@@ -787,7 +775,7 @@ def copy_in(output_dir, pkgver):
         except OSError, e:
           logger.exception("File not found: %s", src)
 
-    patch = patch_file(pkg.distro, source)
+    patch = patch_file(pkg.distro, pkgver)
     if os.path.isfile(patch):
         output = "%s/%s" % (output_dir, os.path.basename(patch))
         if not os.path.exists(output):
@@ -803,8 +791,8 @@ def create_tarball(package, version, output_dir, merged_dir):
                                         version.without_epoch)
     contained = "%s-%s" % (package, version.without_epoch)
 
-    tree.ensure("%s/tmp/" % ROOT)
-    parent = tempfile.mkdtemp(dir="%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % config.get('ROOT'))
+    parent = tempfile.mkdtemp(dir="%s/tmp/" % config.get('ROOT'))
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
 
@@ -814,7 +802,7 @@ def create_tarball(package, version, output_dir, merged_dir):
 
         shell.run(("tar", "czf", filename, contained), chdir=parent)
 
-        logger.info("Created %s", tree.subdir(ROOT, filename))
+        logger.info("Created %s", tree.subdir(config.get('ROOT'), filename))
         return os.path.basename(filename)
     finally:
         tree.remove(parent)
@@ -822,20 +810,22 @@ def create_tarball(package, version, output_dir, merged_dir):
 def create_source(package, version, since, output_dir, merged_dir):
     """Create a source package without conflicts."""
     contained = "%s-%s" % (package, version.upstream)
-    filename = "%s_%s.dsc" % (package, version.without_epoch)
+    dsc_filename = "%s_%s.dsc" % (package, version.without_epoch)
 
-    tree.ensure("%s/tmp/" % ROOT)
-    parent = tempfile.mkdtemp(dir="%s/tmp/" % ROOT)
+    tree.ensure("%s/tmp/" % config.get('ROOT'))
+    parent = tempfile.mkdtemp(dir="%s/tmp/" % config.get('ROOT'))
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
 
-        for ext in ['gz', 'bz2', 'xz']:
-            orig_filename = "%s_%s.orig.tar.%s" % (package, version.upstream,
-                                                   ext)
-            if os.path.isfile("%s/%s" % (output_dir, orig_filename)):
-                os.link("%s/%s" % (output_dir, orig_filename),
-                        "%s/%s" % (parent, orig_filename))
-                break
+        match = '%s_%s.orig(-\w+)?.tar.(gz|bz2|xz)$' \
+                % (re.escape(package), re.escape(version.upstream))
+        for filename in os.listdir(output_dir):
+            if re.match(match, filename) is None:
+                continue
+            path = os.path.join(output_dir, filename)
+            if os.path.isfile(path):
+                os.link(path,
+                        "%s/%s" % (parent, filename))
 
         cmd = ("dpkg-source",)
         if version.revision is not None and since.upstream != version.upstream:
@@ -860,18 +850,18 @@ def create_source(package, version, since, output_dir, merged_dir):
         else:
             logger.debug("dpkg-source succeeded:\n%s\n", dpkg_source_output)
 
-        if os.path.isfile("%s/%s" % (parent, filename)):
-            logger.info("Created dpkg-source %s", filename)
+        if os.path.isfile("%s/%s" % (parent, dsc_filename)):
+            logger.info("Created dpkg-source %s", dsc_filename)
             for name in os.listdir(parent):
                 src = "%s/%s" % (parent, name)
                 dest = "%s/%s" % (output_dir, name)
                 if os.path.isfile(src) and not os.path.isfile(dest):
                     os.link(src, dest)
 
-            return (MergeResult.MERGED, None, os.path.basename(filename))
+            return (MergeResult.MERGED, None, os.path.basename(dsc_filename))
         else:
             message = ("dpkg-source did not produce expected filename %s" %
-                tree.subdir(ROOT, filename))
+                tree.subdir(config.get('ROOT'), dsc_filename))
             logger.warning("%s", message)
             return (MergeResult.FAILED,
                     "unable to build merged source package (%s)" % message,
@@ -879,20 +869,19 @@ def create_source(package, version, since, output_dir, merged_dir):
     finally:
         tree.remove(parent)
 
-def create_patch(version, filename, merged_dir,
-                 basis_source, basis_dir):
+def create_patch(version, filename, merged_dir, basis, basis_dir):
     """Create the merged patch."""
 
     parent = tempfile.mkdtemp()
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, version))
-        tree.copytree(basis_dir, "%s/%s" % (parent, basis_source["Version"]))
+        tree.copytree(basis_dir, "%s/%s" % (parent, basis.version))
 
         with open(filename, "w") as diff:
             shell.run(("diff", "-pruN",
-                       basis_source["Version"], "%s" % version),
+                       str(basis.version), str(version)),
                       chdir=parent, stdout=diff, okstatus=(0, 1, 2))
-            logger.info("Created %s", tree.subdir(ROOT, filename))
+            logger.info("Created %s", tree.subdir(config.get('ROOT'), filename))
 
         return os.path.basename(filename)
     finally:
@@ -912,110 +901,6 @@ def read_package_list(filename):
                 packages.append(package)
 
     return packages
-
-def get_common_ancestor(target, downstream, downstream_versions, upstream,
-        upstream_versions, tried_bases):
-  logger.debug('looking for common ancestor of %s and %s',
-          downstream.version, upstream.version)
-  for downstream_version, downstream_text in downstream_versions:
-    if downstream_version is None:
-      # sometimes read_changelog gets confused
-      continue
-    for upstream_version, upstream_text in upstream_versions:
-      if downstream_version == upstream_version:
-        logger.debug('%s looks like a possibility', downstream_version)
-
-        try:
-          package_version = target.distro.findPackage(
-                  downstream.package.name, searchDist=target.dist,
-                  version=downstream_version)[0]
-        except model.error.PackageNotFound:
-          source_lists = target.getSourceLists(downstream.package.name)
-          sources = []
-          for sl in source_lists:
-            for source in sl:
-              sources.append(source)
-
-          for source in sources:
-            base_dir = None
-
-            # First try to get it from one of its pool directories on disk.
-            # FIXME: if we have more than one source differing only
-            # by suite, this searches the corresponding pool directory
-            # that many times, because they share a pool directory.
-            # It would make more sense if we could just iterate over
-            # PoolDirectory instances... but then we wouldn't have a
-            # suite (dist) to make the necessary Package so we can hav
-            # a PackageVersion.
-            for component in source.distro.components():
-              pooldir = PoolDirectory(source.distro, component,
-                      downstream.package.name)
-              # In principle we could do this conditionally... but we've
-              # already decided we're going to try a merge, which takes
-              # orders of magnitude more time and I/O than apt-ftparchive
-              pooldir.updateSources()
-
-              if downstream_version in pooldir.getVersions():
-                try:
-                  package_version = PackageVersion(
-                      Package(source.distro, source.dist,
-                      component, downstream.package.name),
-                      downstream_version)
-                  base_dir = unpack_source(package_version)
-                except model.error.PackageNotFound:
-                  # ignore, try other source (distro, suite, component)
-                  # tuples
-                  pass
-                except Exception:
-                  logger.exception('unable to use version %s from %s:\n',
-                      downstream_version, pooldir)
-                else:
-                  return (package_version, base_dir)
-
-            # Failing that, try to download it from some suite.
-            try:
-              package_version = source.distro.findPackage(
-                      downstream.package.name,
-                      searchDist=source.dist,
-                      version=downstream_version)[0]
-            except model.error.PackageNotFound:
-              continue
-            except Exception:
-              tried_bases.add(downstream_version)
-              logger.debug('unable to find %s in %s:\n',
-                      downstream_version, source, exc_info=1)
-              # go to next source
-              continue
-            else:
-              # no error finding it in this source
-              logger.debug('found %s in source distro', downstream_version)
-              break
-          else:
-            # run out of sources
-            tried_bases.add(downstream_version)
-            logger.debug('unable to find %s in any source distro',
-                downstream_version)
-            # go to next version
-            continue
-        else:
-          # no error finding it in the target
-          logger.debug('found %s in target distro', downstream_version)
-
-        try:
-          target.fetchMissingVersion(package_version.package,
-                  package_version.version)
-          base_dir = unpack_source(package_version)
-        except Exception:
-          logger.exception('unable to unpack %s:\n', package_version)
-        else:
-          logger.debug('base version for %s and %s is %s',
-                  downstream, upstream, package_version)
-          return (package_version, base_dir)
-
-        tried_bases.add(downstream_version)
-
-  raise NoBase('unable to find a usable base version for %s and %s' %
-          (downstream, upstream))
 
 def save_changelog(output_dir, cl_versions, pv, bases, limit=None):
   fh = None
@@ -1044,10 +929,11 @@ def save_changelog(output_dir, cl_versions, pv, bases, limit=None):
 
   return name
 
-def produce_merge(target, left, upstream, output_dir):
+def produce_merge(target, base, left, upstream, output_dir):
 
   left_dir = unpack_source(left)
   upstream_dir = unpack_source(upstream)
+  base_dir = unpack_source(base)
 
   report = MergeReport(left=left, right=upstream)
   report.target = target.name
@@ -1056,46 +942,23 @@ def produce_merge(target, left, upstream, output_dir):
 
   cleanup(output_dir)
 
-  # Try to find the newest common ancestor
-  tried_bases = set()
-  downstream_versions = None
-  upstream_versions = None
-  try:
-    downstream_versions = read_changelog(left_dir + '/debian/changelog')
-    upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
-    base, base_dir = get_common_ancestor(target,
-            left, downstream_versions, upstream, upstream_versions, tried_bases)
-  except Exception as e:
-    report.bases_not_found = sorted(tried_bases, reverse=True)
+  downstream_versions = read_changelog(left_dir + '/debian/changelog')
+  upstream_versions = read_changelog(upstream_dir + '/debian/changelog')
 
-    if isinstance(e, NoBase):
-      report.result = MergeResult.NO_BASE
-      logger.info('%s', e)
-    else:
-      report.result = MergeResult.FAILED
-      report.message = 'error finding base version: %s' % e
-      logger.exception('error finding base version:\n')
-
-    if downstream_versions:
-      report.left_changelog = save_changelog(output_dir, downstream_versions,
-          left, set(), 1)
-
-    if upstream_versions:
-      report.right_changelog = save_changelog(output_dir, upstream_versions,
-          upstream, set(), 1)
-
-    report.write_report(output_dir)
-    return
-
-  stop_at = set([base.version]).union(tried_bases)
   report.left_changelog = save_changelog(output_dir, downstream_versions,
-      left, stop_at)
+      left, [base.version])
+
+  # If the base is a common ancestor, log everything from the ancestor
+  # to the current version. Otherwise just log the first entry.
+  limit = 1
+  for upstream_version, text in upstream_versions:
+    if upstream_version == base.version:
+      limit = None
+      break
   report.right_changelog = save_changelog(output_dir, upstream_versions,
-      upstream, stop_at)
+      upstream, [base.version], limit)
 
   report.set_base(base)
-  report.bases_not_found = sorted(tried_bases, reverse=True)
-
   logger.info('base version: %s', base.version)
 
   generate_patch(base, left.package.distro, left, slipped=False, force=False,
@@ -1103,14 +966,14 @@ def produce_merge(target, left, upstream, output_dir):
   generate_patch(base, upstream.package.distro, upstream, slipped=False,
           force=False, unpacked=True)
 
-  report.merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX'))
+  report.merged_version = Version(str(upstream.version)+config.get('LOCAL_SUFFIX')+'1')
 
   if base >= upstream:
     logger.info("Nothing to be done: %s >= %s", base, upstream)
     report.result = MergeResult.KEEP_OURS
     report.merged_version = left.version
     report.write_report(output_dir)
-    return
+    return report
 
   # Careful: MergeReport.merged_dir is the output directory for the .dsc or
   # tarball, whereas our local variable merged_dir (below) is a temporary
@@ -1139,43 +1002,33 @@ def produce_merge(target, left, upstream, output_dir):
         # ... and for a SYNC_THEIRS merge, we don't need to look at the
         # unpacked source code
         merged_dir=None)
-    return
+    return report
 
   merged_dir = work_dir(left.package.name, report.merged_version)
 
   logger.info("Merging %s..%s onto %s", upstream, base, left)
 
   try:
-    conflicts = do_merge(left_dir, left, base_dir,
-                         upstream_dir, upstream, merged_dir)
+    merge_data = do_merge(left_dir, left.package.name,
+                          left.getDscContents()['Format'],
+                          left.package.distro.name,
+                          base_dir,
+                          upstream_dir, upstream.package.name,
+                          upstream.getDscContents()['Format'],
+                          upstream.package.distro.name,
+                          merged_dir)
   except OSError as e:
     cleanup(merged_dir)
     logger.exception("Could not merge %s, probably bad files?", left)
     report.result = MergeResult.FAILED
     report.message = 'Could not merge: %s' % e
     report.write_report(output_dir)
-    return
+    return report
 
-  # Hack. Create a temporary merged patch to see what's changed. It
-  # would be better to track the changes through do_merge and return
-  # them.
-  if len(conflicts) == 0:
-    changelog_only = False
-    tree.ensure("%s/tmp/" % ROOT)
-    with tempfile.NamedTemporaryFile(suffix=".patch",
-                                     dir="%s/tmp/" % ROOT) as tmp_patch:
-      create_patch(report.merged_version, tmp_patch.name, merged_dir,
-                   upstream.getSources(), upstream_dir)
-      cmd = ["diffstat", "-qlkp1", tmp_patch.name]
-      diffstat_output = subprocess.check_output(cmd)
-      diff_files = diffstat_output.splitlines()
-      logger.debug("Files differing from upstream:\n%s",
-                   "\n".join(diff_files))
-      if len(diff_files) == 0 or diff_files == ["debian/changelog"]:
-        changelog_only = True
-
-    if changelog_only:
-      # Sync to upstream since this is just noise
+  if len(merge_data.conflicts) == 0 and merge_data.total_modifications == 1 \
+     and len(merge_data.modified_files) == 1 \
+     and 'debian/changelog' in merge_data.modified_files:
+      # Sync to upstream if the only remaining change is in the changelog
       logger.info("Syncing %s to %s since only changes are in changelog",
                   left, upstream)
       if not os.path.isdir(output_dir):
@@ -1200,13 +1053,13 @@ def produce_merge(target, left, upstream, output_dir):
                    merged_dir=None)
 
       cleanup(merged_dir)
-      cleanup_source(upstream.getSources())
-      cleanup_source(base.getSources())
-      cleanup_source(left.getSources())
+      cleanup_source(upstream)
+      cleanup_source(base)
+      cleanup_source(left)
 
-      return
+      return report
 
-  if 'debian/changelog' not in conflicts:
+  if 'debian/changelog' not in merge_data.conflicts:
     try:
       add_changelog(left.package.name, report.merged_version, left.package.distro.name, left.package.dist,
                     upstream.package.distro.name, upstream.package.dist, merged_dir)
@@ -1215,7 +1068,7 @@ def produce_merge(target, left, upstream, output_dir):
       report.result = MergeResult.FAILED
       report.message = 'Could not update changelog: %s' % e
       report.write_report(output_dir)
-      return
+      return report
 
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
@@ -1225,10 +1078,10 @@ def produce_merge(target, left, upstream, output_dir):
   report.build_metadata_changed = False
   report.merged_dir = output_dir
 
-  if len(conflicts):
+  if len(merge_data.conflicts):
     src_file = create_tarball(left.package.name, report.merged_version, output_dir, merged_dir)
     report.result = MergeResult.CONFLICTS
-    report.conflicts = sorted(conflicts)
+    report.conflicts = sorted(merge_data.conflicts)
     report.merge_failure_tarball = src_file
     report.merged_dir = None
   else:
@@ -1239,19 +1092,19 @@ def produce_merge(target, left, upstream, output_dir):
     if result == MergeResult.MERGED:
       assert src_file.endswith('.dsc'), src_file
       dsc = ControlFile("%s/%s" % (output_dir, src_file), signed=True).para
-      report.build_metadata_changed = is_build_metadata_changed(left.getSources(), dsc)
+      report.build_metadata_changed = is_build_metadata_changed(left.getDscContents(), dsc)
       report.merged_files = [src_file] + [f[2] for f in files(dsc)]
       report.merged_patch = create_patch(report.merged_version,
               "%s/%s_%s_from-theirs.patch" % (output_dir, left.package.name,
                   report.merged_version),
               merged_dir,
-              upstream.getSources(),
+              upstream,
               upstream_dir)
       report.proposed_patch = create_patch(report.merged_version,
               "%s/%s_%s_from-ours.patch" % (output_dir, left.package.name,
                   report.merged_version),
               merged_dir,
-              left.getSources(),
+              left,
               left_dir)
     else:
       report.result = result
@@ -1268,9 +1121,10 @@ def produce_merge(target, left, upstream, output_dir):
                merged_dir=merged_dir)
   logger.info("Wrote output to %s", src_file)
   cleanup(merged_dir)
-  cleanup_source(upstream.getSources())
-  cleanup_source(base.getSources())
-  cleanup_source(left.getSources())
+  cleanup_source(upstream)
+  cleanup_source(base)
+  cleanup_source(left)
+  return report
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",

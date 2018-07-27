@@ -55,13 +55,9 @@ try:
 except ImportError:
     from elementtree import ElementTree
 
-ROOT = config.get('ROOT')
-MOM_URL = config.get('MOM_URL')
-MOM_NAME = config.get('MOM_NAME')
-MOM_EMAIL = config.get('MOM_EMAIL')
-DISTROS = config.get('DISTROS')
-DISTRO_SOURCES = config.get('DISTRO_SOURCES')
-DISTRO_TARGETS = config.get('DISTRO_TARGETS')
+# Regular expression for top of debian/changelog
+CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
+                   re.IGNORECASE)
 
 logger = logging.getLogger('momlib')
 
@@ -74,7 +70,7 @@ def cleanup(path):
     tree.remove(path)
 
     (dirname, basename) = os.path.split(path)
-    while dirname != ROOT:
+    while dirname != config.get('ROOT'):
         try:
             os.rmdir(dirname)
         except OSError, e:
@@ -93,64 +89,68 @@ def md5sum(filename):
 # Location functions
 # --------------------------------------------------------------------------- #
 
-def unpack_directory(source):
+def unpack_directory(pv):
     """Return the location of a local unpacked source."""
-    return "%s/unpacked/%s/%s/%s" % (ROOT, pathhash(source["Package"]),
-                                     source["Package"], source["Version"])
+    return "%s/unpacked/%s/%s/%s" % (config.get('ROOT'),
+                                     pathhash(pv.package.name),
+                                     pv.package, pv.version)
 
-def changes_file(distro, source):
+def changes_file(distro, pv):
     """Return the location of a local changes file."""
     return "%s/changes/%s/%s/%s/%s_%s_source.changes" \
-           % (ROOT, distro, pathhash(source["Package"]),
-              source["Package"], source["Package"], source["Version"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package, pv.package, pv.version)
 
-def dpatch_directory(distro, source):
+def dpatch_directory(distro, pv):
     """Return the directory where we put dpatches."""
     return "%s/dpatches/%s/%s/%s/%s" \
-           % (ROOT, distro, pathhash(source["Package"]), source["Package"],
-              source["Version"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package, pv.version)
 
-def diff_directory(distro, source):
+def diff_directory(distro, pv):
     """Return the directory where we can find diffs."""
     return "%s/diffs/%s/%s/%s" \
-           % (ROOT, distro, pathhash(source["Package"]), source["Package"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package)
 
-def diff_file(distro, source):
+def diff_file(distro, pv):
     """Return the location of a local diff file."""
-    return "%s/%s_%s.patch" % (diff_directory(distro, source),
-                               source["Package"], source["Version"])
+    return "%s/%s_%s.patch" % (diff_directory(distro, pv),
+                               pv.package, pv.version)
 
-def patch_directory(distro, source):
+def patch_directory(distro, pv):
     """Return the directory where we can find local patch files."""
     return "%s/patches/%s/%s/%s" \
-           % (ROOT, distro, pathhash(source["Package"]), source["Package"])
+           % (config.get('ROOT'), distro, pathhash(pv.package.name),
+              pv.package)
 
-def patch_file(distro, source, slipped=False):
+def patch_file(distro, pv, slipped=False):
     """Return the location of a local patch file."""
-    path = "%s/%s_%s" % (patch_directory(distro, source),
-                         source["Package"], source["Version"])
+    path = "%s/%s_%s" % (patch_directory(distro, pv),
+                         pv.package, pv.version)
     if slipped:
         return path + ".slipped-patch"
     else:
         return path + ".patch"
 
-def published_file(distro, source):
+def published_file(distro, pv):
     """Return the location where published patches should be placed."""
     return "%s/published/%s/%s/%s_%s.patch" \
-           % (ROOT, pathhash(source["Package"]), source["Package"],
-              source["Package"], source["Version"])
+           % (config.get('ROOT'), pathhash(pv.package.name),
+              pv.package, pv.package, pv.version)
 
 def patch_list_file():
     """Return the location of the patch list."""
-    return "%s/published/PATCHES" % ROOT
+    return "%s/published/PATCHES" % config.get('ROOT')
 
 def work_dir(package, version):
     """Return the directory to produce the merge result."""
-    return "%s/work/%s/%s/%s" % (ROOT, pathhash(package), package, version)
+    return "%s/work/%s/%s/%s" % (config.get('ROOT'), pathhash(package), package, version)
 
 def result_dir(target, package):
     """Return the directory to store the result in."""
-    return "%s/merges/%s/%s/%s" % (ROOT, target, pathhash(package), package)
+    return "%s/merges/%s/%s/%s" % (config.get('ROOT'), target,
+                                   pathhash(package), package)
 
 # --------------------------------------------------------------------------- #
 # Source meta-data handling
@@ -160,9 +160,9 @@ def version_sort(sources):
     """Sort the source list by version number."""
     sources.sort(key=lambda x: Version(x["Version"]))
 
-def has_files(source):
+def has_files(pv):
     """Return true if source has a Files entry"""
-    return "Files" in source
+    return "Files" in pv.getDscContents()
 
 def files(source):
     """Return (md5sum, size, name) for each file."""
@@ -191,18 +191,12 @@ def save_basis(filename, version):
 
 def unpack_source(pv):
     """Unpack the given source and return location."""
-    source = pv.getSources()
-    destdir = unpack_directory(source)
+    destdir = unpack_directory(pv)
     if os.path.isdir(destdir):
         return destdir
 
-    srcdir = "%s/%s" % (ROOT, pv.poolDirectory().path)
-    for md5sum, size, name in files(source):
-        if name.endswith(".dsc"):
-            dsc_file = name
-            break
-    else:
-        raise ValueError, "Missing dsc file"
+    srcdir = pv.package.poolPath
+    dsc_file = pv.dscPath
 
     logger.info("Unpacking %s from %s/%s", pv, srcdir, dsc_file)
 
@@ -226,22 +220,20 @@ def unpack_source(pv):
 
     return destdir
 
-def cleanup_source(source):
+def cleanup_source(pv):
     """Cleanup the given source's unpack location."""
-    cleanup(unpack_directory(source))
+    cleanup(unpack_directory(pv))
 
-def save_changes_file(filename, source, previous=None):
+def save_changes_file(filename, pv, previous=None):
     """Save a changes file for the given source."""
-    srcdir = unpack_directory(source)
-
-    filesdir = "%s/%s" % (ROOT, source["Directory"])
+    srcdir = unpack_directory(pv)
 
     tree.ensure(filename)
     with open(filename, "w") as changes:
-        cmd = ("dpkg-genchanges", "-S", "-u%s" % filesdir)
+        cmd = ("dpkg-genchanges", "-S", "-u%s" % pv.package.poolPath)
         orig_cmd = cmd
         if previous is not None:
-            cmd += ("-v%s" % previous["Version"],)
+            cmd += ("-v%s" % previous.version,)
 
         try:
             shell.run(cmd, chdir=srcdir, stdout=changes)
@@ -344,17 +336,20 @@ class PackageLists(object):
         self.include = {}
         self.exclude = {}
 
-        for target in DISTRO_TARGETS:
-            filename_exclude = "%s/%s.ignore.txt" % (ROOT, target)
+        distro_targets = config.get('DISTRO_TARGETS')
+        for target in distro_targets:
+            filename_exclude = "%s/%s.ignore.txt" % (config.get('ROOT'), target)
             self.exclude[target] = PackageList(filename_exclude)
             self.include[target] = {}
 
-            for src in DISTRO_TARGETS[target]["sources"]:
+            for src in distro_targets[target]["sources"]:
                 self.include[target][src] = {}
-                filename_include = "%s/%s-%s.list.txt" % (ROOT, target, src)
+                filename_include = "%s/%s-%s.list.txt" % (config.get('ROOT'),
+                                                          target, src)
                 # Allow short filename form for default sources
-                if src == DISTRO_TARGETS[target]["sources"][0] and not os.path.isfile(filename_include):
-                    filename_include = "%s/%s.list.txt" % (ROOT, target)
+                if src == distro_targets[target]["sources"][0] and not os.path.isfile(filename_include):
+                    filename_include = "%s/%s.list.txt" % (config.get('ROOT'),
+                                                           target)
 
                 self.include[target][src] = PackageList(filename_include)
 
@@ -368,7 +363,8 @@ class PackageLists(object):
             includes = [self.include[target][src_] for src_ in self.include[target]]
         else:
             includes = [self.include[target][src]]
-            if DISTRO_TARGETS[target]["sources"] and src != DISTRO_TARGETS[target]["sources"][0]:
+            distro_targets = config.get('DISTRO_TARGETS')
+            if distro_targets[target]["sources"] and src != distro_targets[target]["sources"][0]:
                 src_is_default = False
         found = False
         findable = False
@@ -386,13 +382,13 @@ class PackageLists(object):
     def add(self, target, src, package):
         """If src is None, the default source group is used"""
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         return self.include[target][src].add(package)
 
     def add_if_needed(self, target, src, package):
         """If src is None, the default source group is used"""
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         for src_ in self.include[target]:
             if package in self.include[target][src_]:
                 return False
@@ -401,12 +397,12 @@ class PackageLists(object):
     def discard(self, target, src, package):
         """If src is None, the default source group is used"""
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         return self.include[target][src].discard(package)
 
     def save_if_modified(self, target, src=None):
         if src is None:
-            src = DISTRO_TARGETS[target]["sources"][0]
+            src = config.get('DISTRO_TARGETS')[target]["sources"][0]
         return self.include[target][src].save_if_modified()
 
     def check_manual(self, package):
@@ -427,17 +423,16 @@ class PackageLists(object):
 
         return True
 
-PACKAGELISTS = PackageLists()
-
 def get_target_distro_dist_component(target):
     """Return the distro, dist, and component for a given distribution target"""
-    distro = DISTRO_TARGETS[target]["distro"]
+    distro_targets = config.get('DISTRO_TARGETS')
+    distro = distro_targets[target]["distro"]
     try:
-        dist = DISTRO_TARGETS[target]["dist"]
+        dist = distro_targets[target]["dist"]
     except KeyError:
         dist = None
     try:
-        component = DISTRO_TARGETS[target]["component"]
+        component = distro_targets[target]["component"]
     except KeyError:
         component = None
     return (distro, dist, component)
@@ -448,7 +443,7 @@ def get_target_distro_dist_component(target):
 
 def comments_file():
     """Return the location of the comments."""
-    return "%s/comments.txt" % ROOT
+    return "%s/comments.txt" % config.get('ROOT')
 
 def get_comments():
     """Extract the comments from file, and return a dictionary
@@ -498,3 +493,34 @@ def remove_old_comments(status_file, merges):
 
         for line in new_lines:
             file_comments.write(line)
+
+
+def read_changelog(filename):
+    """Return a parsed changelog file."""
+    entries = []
+
+    with open(filename) as cl:
+        (ver, text) = (None, "")
+        for line in cl:
+            match = CL_RE.search(line)
+            if match:
+                try:
+                    ver = Version(match.group(2))
+                except ValueError:
+                    ver = None
+
+                text += line
+            elif line.startswith(" -- "):
+                if ver is None:
+                    ver = Version("0")
+
+                text += line
+                entries.append((ver, text))
+                (ver, text) = (None, "")
+            elif len(line.strip()) or ver is not None:
+                text += line
+
+    if len(text):
+        entries.append((ver, text))
+
+    return entries

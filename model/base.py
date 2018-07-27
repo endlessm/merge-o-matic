@@ -1,4 +1,5 @@
 import config
+from glob import glob
 from util import tree, pathhash, shell
 import os
 from os import path
@@ -7,6 +8,10 @@ import urllib
 from deb.controlfile import ControlFile
 from deb.version import Version
 import gzip
+import json
+
+import apt
+import apt_pkg
 
 import error
 
@@ -39,15 +44,21 @@ class Distro(object):
   def __repr__(self):
     return '<%s "%s">' % (self.__class__.__name__, self.name)
 
-  def newestSources(self, dist, component):
+  def newestPackageVersions(self, dist, component):
     sources = self.getSources(dist, component)
     newest = {}
     for source in sources:
       package = source["Package"]
-      if package not in newest or Version(source["Version"]) > Version(newest[package]["Version"]):
-        newest[package] = source
+      version = Version(source['Version'])
+      if package not in newest or version > newest[package]:
+        newest[package] = version
 
-    return [newest[x] for x in sorted(newest.keys())]
+    ret = []
+    for name in sorted(newest.keys()):
+      pkg = Package(self, dist, component, name)
+      ret.append(PackageVersion(pkg, newest[name]))
+
+    return ret
 
   @staticmethod
   def get(name):
@@ -70,29 +81,11 @@ class Distro(object):
     self.parent = parent
     self.name = name
 
-  def sourcesURL(self, dist, component):
-    """Return the absolute URL to Sources.gz for the given release
-    and component in this distribution. If it is not configured
-    specially in sources_urls, the mirror is assumed to follow the
-    standard apt layout (MIRROR/dists/RELEASE/COMPONENT/source/Sources.gz).
-    """
-    if (dist, component) in self.config("sources_urls", default={}):
-      return self.config("sources_urls")[(dist, component)]
-    mirror = self.mirrorURL(dist, component)
-    url = mirror + "/dists"
-    if dist is not None:
-      url += "/" + dist
-    if component is not None:
-      url += "/" + component
-    return url + "/source/Sources.gz"
-
-  def mirrorURL(self, dist, component):
-    """Return the absolute URL of the top of the mirror for the given
-    release and component in this distribution.
-    """
+  def mirrorURL(self):
+    """Return the absolute URL of the top of the mirror"""
     return self.config("mirror")
 
-  def updatePool(self, dist, component, package=None):
+  def downloadPackage(self, dist, component, package=None, version=None):
     """Populate the 'pool' directory by downloading Debian source packages
     from the given release and component.
 
@@ -110,7 +103,7 @@ class Distro(object):
       logger.debug('Downloading package "%s" from %s/%s/%s into %s pool',
           package, self, dist, component, self)
 
-    mirror = self.mirrorURL(dist, component)
+    mirror = self.mirrorURL()
     sources = self.getSources(dist, component)
 
     changed = False
@@ -118,13 +111,16 @@ class Distro(object):
     for source in sources:
       if package != source["Package"] and not (package is None):
         continue
+      if package is not None and version is not None \
+          and source["Version"] != str(version):
+        continue
+
       sourcedir = source["Directory"]
 
-      pooldir = PoolDirectory(self, component, source["Package"]).path
-
+      pkg = self.package(dist, component, source['Package'])
       for md5sum, size, name in files(source):
           url = "%s/%s/%s" % (mirror, sourcedir, name)
-          filename = "%s/%s/%s" % (config.get('ROOT'), pooldir, name)
+          filename = "%s/%s" % (pkg.poolPath, name)
 
           if os.path.isfile(filename):
               if os.path.getsize(filename) == int(size):
@@ -220,7 +216,10 @@ class Distro(object):
     this distro does not have release subdirectories
     """
     sources = self.getSources(dist, component)
-    return map(lambda x:self.package(dist, component, x["Package"]), sources)
+    ret = map(lambda x:self.package(dist, component, x["Package"]), sources)
+    # Multiple versions of a package could exist in the sources.
+    # De-duplicate the returned list.
+    return list(set(ret))
 
   def config(self, *args, **kwargs):
     args = ("DISTROS", self.name) + args
@@ -229,7 +228,13 @@ class Distro(object):
       return self.parent.config(*(args[2:]), **kwargs)
     return ret
 
-  def sourcesFile(self, dist, component, compressed=True):
+  def getDistDir(self, dist):
+    path = '/'.join((config.get("ROOT"), 'dists', self.name))
+    if dist is not None:
+      path = "%s-%s"%(path, dist)
+    return path
+
+  def sourcesFile(self, dist, component):
     """Return the absolute filename of the cached Sources file.
 
     @param dist a release codename like "precise", or None if this
@@ -239,15 +244,23 @@ class Distro(object):
     @param compressed if True, return the path to Sources.gz
     """
     if self.parent:
-      return self.parent.sourcesFile(dist, component, compressed)
-    if compressed:
-      return "%s.gz"%(self.sourcesFile(dist, component, False))
-    path = '/'.join((config.get("ROOT"), 'dists', self.name))
-    if dist is not None:
-      path = "%s-%s"%(path, dist)
-    if component is not None:
-      path = "%s/%s" % (path, component)
-    return '/'.join((path, 'source', 'Sources'))
+      return self.parent.sourcesFile(dist, component)
+
+    # We use python-apt to download the sources file. Unfortunately it
+    # doesn't offer an API to find the path of the downloaded file.
+    # The closest thing would be to use apt_pkg.SourceList(),
+    # .read_main_list() then check the resultant .list.index_files.
+    # The filename is listed there in the "describe" property in addition to
+    # other bits of information.
+    # That doesn't seem great, so just attempt to find the file directly.
+    path = self.getDistDir(dist)
+    file_match = '*_%s_%s_source_Sources' % (dist, component)
+    files = glob(os.path.join(path, 'var/lib/apt/lists', file_match))
+    if len(files) == 1:
+        return files[0]
+
+    # If there are no Sources then no file was downloaded.
+    return None
 
   def getSources(self, dist, component):
     """Parse a cached Sources file. Return its stanzas, each representing
@@ -255,117 +268,46 @@ class Distro(object):
     """
 
     filename = self.sourcesFile(dist, component)
+    if filename is None:
+      return {}
+
     if filename not in Distro.SOURCES_CACHE:
         Distro.SOURCES_CACHE[filename] = ControlFile(filename, multi_para=True,
                                               signed=False)
 
     return Distro.SOURCES_CACHE[filename].paras
 
-  def updateSources(self, dist, component):
-    """Update a Sources file."""
-    url = self.sourcesURL(dist, component)
-    filename = self.sourcesFile(dist, component)
+  def updateSources(self, dist):
+    path = self.getDistDir(dist)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-    logger.debug("Downloading %s", url)
+    # Create needed directories
+    for d in ['etc/apt/apt.conf.d', 'etc/apt/preferences.d',
+              'var/lib/apt/lists/partial',
+              'var/cache/apt/archives/partial', 'var/lib/dpkg']:
+        repo_dir = os.path.join(path, d)
+        if not os.path.exists(repo_dir):
+            os.makedirs(repo_dir)
 
-    try:
-        if not os.path.isdir(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename))
-        urllib.URLopener().retrieve(url, filename)
-    except IOError:
-        logger.error("Downloading %s failed", url)
-        raise
+    # Create sources.list
+    sources_list = os.path.join(path, 'etc/apt/sources.list')
+    with open(sources_list, 'w') as f:
+        f.write('deb-src [trusted=yes] %s %s %s\n' % (self.mirrorURL(), dist, " ".join(self.components())))
 
-    logger.debug("Saved %s", tree.subdir(config.get('ROOT'), filename))
-    with gzip.open(self.sourcesFile(dist, component)) as gzf:
-        with open(self.sourcesFile(dist, component, False), "wb") as f:
-            f.write(gzf.read())
+    # Setup configuration
+    apt_pkg.config.set('Dir', path)
+    cache = apt.Cache(rootdir=path)
+    cache.update()
 
-  def poolName(self, component):
-    """Return the subdirectory of 'pool' which will contain this distro's
+  def getPoolPath(self, component):
+    """Return the absolute path to the pool for a given component
     source packages for the given component.
     """
-    return "%s/%s"%(self.config('pool', default=self.name), component)
+    return "%s/pool/%s/%s" % (config.get('ROOT'), self.config('pool', default=self.name), component)
 
   def shouldExpire(self):
     return self.config('expire', default=False)
-
-class PoolDirectory(object):
-  def __init__(self, distro, component, package_name):
-    """Constructor
-
-    :param Distro distro: the relevant distro
-    :param str component: the component within the distro, e.g. "main"
-    :param str package_name: the name of a Debian source package
-    """
-    assert isinstance(distro, Distro), distro
-
-    self.distro = distro
-    self.component = component
-    self.package_name = package_name
-
-  @property
-  def path(self):
-    """Return something like 'pool/debian/main/libf/libfoo'"""
-    return "pool/%s/%s/%s" % (self.distro.poolName(self.component),
-        pathhash(self.package_name), self.package_name)
-
-  @property
-  def sourcesFilename(self):
-    """The absolute filename of the Sources file listing versions
-    of this package in this (distro, component), in any suite,
-    possibly including packages that are no longer referenced by
-    any suite.
-    """
-    return '%s/%s/Sources' % (config.get('ROOT'), self.path)
-
-  def __repr__(self):
-    """Return something like
-    <PoolDirectory 'pool/debian/main/libf/libfoo'>
-    """
-    return '<%s %r>' % (self.__class__.__name__, self.path)
-
-  def getSourceStanzas(self):
-    """Parse the Sources file for a package in the pool."""
-    return ControlFile(self.sourcesFilename,
-        multi_para=True, signed=False).paras
-
-  def updateSources(self):
-    """Update the Sources file at sourcesFilename() to contain every
-    package/version in this pool directory.
-    """
-    pooldir = self.path
-    filename = self.sourcesFilename
-
-    if not os.path.isdir(pooldir):
-      return
-
-    tree.ensure(pooldir)
-    logger.debug("Updating %s", filename)
-    with open(filename, "w") as sources:
-      shell.run(("apt-ftparchive", "sources", pooldir),
-          chdir=config.get('ROOT'),
-          stdout=sources)
-
-  def getVersions(self):
-    """Return all available versions of this package that were downloaded
-    into the pool in this or a previous run (possibly from another
-    suite). They are in no particular order.
-
-    For up-to-date results, call updateSources() first.
-    """
-    # This doesn't return PackageVersion instances because PackageVersion
-    # has a Package, and Package has a known suite (dist), whereas
-    # this object is independent of suites. In practice, most callers
-    # will wrap the returned Versions in PackageVersions, but never mind...
-    versions = []
-    try:
-      sources = self.getSourceStanzas()
-    except:
-      return versions
-    for source in sources:
-      versions.append(Version(source['Version']))
-    return versions
 
 class Package(object):
   """A Debian source package in a distribution."""
@@ -399,11 +341,11 @@ class Package(object):
   def __repr__(self):
     return self.__unicode__()
 
-  def poolDirectory(self):
-    """Return the pool directory that will contain
-    this source package's files, e.g. "pool/debian/main/h/hello".
-    """
-    return PoolDirectory(self.distro, self.component, self.name)
+  @property
+  def poolPath(self):
+    """Return something like 'pool/debian/main/libf/libfoo'"""
+    return "%s/%s/%s" % (self.distro.getPoolPath(self.component),
+        pathhash(self.name), self.name)
 
   def commitMerge(self):
     pass
@@ -437,14 +379,26 @@ class Package(object):
       if left_version < right_version:
         tree.ensure("%s/%s" % (output_dir, "REPORT"))
 
-  def updatePool(self):
-    """Download all available versions of this package from
-    (self.distro, self.dist, self.component) into the pool.
+  def download(self, version=None):
+    """Download this package from (self.distro, self.dist, self.component)
+    into the pool. If no version is specified, all available versions will be
+    downloaded.
 
     :return: True if the pool changed
     :rtype: bool
     """
-    return self.distro.updatePool(self.dist, self.component, self.name)
+    return self.distro.downloadPackage(self.dist, self.component, self.name,
+                                       version)
+
+  def getPoolVersions(self):
+    """Return all available versions of this package in the pool as
+    PackageVersion objects. They are in no particular order.
+    """
+    versions = []
+    for f in glob(self.poolPath + '/*.dsc'):
+      dsc = ControlFile(f, multi_para=False, signed=True).para
+      versions.append(PackageVersion(self, Version(dsc['Version'])))
+    return versions
 
   def currentVersions(self):
     """Return all available versions of this package in self.distro.
@@ -487,19 +441,83 @@ class PackageVersion(object):
 
   def __unicode__(self):
     return "%s-%s"%(self.package, self.version)
-  
-  def getSources(self):
-    """Return the Sources stanza for this version of this package
-    as a dict of the form {"Field": "value"}, or raise PackageVersionNotFound.
-    """
-    for s in self.poolDirectory().getSourceStanzas():
-      if Version(s['Version']) == self.version:
-        return s
-    raise error.PackageVersionNotFound(self.package, self.version)
 
-  def poolDirectory(self):
-      """Return the package's pool directory."""
-      return self.package.poolDirectory()
+  @property
+  def dscFilename(self):
+      return "%s_%s.dsc" % (self.package.name, self.version.without_epoch)
+
+  @property
+  def dscPath(self):
+      """Return path to the .dsc file in the pool"""
+      return self.package.poolPath + '/' + self.dscFilename
+
+  def getDscContents(self):
+      return ControlFile(self.dscPath, multi_para=False, signed=True).para
+
+  def download(self):
+    self.package.download(self.version)
+
+class UpdateInfo(object):
+  def __init__(self, package):
+    self.package = package
+    self.path = os.path.join(config.get('ROOT'), 'baseinfo',
+                             package.distro.name, package.name)
+
+    if os.path.exists(self.path):
+      self.data = json.load(open(self.path, 'r'))
+    else:
+      self.data = {}
+
+  def __unicode__(self):
+    return '%s (version=%s base=%s upstream=%s)' % \
+           (self.package, self.version, self.base_version,
+            self.upstream_version)
+
+  def __str__(self):
+    return self.__unicode__()
+
+  def save(self):
+    base_path = os.path.dirname(self.path)
+    if not os.path.exists(base_path):
+      os.makedirs(base_path)
+
+    json.dump(self.data, open(self.path, 'w'))
+
+  @property
+  def version(self):
+    return Version(self.data['version']) if 'version' in self.data else None
+
+  def set_version(self, version):
+    self.data['version'] = str(version)
+
+  @property
+  def base_version(self):
+    if 'base_version' in self.data:
+      return Version(self.data['base_version'])
+    else:
+      return None
+
+  def set_base_version(self, version):
+    if version is None:
+      if 'base_version' in self.data:
+        del self.data['base_version']
+    else:
+      self.data['base_version'] = str(version)
+
+  @property
+  def upstream_version(self):
+    if 'upstream_version' in self.data:
+      return Version(self.data['upstream_version'])
+    else:
+      return None
+
+  def set_upstream_version(self, version):
+    if version is None:
+      if 'upstream_version' in self.data:
+        del self.data['upstream_version']
+    else:
+      self.data['upstream_version'] = str(version)
+
 
 def files(source):
     """Return (md5sum, size, name) for each file.

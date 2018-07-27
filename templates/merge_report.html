@@ -119,7 +119,7 @@ Please check that it's OK to update to the newer version.</p>
   {% endif %}
   </dd>
 
-  <dt>Newest common ancestor</dt>
+  <dt>Base version</dt>
   <dd>
   {% if report.base_version %}
   {{ report.base_version }}
@@ -217,11 +217,6 @@ Please check that it's OK to update to the newer version.</p>
 {% if left_changelog_text %}
 <div>
 <h2>Our changelog</h2>
-{% if report.result == "NO_BASE" %}
-<p>Our latest changelog entry:</p>
-{% else %}
-<p>Our changelog entries since most recent common ancestor:</p>
-{% endif %}
 <pre>{{ left_changelog_text }}</pre>
 </div>
 {% endif %}
@@ -229,11 +224,6 @@ Please check that it's OK to update to the newer version.</p>
 {% if right_changelog_text %}
 <div>
 <h2>Their changelog</h2>
-{% if report.result == "NO_BASE" %}
-<p>Their latest changelog entry:</p>
-{% else %}
-<p>Their changelog entries since most recent common ancestor:</p>
-{% endif %}
 <pre>{{ right_changelog_text }}</pre>
 </div>
 {% endif %}

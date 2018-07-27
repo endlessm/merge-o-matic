@@ -23,8 +23,9 @@ import tempfile
 import json
 import time
 import urllib
-import model
+from model import Distro, Package
 import re
+import imp
 import model.error
 from deb.version import Version
 from os import path
@@ -41,12 +42,20 @@ def loadConfig(data):
   configdb = data
 
 def get(*args, **kwargs):
-  if configdb is None:
-    MOM_CONFIG_PATH = "/etc/merge-o-matic"
-    sys.path.insert(1, MOM_CONFIG_PATH)
-    import momsettings
+  if configdb is None and 'MOM_TEST' not in os.environ:
+    if 'MOM_CONFIG_PATH' in os.environ:
+      config_path = os.environ['MOM_CONFIG_PATH']
+    else:
+      config_path = '/etc/merge-o-matic/momsettings.py'
+
+    if os.path.isfile(config_path):
+      momsettings = imp.load_source('momsettings', config_path)
+    else:
+      logging.warning("Could not load config '%s', trying standard import",
+                      config_path)
+      import momsettings
+
     loadConfig(momsettings)
-    sys.path.remove(MOM_CONFIG_PATH)
 
   def _get(item, *args, **kwargs):
     global configdb
@@ -98,7 +107,7 @@ class Source(object):
     assert dist is None or isinstance(dist, str), dist
 
     super(Source, self).__init__()
-    self._distro = model.Distro.get(distro)
+    self._distro = Distro.get(distro)
     self._dist = dist
 
   @property
@@ -155,10 +164,10 @@ class SourceList(object):
   def __repr__(self):
     return repr(self._sources)
 
-  def findPackage(self, name):
+  def findPackage(self, name, version=None):
     for s in self._sources:
       try:
-        return s.distro.findPackage(name, searchDist=s.dist)
+        return s.distro.findPackage(name, searchDist=s.dist, version=version)
       except model.error.PackageNotFound:
         continue
     raise model.error.PackageNotFound, name
@@ -203,7 +212,7 @@ class Target(object):
   @property
   def distro(self):
     """Return the Distro for our "distro" configuration item."""
-    return model.Distro.get(self.config('distro'))
+    return Distro.get(self.config('distro'))
 
   @property
   def dist(self):
@@ -302,89 +311,33 @@ class Target(object):
   def __repr__(self):
     return "Target(%s)"%(self._name)
 
-  def findNearestVersion(self, version):
-    assert(isinstance(version, model.PackageVersion))
-    base = version.version.base()
-    sources = []
-    for srclist in self.getSourceLists(version.package.name):
-      for src in srclist:
-        try:
-          for pkg in  src.distro.findPackage(version.package.name,
-              searchDist=src.dist):
-            for v in pkg.package.poolDirectory().getVersions():
-              pv = model.PackageVersion(pkg.package, v)
-              if pv not in sources:
-                sources.append(pv)
-        except model.error.PackageNotFound:
-          pass
-    for v in version.package.poolDirectory().getVersions():
-      pv = model.PackageVersion(version.package, v)
-      if pv not in sources:
-        sources.append(pv)
-    bases = []
-    for source in sources:
-      if base == source.version:
-        return source
-      elif base <= Version(re.sub("build[0-9]+$", "", str(source.version))) and source not in bases:
-        bases.append(source)
-    bases.append(version)
-    bases.sort()
-    return bases[0]
+  def findSourcePackage(self, package_name, version=None):
+    """Look for a source package in our source lists. Return all matches
+    from all sources.
+    """
+    ret = []
+    for srclist in self.getSourceLists(package_name):
+      try:
+        ret.extend(srclist.findPackage(package_name, version))
+      except model.error.PackageNotFound:
+        pass
+    return ret
 
-  def _getFile(self, url, filename, size=None):
-    if os.path.isfile(filename):
-        if size is None or os.path.getsize(filename) == int(size):
-            return
+  def getAllPoolVersions(self, package_name):
+    """Find all available versions of the given package available in the pool.
+    Looks in the target and all the sources."""
+    ret = []
 
-    logging.debug("Downloading %s", url)
-    tree.ensure(filename)
-    try:
-        urllib.URLopener().retrieve(url, filename)
-    except IOError as e:
-        logging.error("Downloading %s failed: %s", url, e.args)
-        raise
-    logging.info("Saved %s", filename)
+    pkg = Package(self.distro, self.dist, self.component, package_name)
+    ret.extend(pkg.getPoolVersions())
 
-  def _tryFetch(self, pkg, version):
-    mirror = pkg.distro.mirrorURL(pkg.dist, pkg.component)
-    pooldir = pkg.getCurrentSources()[0]['Directory']
-    name = "%s_%s.dsc" % (pkg.name, version)
-    url = "%s/%s/%s" % (mirror, pooldir, name)
-    ourPoolDir = pkg.poolDirectory()
-    outfile = "%s/%s" % (ourPoolDir.path, name)
-    logging.debug("Downloading %s to %s", url, outfile)
-    try:
-      self._getFile(url, outfile)
-    except IOError:
-      logging.debug("Could not download %s.", url)
-      return False
-    source = ControlFile()
-    try:
-      source.open(outfile, signed=True, multi_para=True)
-    except:
-      pass
-    for md5sum, size, name in files(source.paras[0]):
-      url = "%s/%s/%s" % (mirror, pooldir, name)
-      outfile = "%s/%s" % (ourPoolDir.path, name)
-      self._getFile(url, outfile, size)
-    ourPoolDir.updateSources()
-    return True
-  
-  def fetchMissingVersion(self, package, version):
-    for srclist in self.getSourceLists(package.name):
-      for src in srclist:
-        try:
-          for pkg in src.distro.findPackage(package.name, searchDist=src.dist,
-                  version=version):
-            if self._tryFetch(pkg.package, version):
-              return
-        except model.error.PackageNotFound:
-          logging.debug('%s/%s not found in %r', package.name, version,
-                  src)
-          continue
-        except IOError, e:
-          logging.exception("Could not download %s_%s", package.name, version)
-          continue
+    for srclist in self.getAllSourceLists():
+      for source in srclist:
+        for component in source.distro.components():
+          pkg = Package(source.distro, source.dist, component, package_name)
+          ret.extend(pkg.getPoolVersions())
+
+    return ret
 
 def targets(names=[]):
   """If names is non-empty, return a Target for each entry, or raise an

@@ -49,25 +49,22 @@ def main(options, args):
         logger.debug('Skipping %r distro %r: not an OBSDistro', target, d)
         continue
 
-      for source in d.newestSources(target.dist, target.component):
-        if options.package and source['Package'] not in options.package:
-          logger.debug('Skipping package %s: not selected', source['Package'])
+      for package in d.packages(target.dist, target.component):
+        if options.package and package.name not in options.package:
+          logger.debug('Skipping package %s: not selected', package.name)
           continue
 
-        if source['Package'] in target.blacklist:
-          logger.debug('Skipping package %s: blacklisted', source['Package'])
+        if package.name in target.blacklist:
+          logger.debug('Skipping package %s: blacklisted', package.name)
           continue
 
         try:
-          output_dir = result_dir(target.name, source['Package'])
+          output_dir = result_dir(target.name, pkg.name)
           report = read_report(output_dir)
         except ValueError:
           logger.debug('Skipping package %s: unable to read report',
-                  source['Package'])
+                       package.name)
           continue
-
-        package = d.package(target.dist, target.component,
-                report.source_package)
 
         if report['committed']:
           if options.force:
@@ -135,7 +132,7 @@ def main(options, args):
                 try:
                   pkg = srcDistro.findPackage(package.name, searchDist=src.dist,
                       version=version)[0]
-                  pfx = pkg.poolDirectory().path
+                  pfx = pkg.poolPath
                   break
                 except model.error.PackageNotFound:
                   pass

@@ -19,6 +19,8 @@
 
 import re
 
+import config
+
 
 # Regular expressions make validating things easy
 valid_epoch = re.compile(r'^[0-9]+$')
@@ -48,7 +50,7 @@ class Version(object):
 
     def __init__(self, ver):
         """Parse a string or number into the three components."""
-        self.epoch = 0
+        self.epoch = None
         self.upstream = None
         self.revision = None
 
@@ -64,6 +66,7 @@ class Version(object):
                 raise ValueError
             if not valid_epoch.search(self.epoch):
                 raise ValueError
+            self.epoch = int(self.epoch)
             ver = ver[idx+1:]
 
         # Revision is component after last hyphen
@@ -83,8 +86,6 @@ class Version(object):
         if not valid_upstream.search(self.upstream):
             raise ValueError, "%s is not a valid upstream version"%self.upstream
 
-        self.epoch = int(self.epoch)
-
     def getWithoutEpoch(self):
         """Return the version without the epoch."""
         str = self.upstream
@@ -97,7 +98,7 @@ class Version(object):
     def __str__(self):
         """Return the class as a string for printing."""
         str = ""
-        if self.epoch > 0:
+        if self.epoch is not None:
             str += "%d:" % (self.epoch,)
         str += self.upstream
         if self.revision is not None:
@@ -141,8 +142,9 @@ class Version(object):
 
             return text[:idx]
         v = strip_suffix(str(self), "build")
+        if config.get('LOCAL_SUFFIX') is not None:
+          v = strip_suffix(v, config.get('LOCAL_SUFFIX'))
         v = strip_suffix(v, "co")
-        v = strip_suffix(v, "endless")
         v = strip_suffix(v, "ubuntu")
         if v.endswith("-"):
             v += "0"
