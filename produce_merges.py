@@ -530,7 +530,7 @@ def produce_merge(target, base, left, upstream, output_dir):
     report.write_report(output_dir)
     return report
 
-  if len(merger.conflicts) == 0 and merger.total_modifications == 1 \
+  if len(merger.conflicts) == 0 and merger.total_changes_made == 1 \
      and len(merger.modified_files) == 1 \
      and 'debian/changelog' in merger.modified_files:
       # Sync to upstream if the only remaining change is in the changelog

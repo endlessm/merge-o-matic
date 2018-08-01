@@ -43,6 +43,21 @@ def same_file(left_stat, left_dir, right_stat, right_dir, filename):
 
 
 class DebTreeMerger(object):
+  # Describe the entries in changes_made
+  FILE_ADDED = 1
+  FILE_REMOVED = 2
+  FILE_MODIFIED = 3
+
+  # Describe the entries in pending_changes
+  # Copy modified file from left version
+  PENDING_SYNC = 1
+  # Copy added file from left version
+  PENDING_ADD = 2
+  # Remove from right version
+  PENDING_REMOVE = 3
+  # 3-way merge needed
+  PENDING_MERGE = 4
+
   def __init__(self, left_dir, left_name, left_format, left_distro,
                right_dir, right_name, right_format, right_distro,
                base_dir, merged_dir):
@@ -57,26 +72,104 @@ class DebTreeMerger(object):
     self.base_dir = base_dir
     self.merged_dir = merged_dir
 
-    ### Changes made relative to the right version
-    self.added_files = set()
-    self.removed_files = set()
-    self.modified_files = set()
+    # Changes pending as part of the merge
+    self.pending_changes = {}
 
-    ### Unsolved problems
+    # Changes made relative to the right version
+    self.changes_made = {}
 
     # Files that generated conflicts when merging
     self.conflicts = set()
 
   @property
-  def total_modifications(self):
+  def total_changes_made(self):
     """Total number of modifications made relative to the right version"""
-    return len(self.added_files) + len(self.removed_files) + \
-           len(self.modified_files)
+    return len(self.changes_made)
+
+  @property
+  def modified_files(self):
+    return [k for k, v in self.changes_made.iteritems()
+            if v == self.FILE_MODIFIED]
+
+  # Record a change made relative to the right version
+  def record_change(self, filename, change_type):
+    if filename in self.changes_made:
+      assert self.changes_made[filename] == change_type
+
+    self.changes_made[filename] = change_type
+
+  # Record a pending change to make in the merge directory
+  def record_pending_change(self, filename, pending_change_type):
+    assert filename not in self.pending_changes
+    self.pending_changes[filename] = pending_change_type
+
+  # Apply a specific pending change to a file.
+  # Return the type of change made, or None if it conflicted
+  def apply_pending_change(self, filename, change_type):
+    if change_type == self.PENDING_SYNC:
+      # sync from left (file or non file)
+      tree.copyfile("%s/%s" % (self.left_dir, filename),
+                    "%s/%s" % (self.merged_dir, filename))
+      return self.FILE_MODIFIED
+
+    elif change_type == self.PENDING_ADD:
+      # add from left
+      tree.copyfile("%s/%s" % (self.left_dir, filename),
+                    "%s/%s" % (self.merged_dir, filename))
+      return self.FILE_ADDED
+
+    elif change_type == self.PENDING_REMOVE:
+      os.unlink('%s/%s' % (self.merged_dir, filename))
+      return self.FILE_REMOVED
+
+    elif change_type == self.PENDING_MERGE:
+      # Handle pending merges
+      try:
+        base_stat = os.lstat("%s/%s" % (self.base_dir, filename))
+      except OSError:
+        base_stat = None
+
+      try:
+        left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
+      except OSError:
+        left_stat = None
+
+      try:
+        right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
+      except OSError:
+        right_stat = None
+
+      if self.merge_file_contents(left_stat, right_stat, base_stat, filename):
+        # Merge file permissions
+        self.merge_attr(filename)
+        return self.FILE_MODIFIED
+      else:
+        return None
+
+    else:
+      raise Exception("Unknown pending change type %d" % change_type)
+
+  # Apply the pending change to the given file
+  # Remove the entry from the pending changes list
+  # Return the type of change made, or None if it conflicted
+  def apply_pending_change_to_file(self, filename):
+    r = self.apply_pending_change(filename, self.pending_changes[filename])
+    if r is not None:
+      self.record_change(filename, r)
+    else:
+      self.conflicts.add(filename)
+
+    del self.pending_changes[filename]
+    return r
+
+  # Apply all pending changes
+  def apply_pending_changes(self):
+    for filename in self.pending_changes.keys():
+      self.apply_pending_change_to_file(filename)
 
   def run(self):
     """Do the heavy lifting of comparing and merging."""
     logger.debug("Producing merge in %s", self.merged_dir)
-    po_files = []
 
     both_formats_quilt = self.left_format == self.right_format == "3.0 (quilt)"
     if both_formats_quilt:
@@ -118,7 +211,11 @@ class DebTreeMerger(object):
                 # Changed on RHS
                 self.conflicts.add(filename)
             else:
-                self.removed_files.add(filename)
+              # File was remvoed on left. Put it in place in the merged
+              # dir but record it as a pending deletion.
+              tree.copyfile("%s/%s" % (self.right_dir, filename),
+                            "%s/%s" % (self.merged_dir, filename))
+              self.record_pending_change(filename, self.PENDING_REMOVE)
 
         elif right_stat is None:
             # Removed on RHS only
@@ -130,8 +227,7 @@ class DebTreeMerger(object):
 
         elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            self.handle_file(left_stat, right_stat, base_stat, filename,
-                             po_files)
+            self.handle_file(left_stat, right_stat, base_stat, filename)
 
         elif same_file(left_stat, self.left_dir,
                        right_stat, self.right_dir, filename):
@@ -152,9 +248,7 @@ class DebTreeMerger(object):
             # left has changed in some way, keep that one
             logger.debug("preserving non-file change in %s: %s",
                           self.left_distro, filename)
-            tree.copyfile("%s/%s" % (self.left_dir, filename),
-                          "%s/%s" % (self.merged_dir, filename))
-            self.modified_files.add(filename)
+            self.record_pending_change(filename, self.PENDING_SYNC)
         else:
             # all three differ, mark a conflict
             self.conflicts.add(filename)
@@ -176,9 +270,7 @@ class DebTreeMerger(object):
 
         if not tree.exists("%s/%s" % (self.right_dir, filename)):
             logger.debug("new in %s: %s", self.left_distro, filename)
-            tree.copyfile("%s/%s" % (self.left_dir, filename),
-                          "%s/%s" % (self.merged_dir, filename))
-            self.added_files.add(filename)
+            self.record_pending_change(filename, self.PENDING_ADD)
             continue
 
         left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
@@ -186,8 +278,7 @@ class DebTreeMerger(object):
 
         if S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
             # Common case: left and right are both files
-            self.handle_file(left_stat, right_stat,
-                             None, filename, po_files)
+            self.handle_file(left_stat, right_stat, None, filename)
 
         elif same_file(left_stat, self.left_dir,
                        right_stat, self.right_dir, filename):
@@ -221,17 +312,35 @@ class DebTreeMerger(object):
         tree.copyfile("%s/%s" % (self.right_dir, filename),
                       "%s/%s" % (self.merged_dir, filename))
 
-    # Handle po files separately as they need special merging
-    for filename in po_files:
-        if not self.merge_po(filename):
-            self.conflicts.add(filename)
-            continue
+    # At this point, merged_dir resembles the right version and we have
+    # recorded the changes that we need to make.
+    # Before we proceed with (attempting) to make those changes through
+    # simple means, see which changes we can make through context-specific
+    # methods, which are likely to avoid conflicts.
 
-        self.merge_attr(filename)
-        self.modified_files.add(filename)
+    # Handle po files separately as they need special merging
+    self.handle_po_files()
+
+    # Now apply the remaining changes through simple means
+    self.apply_pending_changes()
 
     for conflict in self.conflicts:
         self.conflict_file(conflict)
+
+  # Handle po files separately as they need special merging
+  def handle_po_files(self):
+    for filename, change_type in self.pending_changes.items():
+      if not filename.endswith('.po'):
+        continue
+      if change_type != self.PENDING_MERGE:
+        continue
+
+      if self.merge_po(filename):
+        self.merge_attr(filename)
+        self.record_change(filename, self.FILE_MODIFIED)
+        del self.pending_changes[filename]
+      else:
+        self.conflicts.add(filename)
 
   def merge_pot(self, filename):
     """Update a .po file using msgcat."""
@@ -280,7 +389,7 @@ class DebTreeMerger(object):
     else:
         return None
 
-  def handle_file(self, left_stat, right_stat, base_stat, filename, po_files):
+  def handle_file(self, left_stat, right_stat, base_stat, filename):
     """Handle the common case of a file in both left and right."""
     do_attrs = True
 
@@ -292,6 +401,7 @@ class DebTreeMerger(object):
         logger.debug("%s was unmodified on the left", filename)
         tree.copyfile("%s/%s" % (self.right_dir, filename),
                       "%s/%s" % (self.merged_dir, filename))
+        self.merge_attr(filename)
     elif same_file(left_stat, self.left_dir,
                    right_stat, self.right_dir, filename):
         # same file contents in left and right
@@ -299,51 +409,29 @@ class DebTreeMerger(object):
                       self.left_distro, self.right_distro, filename)
         tree.copyfile("%s/%s" % (self.left_dir, filename),
                       "%s/%s" % (self.merged_dir, filename))
-    else:
-        conflicts, deferred = \
-            self.merge_file_contents(left_stat, right_stat, base_stat,
-                                     filename, po_files)
-        if conflicts:
-            self.conflicts.add(filename)
-            do_attrs = False
-
-        if deferred:
-            do_attrs = False
-        else:
-            self.modified_files.add(filename)
-
-    # Merge file permissions
-    if do_attrs:
         self.merge_attr(filename)
+    else:
+        self.record_pending_change(filename, self.PENDING_MERGE)
 
-
-  # Returns a tuple of two booleans:
-  # 1. conflicts: True if the merge attempt generated conflicts
-  # 2. deferred: True if we'll handle this file in a later stage
-  def merge_file_contents(self, left_stat, right_stat, base_stat, filename,
-                          po_files):
+  # Returns True if the merge succeeded, or False if the merge generated
+  # conflicts.
+  def merge_file_contents(self, left_stat, right_stat, base_stat, filename):
     if filename == "debian/changelog":
         # two-way merge of changelogs
         try:
           self.merge_changelog(filename)
-          return False, False
+          return True
         except:
-          return True, False
-    elif filename.endswith(".po"):
-        # two-way merge of po contents (do later)
-        po_files.append(filename)
-        return False, True
+          return False
     elif filename.endswith(".pot"):
         # two-way merge of pot contents
-        ret = self.merge_pot(filename)
-        return not ret, False
+        return self.merge_pot(filename)
     elif base_stat is not None and S_ISREG(base_stat.st_mode):
         # was file in base: diff3 possible
-        ret = self.diff3_merge(filename)
-        return not ret, False
+        return self.diff3_merge(filename)
     else:
         # general file conflict
-        return True, False
+        return False
 
   def merge_changelog(self, filename):
     """Merge a changelog file."""
@@ -460,7 +548,7 @@ class DebTreeMerger(object):
             changed = True
 
     if changed:
-        self.modified_files.add(filename)
+        self.record_change(filename, self.FILE_MODIFIED)
 
   def change_attr(self, dest_dir, filename, bit, shift, add):
     """Apply a single attribute change."""
