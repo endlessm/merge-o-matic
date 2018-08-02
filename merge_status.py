@@ -81,7 +81,6 @@ def main(options, args):
 
         d = Distro.get(our_distro)
         for source in d.getSources(our_dist, our_component):
-            logger.debug('Considering package %s', source["Package"])
             try:
                 output_dir = result_dir(target, source["Package"])
                 report = read_report(output_dir)
@@ -89,8 +88,6 @@ def main(options, args):
                 continue
 
             if report['result'] == MergeResult.KEEP_OURS:
-                logger.debug('Skipping merge status for %s: result=%s',
-                        source['Package'], report['result'])
                 continue
 
             try:
