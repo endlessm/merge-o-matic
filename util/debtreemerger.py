@@ -336,13 +336,73 @@ class DebTreeMerger(object):
     for conflict in self.conflicts:
         self.conflict_file(conflict)
 
+  # Handle the merge of the quilt series file
+  # Return True (and delete pending_changes, and do record_change) if successful
+  # Return False if not (leaving it on pending_changes)
+  def merge_quilt_series(self):
+    series_file = 'debian/patches/series'
+
+    # If it's not a merge then just resolve it normally
+    if self.pending_changes[series_file] != self.PENDING_MERGE:
+      return False
+
+    try:
+      base_stat = os.stat("%s/%s" % (self.base_dir, series_file))
+    except OSError:
+      base_stat = None
+
+    # If we have a base version, see if diff3 can figure it out cleanly
+    if base_stat is not None and S_ISREG(base_stat.st_mode) \
+        and self.diff3_merge(series_file):
+      del self.pending_changes[series_file]
+      self.record_change(series_file, self.FILE_MODIFIED)
+      return True
+
+    # No easy merge options, so try to merge intelligently.
+    # Handle the case where the downstream changes are just appending
+    # patches to the end of the list - in which case we can just append
+    # the same patches to the end of the new right version series file.
+
+    # Base series file might not exist if the conflict is due to different
+    # series files being added in left and right versions
+    try:
+      base = open(os.path.join(self.base_dir, series_file), 'r').read()
+    except IOError as e:
+      if e.errno == errno.ENOENT:
+        base = ''
+      else:
+        raise
+
+    left = open(os.path.join(self.left_dir, series_file), 'r').read()
+
+    # Only proceed if our changes were additions at the end of the file
+    if not left.startswith(base):
+      return False
+
+    logging.debug('Merging quilt series by readding our end-of-file additions')
+    added_data = left[len(base):]
+    tree.ensure(os.path.join(self.merged_dir, series_file))
+    shutil.copy2(os.path.join(self.right_dir, series_file),
+                 os.path.join(self.merged_dir, series_file))
+    with open(os.path.join(self.merged_dir, series_file), 'a') as fd:
+      fd.write(added_data)
+
+    del self.pending_changes[series_file]
+    self.record_change(series_file, self.FILE_MODIFIED)
+    self.notes.append('Downstream additions to quilt series file were ' \
+                      're-appended on top of new upstream version')
+    return True
+
   def handle_quilt_patches(self):
     if 'debian/patches/series' not in self.pending_changes:
       return
 
-    # In order to apply patches in the right order etc. we need to have
-    # the final series file (it might need a merge)
-    if self.apply_pending_change_to_file('debian/patches/series') is None:
+    merged = self.merge_quilt_series()
+    if not merged:
+      merged = self.apply_pending_change_to_file('debian/patches/series') \
+        is not None
+
+    if not merged:
       logging.debug('Skip quilt patches handling as series file conflicted')
       return
 

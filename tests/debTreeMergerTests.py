@@ -261,3 +261,33 @@ class DebTreeMergerTest(unittest.TestCase):
     check_call(['patch', '-p1', '--fuzz=0', '--dry-run', '-i',
                            'debian/patches/test.patch'],
                           cwd=self.merged_dir)
+
+  # Our downstream changes just append a quilt patch to the end of the list.
+  # Upstream then makes conflicting changes to the series file.
+  # This should be merged by taking the new upstream series file and
+  # appending our patch again at the end.
+  def test_quiltSeriesMerge(self):
+    os.makedirs(self.base_dir + '/debian/patches')
+    with open(self.base_dir + '/debian/patches/series', 'w') as fd:
+      fd.write('one.patch\n')
+
+    os.makedirs(self.left_dir + '/debian/patches')
+    with open(self.left_dir + '/debian/patches/series', 'w') as fd:
+      fd.write('one.patch\n')
+      fd.write('endless.patch\n')
+
+    os.makedirs(self.right_dir + '/debian/patches')
+    with open(self.right_dir + '/debian/patches/series', 'w') as fd:
+      fd.write('one.patch\n')
+      fd.write('two.patch\n')
+
+    merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
+                           self.right_dir, 'foo', '3.0 (quilt)', 'right',
+                           self.base_dir,
+                           self.merged_dir)
+    merger.run()
+
+    self.assertEqual(len(merger.conflicts), 0)
+    self.assertIn('debian/patches/series', merger.changes_made)
+    merged = open(self.merged_dir + '/debian/patches/series', 'r').read()
+    self.assertEqual(merged, 'one.patch\ntwo.patch\nendless.patch\n')
