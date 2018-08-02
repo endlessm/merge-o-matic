@@ -522,11 +522,11 @@ def produce_merge(target, base, left, upstream, output_dir):
                            base_dir,
                            merged_dir)
     merger.run()
-  except OSError as e:
+  except Exception as e:
     cleanup(merged_dir)
     logger.exception("Could not merge %s, probably bad files?", left)
     report.result = MergeResult.FAILED
-    report.message = 'Could not merge: %s' % e
+    report.message = '%s: %s' % (e.__class__.__name__, e)
     report.write_report(output_dir)
     return report
 
