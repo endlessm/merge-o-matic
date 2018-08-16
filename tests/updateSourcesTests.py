@@ -64,8 +64,9 @@ class FindUpstreamTest(unittest.TestCase):
 
 class FindUnstableUpstreamTest(unittest.TestCase):
   def setUp(self):
-    self.target_repo, self.stable_source_repo, self.unstable_source_repo = \
-      testhelper.standard_simple_config(num_unstable_sources=1)
+    self.target_repo, self.stable_source_repo, self.unstable1_source_repo, \
+      self.unstable2_source_repo = \
+      testhelper.standard_simple_config(num_unstable_sources=2)
 
   # Target distro has foo-2.3
   # Stable source distro has foo-2.1
@@ -77,7 +78,7 @@ class FindUnstableUpstreamTest(unittest.TestCase):
     testhelper.build_and_import_simple_package('foo', '2.1',
                                                self.stable_source_repo)
     testhelper.build_and_import_simple_package('foo', '2.4',
-                                               self.unstable_source_repo)
+                                               self.unstable1_source_repo)
     testhelper.update_all_distro_sources()
 
     target = config.targets()[0]
@@ -97,7 +98,7 @@ class FindUnstableUpstreamTest(unittest.TestCase):
     testhelper.build_and_import_simple_package('foo', '2.1',
                                                self.stable_source_repo)
     testhelper.build_and_import_simple_package('foo', '2.4',
-                                               self.unstable_source_repo)
+                                               self.unstable1_source_repo)
     testhelper.update_all_distro_sources()
 
     target = config.targets()[0]
@@ -108,6 +109,74 @@ class FindUnstableUpstreamTest(unittest.TestCase):
     self.assertEqual(upstream.version, '2.1')
     self.assertTrue(upstream > pkg_version)
 
+  # Target distro has foo-2.1
+  # Stable source distro has foo-2.0
+  # First unstable source distro has foo-2.4
+  # Second unstable source distro has foo-3.0
+  # Target should be updated to the first unstable source
+  def test_upstreamFromFirstUnstable(self):
+    testhelper.build_and_import_simple_package('foo', '2.1', self.target_repo)
+    testhelper.build_and_import_simple_package('foo', '2.0',
+                                               self.stable_source_repo)
+    testhelper.build_and_import_simple_package('foo', '2.4',
+                                               self.unstable1_source_repo)
+    testhelper.build_and_import_simple_package('foo', '3.0',
+                                               self.unstable2_source_repo)
+    testhelper.update_all_distro_sources()
+
+    target = config.targets()[0]
+    pkg_version = target.distro.findPackage('foo', version='2.1')[0]
+
+    upstream = update_sources.find_upstream(target, pkg_version)
+    self.assertEqual(upstream.package.name, 'foo')
+    self.assertEqual(upstream.version, '2.4')
+    self.assertTrue(upstream > pkg_version)
+
+  # Target distro has foo-2.6
+  # Stable source distro has foo-2.0
+  # First unstable source distro has foo-2.4
+  # Second unstable source distro has foo-3.0
+  # Target should be updated to the first unstable source
+  def test_upstreamFromSecondUnstable(self):
+    testhelper.build_and_import_simple_package('foo', '2.6', self.target_repo)
+    testhelper.build_and_import_simple_package('foo', '2.0',
+                                               self.stable_source_repo)
+    testhelper.build_and_import_simple_package('foo', '2.4',
+                                               self.unstable1_source_repo)
+    testhelper.build_and_import_simple_package('foo', '3.0',
+                                               self.unstable2_source_repo)
+    testhelper.update_all_distro_sources()
+
+    target = config.targets()[0]
+    pkg_version = target.distro.findPackage('foo', version='2.6')[0]
+
+    upstream = update_sources.find_upstream(target, pkg_version)
+    self.assertEqual(upstream.package.name, 'foo')
+    self.assertEqual(upstream.version, '3.0')
+    self.assertTrue(upstream > pkg_version)
+
+  # Target distro has foo-2.4
+  # Stable source distro has foo-2.0
+  # First unstable source distro has foo-2.4
+  # Second unstable source distro has foo-3.0
+  # The first unstable source should be identified as the upstream
+  # (not upgrading to the second unstable source)
+  def test_upstreamCorrectUnstableSource(self):
+    testhelper.build_and_import_simple_package('foo', '2.4', self.target_repo)
+    testhelper.build_and_import_simple_package('foo', '2.0',
+                                               self.stable_source_repo)
+    testhelper.build_and_import_simple_package('foo', '2.4',
+                                               self.unstable1_source_repo)
+    testhelper.build_and_import_simple_package('foo', '3.0',
+                                               self.unstable2_source_repo)
+    testhelper.update_all_distro_sources()
+
+    target = config.targets()[0]
+    pkg_version = target.distro.findPackage('foo', version='2.4')[0]
+
+    upstream = update_sources.find_upstream(target, pkg_version)
+    self.assertEqual(upstream.package.name, 'foo')
+    self.assertEqual(upstream.version, '2.4')
 
 class HandlePackageTest(unittest.TestCase):
   def setUp(self):

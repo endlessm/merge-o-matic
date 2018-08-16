@@ -110,6 +110,7 @@ def download_from_debsnap(target_dir, package_name, version):
 def find_upstream(target, pv):
   upstream = None
   package_name = pv.package.name
+  our_base_version = pv.version.base()
 
   for srclist in target.getSourceLists(package_name, include_unstable=False):
     for src in srclist:
@@ -135,7 +136,6 @@ def find_upstream(target, pv):
   #    otherwise we would consider our version 1.0-1endless1 newer
   #    than the stable 1.0-1 and look in unstable for an update.
   if upstream is not None and pv.version >= upstream.version:
-    our_base_version = pv.version.base()
     logger.debug("our version %s >= their version %s, checking base version %s", pv, upstream, our_base_version)
     if our_base_version > upstream.version:
       logger.debug("base version still newer than their version, checking in unstable")
@@ -166,6 +166,10 @@ def find_upstream(target, pv):
               upstream = possible
         except model.error.PackageNotFound:
           pass
+
+      # Stop at the first upstream that provides a version upgrade
+      if upstream is not None and upstream.version >= our_base_version:
+        break
 
   return upstream
 

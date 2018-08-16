@@ -126,7 +126,7 @@ def defineDist(distro, name, upstreams, commitable,
      @param distro The distro to use
      @param sources_per_package A dictionary setting upstream DISTRO_SOURCES for particular packages.
      @param sync_upstream_packages A list of packages to prefer upstreams version instead of merging.
-     @param unstable_upstreams A list of distros to consider when our version base is newer than the standard distro upstream
+     @param unstable_upstreams A list of distros to consider when our version base is newer than the standard distro upstream. This list is processed in order and only the first upstream distro that provides a suitable upgrade will be considered.
   """
   if sources_per_package is None:
     sources_per_package = {}
