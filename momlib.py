@@ -93,41 +93,41 @@ def unpack_directory(pv):
     """Return the location of a local unpacked source."""
     return "%s/unpacked/%s/%s/%s" % (config.get('ROOT'),
                                      pathhash(pv.package.name),
-                                     pv.package, pv.version)
+                                     pv.package.name, pv.version)
 
 def changes_file(distro, pv):
     """Return the location of a local changes file."""
     return "%s/changes/%s/%s/%s/%s_%s_source.changes" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
-              pv.package, pv.package, pv.version)
+              pv.package.name, pv.package.name, pv.version)
 
 def dpatch_directory(distro, pv):
     """Return the directory where we put dpatches."""
     return "%s/dpatches/%s/%s/%s/%s" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
-              pv.package, pv.version)
+              pv.package.name, pv.version)
 
 def diff_directory(distro, pv):
     """Return the directory where we can find diffs."""
     return "%s/diffs/%s/%s/%s" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
-              pv.package)
+              pv.package.name)
 
 def diff_file(distro, pv):
     """Return the location of a local diff file."""
     return "%s/%s_%s.patch" % (diff_directory(distro, pv),
-                               pv.package, pv.version)
+                               pv.package.name, pv.version)
 
 def patch_directory(distro, pv):
     """Return the directory where we can find local patch files."""
     return "%s/patches/%s/%s/%s" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
-              pv.package)
+              pv.package.name)
 
 def patch_file(distro, pv, slipped=False):
     """Return the location of a local patch file."""
     path = "%s/%s_%s" % (patch_directory(distro, pv),
-                         pv.package, pv.version)
+                         pv.package.name, pv.version)
     if slipped:
         return path + ".slipped-patch"
     else:
@@ -137,7 +137,7 @@ def published_file(distro, pv):
     """Return the location where published patches should be placed."""
     return "%s/published/%s/%s/%s_%s.patch" \
            % (config.get('ROOT'), pathhash(pv.package.name),
-              pv.package, pv.package, pv.version)
+              pv.package.name, pv.package.name, pv.version)
 
 def patch_list_file():
     """Return the location of the patch list."""
