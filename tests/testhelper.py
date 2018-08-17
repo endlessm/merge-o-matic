@@ -152,7 +152,7 @@ class TestPackage(object):
 def standard_simple_config(num_stable_sources=1, num_unstable_sources=0):
   config_create_root()
   target_repo = TestRepo('stable', [ 'main' ])
-  config_add_distro_from_repo('target', target_repo)
+  config_add_distro_from_repo('target', target_repo, obs=True)
 
   stable_source_repos = []
   stable_source_distros = []
@@ -236,7 +236,7 @@ def config_create_root():
 
 
 # Add a DISTROS config definition
-def config_add_distro(name, path, dists=[ 'stable' ], components=[ 'main' ]):
+def config_add_distro(name, path, dists=[ 'stable' ], components=[ 'main' ], obs=False):
   if not hasattr(config.configdb, 'DISTROS'):
     config.configdb.DISTROS = {}
 
@@ -247,11 +247,17 @@ def config_add_distro(name, path, dists=[ 'stable' ], components=[ 'main' ]):
     'expire': True,
   }
 
+  if obs:
+    config.configdb.DISTROS[name]['obs'] = {
+      'web': 'https://fake',
+      'url': 'https://fake',
+      'project': 'mom',
+    }
 
 # Add a DISTROS config definition from a TestRepo object
-def config_add_distro_from_repo(name, repo):
+def config_add_distro_from_repo(name, repo, obs=False):
   config_add_distro(name, 'file://' + repo.path,
-                    [ repo.dist ], repo.components)
+                    [ repo.dist ], repo.components, obs)
 
 
 # Add a DISTRO_SOURCES config option

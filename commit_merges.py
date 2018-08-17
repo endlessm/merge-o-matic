@@ -59,7 +59,7 @@ def main(options, args):
           continue
 
         try:
-          output_dir = result_dir(target.name, pkg.name)
+          output_dir = result_dir(target.name, package.name)
           report = read_report(output_dir)
         except ValueError:
           logger.debug('Skipping package %s: unable to read report',
@@ -83,6 +83,9 @@ def main(options, args):
         if filepaths == []:
             logger.warning("Empty merged file list in %s/REPORT" % output_dir)
             continue
+
+        if 'MOM_TEST' in os.environ:
+          continue
 
         if target.committable:
           # we can commit directly to the target distribution

@@ -236,6 +236,9 @@ Regards,
             filename='%s_REPORT.json' % report.source_package)
     message.attach(json_part)
 
+    if 'MOM_TEST' in os.environ:
+        return
+
     with open(output_dir + '/action_needed.eml.tmp', 'w') as email:
         email.write(message.as_string())
 

@@ -177,10 +177,6 @@ class OBSDistro(Distro):
     """
     return OBSDistro(name, self)
 
-  def mirrorURL(self, dist, component):
-    mirror = self.config("mirror")
-    return mirror
-
 class OBSPackage(Package):
   def __init__(self, distro, dist, component, name):
     super(OBSPackage, self).__init__(distro, dist, component, name)
