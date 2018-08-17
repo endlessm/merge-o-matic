@@ -97,16 +97,8 @@ def handle_package(options, output_dir, target, pkg, our_version):
     report.result = MergeResult.NO_BASE
     return report
 
-  upstream = None
-  base = None
-  pool_versions = target.getAllPoolVersions(pkg.name)
-  for pv in pool_versions:
-    if pv.version == update_info.upstream_version:
-      upstream = pv
-    if pv.version == update_info.base_version:
-      base = pv
-
-  if upstream is None:
+  upstream = target.findSourcePackage(pkg.name, update_info.upstream_version)
+  if not upstream:
     logger.error('Could not find upstream version %s in pool',
                  update_info.upstream_version)
     cleanup(output_dir)
@@ -116,6 +108,13 @@ def handle_package(options, output_dir, target, pkg, our_version):
     report.message = 'Could not find upstream version %s in pool' \
                      % update_info.upstream_version
     return report
+
+  upstream = upstream[0]
+  base = None
+  pool_versions = target.getAllPoolVersions(pkg.name)
+  for pv in pool_versions:
+    if pv.version == update_info.base_version:
+      base = pv
 
   if base is None:
     logger.error('Could not find base version %s in pool',
