@@ -68,7 +68,7 @@ def options(parser):
 
 # Handle the merge of a specific package, returning the new merge report,
 # or None if there was already a merge report that is still valid.
-def handle_package(output_dir, target, pkg, our_version):
+def handle_package(options, output_dir, target, pkg, our_version):
   update_info = UpdateInfo(pkg)
 
   if update_info.version is None:
@@ -223,7 +223,8 @@ def main(options, args):
 
           output_dir = result_dir(target.name, pkg.name)
           try:
-            report = handle_package(output_dir, target, pkg, our_version)
+            report = handle_package(options, output_dir, target, pkg,
+                                    our_version)
             if report is not None:
               report.write_report(output_dir)
           except Exception:
