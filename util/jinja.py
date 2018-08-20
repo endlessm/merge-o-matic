@@ -36,10 +36,12 @@
 
 import sys
 
+
 def patch_environment(env):
     """Give a jinja2 environment a backported urlencode filter."""
     if 'urlencode' not in env.filters:
         env.filters['urlencode'] = do_urlencode
+
 
 # Code below this point is an excerpt from jinja2 version 2.7.2
 
@@ -58,6 +60,7 @@ try:
 except ImportError:
     from urllib import quote as url_quote
 
+
 def unicode_urlencode(obj, charset='utf-8'):
     """URL escapes a single bytestring or unicode string with the
     given charset if applicable to URL safe quoting under all rules
@@ -71,6 +74,7 @@ def unicode_urlencode(obj, charset='utf-8'):
     if isinstance(obj, text_type):
         obj = obj.encode(charset)
     return text_type(url_quote(obj))
+
 
 def do_urlencode(value):
     """Escape strings for use in URLs (uses UTF-8 encoding).  It accepts both

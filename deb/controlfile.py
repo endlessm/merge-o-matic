@@ -21,6 +21,7 @@ from __future__ import with_statement
 
 import gzip
 
+
 class ControlFile(object):
     """Debian control file.
 
@@ -62,7 +63,7 @@ class ControlFile(object):
             if canon.lower() == field.lower():
                 return canon
 
-        return "-".join([ w.title() for w in field.split("-") ])
+        return "-".join([w.title() for w in field.split("-")])
 
     def open(self, file, *args, **kwds):
         """Open and parse a control-file format file."""
@@ -119,7 +120,8 @@ class ControlFile(object):
                 if is_signed:
                     raise IOError
                 for line in file:
-                    if not len(line) or line.startswith("\n"): break
+                    if not len(line) or line.startswith("\n"):
+                        break
                 is_signed = True
 
             elif not len(line):

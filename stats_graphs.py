@@ -20,9 +20,9 @@
 from __future__ import with_statement
 
 import calendar
+from contextlib import closing
 import datetime
 import logging
-from contextlib import closing
 
 from pychart import *
 
@@ -32,8 +32,8 @@ from util import run
 logger = logging.getLogger('stats_graphs')
 
 # Order of stats we pick out
-ORDER = [ "needs-merge", "modified", "unmodified",
-          "needs-sync", "local", "repackaged" ]
+ORDER = ["needs-merge", "modified", "unmodified",
+         "needs-sync", "local", "repackaged"]
 
 # Labels used on the graph
 LABELS = {
@@ -71,10 +71,11 @@ def options(parser):
                       default=None,
                       help="Distribution target to generate stats for")
 
+
 def main(options, args):
     if options.package:
-      logger.info("Skipping stats since -p was specified.")
-      return
+        logger.info("Skipping stats since -p was specified.")
+        return
 
     logger.info('Drawing graphs...')
 
@@ -95,28 +96,30 @@ def main(options, args):
     start = trend_start(today)
     events = get_events(stats, start)
 
-    # Iterate the distribution targets and calculate the peaks over the last six
-    # months, as well as the current stats
+    # Iterate the distribution targets and calculate the peaks over the last
+    # six months, as well as the current stats
     for target in targets:
         # Extract current and historical stats for this target
         current = get_current(stats[target])
         history = get_history(stats[target], start)
 
         try:
-          pie_chart(target, current)
-          range_chart(target, history, start, today, events)
-        except:
-          continue
+            pie_chart(target, current)
+            range_chart(target, history, start, today, events)
+        except Exception:
+            continue
 
 
 def date_to_datetime(s):
     """Convert a date string into a datetime."""
-    (year, mon, day) = [ int(x) for x in s.split("-", 2) ]
+    (year, mon, day) = [int(x) for x in s.split("-", 2)]
     return datetime.date(year, mon, day)
+
 
 def date_to_ordinal(s):
     """Convert a date string into an ordinal."""
     return date_to_datetime(s).toordinal()
+
 
 def ordinal_to_label(o):
     """Convert an ordinal into a chart label."""
@@ -155,6 +158,7 @@ def read_stats():
 
     return stats
 
+
 def get_events(stats, start):
     """Get the list of interesting events."""
     events = []
@@ -164,6 +168,7 @@ def get_events(stats, start):
                 events.append((date, info))
 
     return events
+
 
 def info_to_data(date, info):
     """Convert an optional date and information set into a data set."""
@@ -183,6 +188,7 @@ def get_current(stats):
     (date, time, info) = stats[-1]
     return info
 
+
 def get_history(stats, start):
     """Get historical information for each day since start."""
     values = {}
@@ -192,7 +198,7 @@ def get_history(stats, start):
 
     dates = sorted(values.keys())
 
-    return [ (d, values[d]) for d in dates ]
+    return [(d, values[d]) for d in dates]
 
 
 def date_tics(min, max):
@@ -203,6 +209,7 @@ def date_tics(min, max):
             intervals.append(tic)
 
     return intervals
+
 
 def sources_intervals(max):
     """Return the standard and minimal interval for the sources axis."""
@@ -220,51 +227,52 @@ def sources_intervals(max):
 
 def pie_chart(target, current):
     """Output a pie chart for the given target and data."""
-    data = zip([ LABELS[key] for key in ORDER ],
+    data = zip([LABELS[key] for key in ORDER],
                info_to_data(None, current))
 
     filename = "%s/merges/%s-now.png" % (config.get('ROOT'), target)
     tree.ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
-        ar = area.T(size=(300,250), legend=None,
+        ar = area.T(size=(300, 250), legend=None,
                     x_grid_style=None, y_grid_style=None)
 
         plot = pie_plot.T(data=data, arrow_style=arrow.a0, label_offset=25,
                           shadow=(2, -2, fill_style.gray50),
-                          arc_offsets=[ ARC_OFFSETS[key] for key in ORDER ],
-                          fill_styles=[ FILL_STYLES[key] for key in ORDER ])
+                          arc_offsets=[ARC_OFFSETS[key] for key in ORDER],
+                          fill_styles=[FILL_STYLES[key] for key in ORDER])
         ar.add_plot(plot)
 
         ar.draw(c)
 
+
 def range_chart(target, history, start, today, events):
     """Output a range chart for the given target and data."""
-    data = chart_data.transform(lambda x: [ date_to_ordinal(x[0]),
-                                            sum(x[1:1]),
-                                            sum(x[1:2]),
-                                            sum(x[1:3]),
-                                            sum(x[1:4]),
-                                            sum(x[1:5]),
-                                            sum(x[1:6]),
-                                            sum(x[1:7]) ],
-                                [ info_to_data(date, info)
-                                        for date, info in history ])
+    data = chart_data.transform(lambda x: [date_to_ordinal(x[0]),
+                                           sum(x[1:1]),
+                                           sum(x[1:2]),
+                                           sum(x[1:3]),
+                                           sum(x[1:4]),
+                                           sum(x[1:5]),
+                                           sum(x[1:6]),
+                                           sum(x[1:7])],
+                                [info_to_data(date, info)
+                                 for date, info in history])
 
     (y_tic_interval, y_minor_tic_interval) = \
-                     sources_intervals(max(d[-1] for d in data))
+        sources_intervals(max(d[-1] for d in data))
 
     filename = "%s/merges/%s-trend.png" % (config.get('ROOT'), target)
     tree.ensure(filename)
     with closing(canvas.init(filename, format="png")) as c:
-        ar = area.T(size=(450,225), legend=legend.T(),
+        ar = area.T(size=(450, 225), legend=legend.T(),
                     x_axis=axis.X(label="Date", format=ordinal_to_label,
                                   tic_interval=date_tics,
-                                  tic_label_offset=(10,0)),
+                                  tic_label_offset=(10, 0)),
                     y_axis=axis.Y(label="Sources", format="%d",
                                   tic_interval=y_tic_interval,
                                   minor_tic_interval=y_minor_tic_interval,
-                                  tic_label_offset=(-10,0),
-                                  label_offset=(-10,0)),
+                                  tic_label_offset=(-10, 0),
+                                  label_offset=(-10, 0)),
                     x_range=(start.toordinal(), today.toordinal()))
 
         for idx, key in enumerate(ORDER):
@@ -275,7 +283,7 @@ def range_chart(target, history, start, today, events):
 
         ar.draw(c)
 
-        levels = [ 0, 0, 0 ]
+        levels = [0, 0, 0]
 
         for date, text in events:
             xpos = ar.x_pos(date_to_ordinal(date))

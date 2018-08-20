@@ -84,7 +84,8 @@ class Version(object):
         if not len(self.upstream):
             raise ValueError
         if not valid_upstream.search(self.upstream):
-            raise ValueError, "%s is not a valid upstream version"%self.upstream
+            raise ValueError("%s is not a valid upstream version"
+                             % self.upstream)
 
     def getWithoutEpoch(self):
         """Return the version without the epoch."""
@@ -116,13 +117,16 @@ class Version(object):
         other = Version(other)
 
         result = cmp(self.epoch, other.epoch)
-        if result != 0: return result
+        if result != 0:
+            return result
 
         result = deb_cmp(self.upstream, other.upstream)
-        if result != 0: return result
+        if result != 0:
+            return result
 
         result = deb_cmp(self.revision or "", other.revision or "")
-        if result != 0: return result
+        if result != 0:
+            return result
 
         return 0
 
@@ -143,7 +147,7 @@ class Version(object):
             return text[:idx]
         v = strip_suffix(str(self), "build")
         if config.get('LOCAL_SUFFIX') is not None:
-          v = strip_suffix(v, config.get('LOCAL_SUFFIX'))
+            v = strip_suffix(v, config.get('LOCAL_SUFFIX'))
         v = strip_suffix(v, "co")
         v = strip_suffix(v, "ubuntu")
         if v.endswith("-"):
@@ -162,6 +166,7 @@ def strcut(str, idx, accept):
 
     return (ret, idx)
 
+
 def deb_order(str, idx):
     """Return the comparison order of two characters."""
     if idx >= len(str):
@@ -170,6 +175,7 @@ def deb_order(str, idx):
         return -1
     else:
         return cmp_table.index(str[idx])
+
 
 def deb_cmp_str(x, y):
     """Compare two strings in a deb version."""
@@ -185,6 +191,7 @@ def deb_cmp_str(x, y):
 
     return 0
 
+
 def deb_cmp(x, y):
     """Implement the string comparison outlined by Debian policy."""
     x_idx = y_idx = 0
@@ -193,12 +200,14 @@ def deb_cmp(x, y):
         (x_str, x_idx) = strcut(x, x_idx, cmp_table)
         (y_str, y_idx) = strcut(y, y_idx, cmp_table)
         result = deb_cmp_str(x_str, y_str)
-        if result != 0: return result
+        if result != 0:
+            return result
 
         # Compare numbers
         (x_str, x_idx) = strcut(x, x_idx, "0123456789")
         (y_str, y_idx) = strcut(y, y_idx, "0123456789")
         result = cmp(int(x_str or "0"), int(y_str or "0"))
-        if result != 0: return result
+        if result != 0:
+            return result
 
     return 0

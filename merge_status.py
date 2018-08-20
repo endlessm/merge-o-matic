@@ -27,19 +27,20 @@ from rfc822 import parseaddr
 
 import config
 from merge_report import (read_report, MergeResult)
-from momlib import *
 from model import Distro, OBSDistro
+from momlib import *
 from util import run
 
 # Order of priorities
-PRIORITY = [ "unknown", "required", "important", "standard", "optional",
-             "extra" ]
-COLOURS =  [ "#fffd80", "#ffb580", "#ffea80", "#dfff80", "#abff80", "#80ff8b" ]
+PRIORITY = ["unknown", "required", "important", "standard", "optional",
+            "extra"]
+COLOURS = ["#fffd80", "#ffb580", "#ffea80", "#dfff80", "#abff80", "#80ff8b"]
 
 # Sections
-SECTIONS = [ "outstanding", "new", "committed" ]
+SECTIONS = ["outstanding", "new", "committed"]
 
 logger = logging.getLogger('merge_status')
+
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
@@ -52,6 +53,7 @@ def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Distribution target to use")
+
 
 def main(options, args):
     logger.info('Summarizing merge status...')
@@ -76,7 +78,8 @@ def main(options, args):
     # there's an open merge, and if so add an entry to the table for it.
     for target in targets:
         logger.info('Considering target %s', target)
-        our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+        our_distro, our_dist, our_component = \
+            get_target_distro_dist_component(target)
         merges = []
 
         d = Distro.get(our_distro)
@@ -108,9 +111,9 @@ def main(options, args):
                 section = "new"
 
             merges.append((section, priority_idx, source["Package"],
-                        source, report["base_version"],
-                        report["left_version"], report["right_version"],
-                        report["right_distro"], output_dir, report))
+                           source, report["base_version"],
+                           report["left_version"], report["right_version"],
+                           report["right_distro"], output_dir, report))
 
         merges.sort()
 
@@ -136,9 +139,9 @@ def get_uploader(distro, source):
     else:
         return None
 
-    filename = "%s/pool/%s/%s/%s/%s" \
-            % (config.get('ROOT'), distro, pathhash(source["Package"]),
-               source["Package"], dsc_file)
+    filename = "%s/pool/%s/%s/%s/%s" % (
+        config.get('ROOT'), distro, pathhash(source["Package"]),
+        source["Package"], dsc_file)
 
     (a, b, c) = os.popen3("gpg --verify %s" % filename)
     stdout = c.readlines()
@@ -157,7 +160,8 @@ def write_status_page(target, merges, our_distro, obsProject):
         print >>status, "<html>"
         print >>status
         print >>status, "<head>"
-        print >>status, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
+        print >>status, "<meta http-equiv=\"Content-Type\" " \
+            "content=\"text/html; charset=utf-8\">"
         print >>status, "<title>Merge-o-Matic: %s</title>" % target
         print >>status, "<style>"
         print >>status, "h1 {"
@@ -189,7 +193,7 @@ def write_status_page(target, merges, our_distro, obsProject):
         print >>status, "<h1>Merge-o-Matic: %s</h1>" % target
 
         for section in SECTIONS:
-            section_merges = [ m for m in merges if m[0] == section ]
+            section_merges = [m for m in merges if m[0] == section]
             print >>status, ("<p><a href=\"#%s\">%s %s merges</a></p>"
                              % (section, len(section_merges), section))
 
@@ -199,13 +203,13 @@ def write_status_page(target, merges, our_distro, obsProject):
             comments = {}
 
         for section in SECTIONS:
-            section_merges = [ m for m in merges if m[0] == section ]
+            section_merges = [m for m in merges if m[0] == section]
 
             print >>status, ("<h2 id=\"%s\">%s Merges</h2>"
                              % (section, section.title()))
 
             do_table(status, section_merges, comments, our_distro, target,
-                obsProject)
+                     obsProject)
 
         print >>status, "<h2 id=stats>Statistics</h2>"
         print >>status, ("<img src=\"%s-now.png\" title=\"Current stats\">"
@@ -217,6 +221,7 @@ def write_status_page(target, merges, our_distro, obsProject):
 
     os.rename(status_file + ".new", status_file)
 
+
 def do_table(status, merges, comments, our_distro, target, obsProject):
     """Output a table."""
 
@@ -227,7 +232,8 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
         # not really human-usable but it's the best we can do
         web_ui = target_object.distro.config('obs', 'url')
 
-    default_src_distro =config.get('DISTRO_SOURCES')[config.get('DISTRO_TARGETS')[target]["sources"][0]][0]["distro"]
+    target = config.get('DISTRO_TARGETS')[target]["sources"][0]
+    default_src_distro = config.get('DISTRO_SOURCES')[target][0]["distro"]
 
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
@@ -250,22 +256,26 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
 
         if os.path.exists(output_dir + '/REPORT.html'):
             print >>status, "<td><tt><a href=\"%s/REPORT.html\">" \
-                  "%s</a></tt>" % (re.sub('^' + escaped_root, '../', output_dir, 1), package)
+                  "%s</a></tt>" % (re.sub('^' + escaped_root, '../',
+                                   output_dir, 1), package)
         else:
             print >>status, "<td><tt><a href=\"%s/REPORT\">" \
-                  "%s</a></tt>" % (re.sub('^' + escaped_root, '../', output_dir, 1), package)
+                  "%s</a></tt>" % (re.sub('^' + escaped_root, '../',
+                                   output_dir, 1), package)
 
         if os.path.exists(output_dir + '/REPORT.json'):
             print >>status, " <sup><a href=\"%s/REPORT.json\">" \
-                  "JSON</a></sup>" % (re.sub('^' + escaped_root, '../', output_dir, 1))
+                  "JSON</a></sup>" % (re.sub('^' + escaped_root, '../',
+                                      output_dir, 1))
 
         print >>status, " <sup><a href=\"https://launchpad.net/ubuntu/" \
-              "+source/%s\">LP</a></sup>" % package
+            "+source/%s\">LP</a></sup>" % package
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \
-              "%s\">PTS</a></sup>" % package
+            "%s\">PTS</a></sup>" % package
         print >>status, " <sup><a href=\"%s/package/show?package=%s" \
-              "&project=%s\">OBS</a></sup></td>" % (web_ui, package, obsProject)
-        print >>status, "<td rowspan=2>%s</td>" % (comments[package] if package in comments else "")
+            "&project=%s\">OBS</a></sup></td>" % (web_ui, package, obsProject)
+        print >>status, "<td rowspan=2>%s</td>" % (
+            comments[package] if package in comments else "")
         print >>status, "</tr>"
         print >>status, "<tr bgcolor=%s>" % COLOURS[priority]
         print >>status, "<td><small>%s</small></td>" % source["Binary"]
@@ -302,8 +312,9 @@ def write_status_json(target, merges):
             # Harvest (http://daniel.holba.ch/blog/?p=838).
             print >>status, '"source_package": "%s",' % package,
             print >>status, '"short_description": "merge %s",' % right_version,
-            print >>status, '"link": "%s/%s/",' \
-                % (config.get('MOM_URL').rstrip('/'), os.path.relpath(output_dir, config.get('ROOT'))),
+            print >>status, '"link": "%s/%s/",' % (
+                config.get('MOM_URL').rstrip('/'),
+                os.path.relpath(output_dir, config.get('ROOT'))),
             print >>status, '"uploaded": "%s",' % uploaded,
             print >>status, '"priority": "%s",' % priority,
             binaries = re.split(', *', source["Binary"].replace('\n', ''))
@@ -338,13 +349,13 @@ def write_status_file(status_file, merges):
                 output_dir, report in merges:
             if base_version is None:
                 base_version = "???"
-            print >>status, "%s %s %s %s %s, %s" \
-                  % (package, priority, base_version,
-                     left_version, right_version, uploaded)
+            print >>status, "%s %s %s %s %s, %s" % (package, priority,
+                                                    base_version, left_version,
+                                                    right_version, uploaded)
 
     os.rename(status_file + ".new", status_file)
+
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",
         description="output merge status")
-

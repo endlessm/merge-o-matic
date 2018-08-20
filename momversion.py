@@ -6,6 +6,6 @@ import subprocess
 
 try:
     VERSION = subprocess.check_output(os.path.join(os.path.dirname(__file__),
-        './get-version.sh')).strip()
-except:
+                                                   './get-version.sh')).strip()
+except Exception:
     VERSION = '0~unknown-version'

@@ -20,16 +20,18 @@
 import os
 import logging
 
+from model import Distro
 from momlib import *
 from util import tree, run
-from model import Distro
 
 logger = logging.getLogger('publish_patches')
+
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Distribution target to publish patches for")
+
 
 def main(options, args):
     logger.info('Comparing target packages with source distros...')
@@ -44,10 +46,11 @@ def main(options, args):
     tree.ensure(list_filename)
     list_file = open(list_filename + ".new", "w")
     try:
-        # For latest version of each package in the distribution, check for a patch for the
-        # current version; publish if it exists, clean up if not
+        # For latest version of each package in the distribution, check for a
+        # patch for the current version; publish if it exists, clean up if not
         for target in targets:
-            our_distro, our_dist, our_component = get_target_distro_dist_component(target)
+            our_distro, our_dist, our_component = \
+                get_target_distro_dist_component(target)
             d = Distro.get(our_distro)
             for pv in d.newestPackageVersions(our_dist, our_component):
                 if options.package and pv.package.name not in options.package:
@@ -86,7 +89,8 @@ def publish_patch(distro, pv, filename, list_file):
     logger.info("Published %s", tree.subdir(config.get('ROOT'),
                                             publish_filename))
     print >>list_file, "%s %s" % (pv.package,
-                                  tree.subdir("%s/published" % config.get('ROOT'),
+                                  tree.subdir("%s/published" %
+                                              config.get('ROOT'),
                                               publish_filename))
 
     # Remove older patches
@@ -114,6 +118,7 @@ def publish_patch(distro, pv, filename, list_file):
                                                     dest_filename))
             tree.ensure(dest_filename)
             tree.copyfile(src_filename, dest_filename)
+
 
 def unpublish_patch(distro, pv):
     """Remove any published patch."""

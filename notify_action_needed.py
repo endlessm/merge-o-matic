@@ -15,13 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
-import os
-from smtplib import SMTP
-
 from email.MIMEMultipart import (MIMEMultipart)
 from email.MIMEText import (MIMEText)
 from email.Utils import (formatdate, make_msgid)
+import logging
+import os
+from smtplib import SMTP
 
 import config
 from merge_report import (MergeResult, read_report)
@@ -31,10 +30,12 @@ from util import (run)
 
 logger = logging.getLogger('notify_action_needed')
 
+
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Process only this distribution target")
+
 
 def notify_action_needed(target, output_dir, report):
     try:
@@ -61,7 +62,7 @@ def notify_action_needed(target, output_dir, report):
     if obs_project is None:
         # guess something reasonable
         obs_project = ':'.join((report.left_distro, report.left_suite,
-            report.left_component))
+                                report.left_component))
 
     rel_output_dir = output_dir
     if rel_output_dir.startswith(ROOT):
@@ -75,7 +76,7 @@ def notify_action_needed(target, output_dir, report):
     # [NO_BASE] dderivative:alpha:main/hello-debhelper
     # [SYNC_THEIRS] dderivative:alpha:main/hello       (if not committable)
     subject = '[%s] %s/%s' % (report.result, obs_project,
-            report.source_package)
+                              report.source_package)
     logger.info('%s', subject)
 
     message = MIMEMultipart()
@@ -84,7 +85,7 @@ def notify_action_needed(target, output_dir, report):
     message.add_header('Date', formatdate())
     message.add_header('Message-ID', make_msgid())
     message.add_header('X-Your-Mom', '%s %s' % (MOM_URL,
-        report.source_package))
+                                                report.source_package))
     message.add_header('Subject', subject)
 
     if report.result == MergeResult.CONFLICTS:
@@ -218,8 +219,8 @@ More information at:
 Regards,
     the Merge-o-Matic instance at <%(MOM_URL)s>
 """ % {
-    'MOM_URL': MOM_URL,
-    'rel_output_dir': rel_output_dir,
+        'MOM_URL': MOM_URL,
+        'rel_output_dir': rel_output_dir,
     })
 
     message.attach(MIMEText(text))
@@ -228,12 +229,12 @@ Regards,
         cl_part = MIMEText(
                 open(output_dir + '/' + report.right_changelog).read())
         cl_part.add_header('Content-Disposition', 'inline',
-                filename=report.right_changelog)
+                           filename=report.right_changelog)
         message.attach(cl_part)
 
     json_part = MIMEText(open(output_dir + '/REPORT.json').read())
     json_part.add_header('Content-Disposition', 'inline',
-            filename='%s_REPORT.json' % report.source_package)
+                         filename='%s_REPORT.json' % report.source_package)
     message.attach(json_part)
 
     if 'MOM_TEST' in os.environ:
@@ -249,7 +250,7 @@ Regards,
         message.replace_header('To', addr)
         try:
             smtp.sendmail(MOM_EMAIL, addr, message.as_string())
-        except:
+        except Exception:
             logger.exception('sending to %s failed:', addr)
             all_ok = False
             smtp = SMTP('localhost')
@@ -257,7 +258,8 @@ Regards,
     # If all emails succeeded,
     if all_ok:
         os.rename(output_dir + '/action_needed.eml.tmp',
-                output_dir + '/action_needed.eml')
+                  output_dir + '/action_needed.eml')
+
 
 def main(options, args):
     logger.debug('Sending email if actions are needed...')
@@ -289,20 +291,21 @@ def main(options, args):
 
             if report.result == MergeResult.KEEP_OURS:
                 logger.debug('Skipping package %s: result=%s',
-                        pkg.name, report.result)
+                             pkg.name, report.result)
                 continue
 
-            if (target.committable and report.result in (MergeResult.MERGED,
-                    MergeResult.SYNC_THEIRS)):
+            if (target.committable
+                    and report.result in (MergeResult.MERGED,
+                                          MergeResult.SYNC_THEIRS)):
                 logger.debug('Skipping package %s: result=%s, would already '
-                        'have been committed',
-                        pkg.name, report.result)
+                             'have been committed', pkg.name, report.result)
                 continue
 
             try:
                 notify_action_needed(target, output_dir, report)
             except Exception:
                 logger.exception('Error processing %s:', pkg.name)
+
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",

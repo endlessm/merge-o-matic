@@ -18,14 +18,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-
-from momlib import *
-from deb.version import Version
-from util import tree, run
 from re import search
+
+import config
+from deb.version import Version
 from model import Distro
 import model.error
-import config
+from momlib import *
+from util import tree, run
+
 
 def generate_patch(base, distro, ours,
                    slipped=False, force=False, unpacked=False):

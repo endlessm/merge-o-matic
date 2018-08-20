@@ -20,51 +20,56 @@
 import os
 import logging
 
-from momlib import *
-from util import tree, run
-from model.base import (Distro, PackageVersion)
 import config
+from momlib import *
+from model.base import (Distro, PackageVersion)
+from util import tree, run
+
+logger = logging.getLogger('generate_diffs')
+
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Process only this distribution target")
 
-logger = logging.getLogger('generate_diffs')
 
 def main(options, args):
     logger.info('Comparing current and previous versions in source distros...')
 
-    # For latest version of each package in the given distributions, iterate the pool in order
-    # and generate a diff from the previous version and a changes file
+    # For latest version of each package in the given distributions, iterate
+    # the pool in order and generate a diff from the previous version and a
+    # changes file
     for target in config.targets(args):
-      d = target.distro
-      for pkg in d.packages(target.dist, target.component):
-        if options.package and pkg.name not in options.package:
-          continue
-        if pkg.name in target.blacklist:
-          logger.debug("%s is blacklisted, skipping", source['Package'])
-          continue
+        d = target.distro
+        for pkg in d.packages(target.dist, target.component):
+            if options.package and pkg.name not in options.package:
+                continue
+            if pkg.name in target.blacklist:
+                logger.debug("%s is blacklisted, skipping", source['Package'])
+                continue
 
-        pvs = pkg.getPoolVersions()
-        pvs.sort()
+            pvs = pkg.getPoolVersions()
+            pvs.sort()
 
-        last = None
-        try:
-          for pv in pvs:
+            last = None
             try:
-              generate_diff(last, pv)
-            except model.error.PackageNotFound:
-              logger.exception("Could not find a package to diff against.")
-            except ValueError:
-              logger.exception("Could not find a .dsc file, perhaps it moved components?")
+                for pv in pvs:
+                    try:
+                        generate_diff(last, pv)
+                    except model.error.PackageNotFound:
+                        logger.exception("Could not find a package to diff "
+                                         "against.")
+                    except ValueError:
+                        logger.exception("Could not find a .dsc file, "
+                                         "perhaps it moved components?")
+                    finally:
+                        if last is not None:
+                            cleanup_source(pv)
+                    last = pv
             finally:
-              if last is not None:
-                cleanup_source(pv)
-            last = pv
-        finally:
-          if last is not None:
-            cleanup_source(pv)
+                if last is not None:
+                    cleanup_source(pv)
 
 
 def generate_diff(last, this):
@@ -72,21 +77,21 @@ def generate_diff(last, this):
 
     changes_filename = changes_file(this.package.distro, this)
     if last is None:
-      return
+        return
     if not os.path.isfile(changes_filename) \
             and not os.path.isfile(changes_filename + ".bz2"):
         try:
-          unpack_source(this)
+            unpack_source(this)
         except ValueError:
-          logger.exception("Couldn't unpack %s.", this)
-          return
+            logger.exception("Couldn't unpack %s.", this)
+            return
         try:
             save_changes_file(changes_filename, this, last)
             logger.info("Saved changes file: %s",
-                          tree.subdir(config.get('ROOT'), changes_filename))
+                        tree.subdir(config.get('ROOT'), changes_filename))
         except (ValueError, OSError):
             logger.error("dpkg-genchanges for %s failed",
-                          tree.subdir(config.get('ROOT'), changes_filename))
+                         tree.subdir(config.get('ROOT'), changes_filename))
 
     logger.debug("Producing diff from %s to %s", this, last)
     diff_filename = diff_file(this.package.distro.name, this)

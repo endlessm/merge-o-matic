@@ -20,39 +20,42 @@
 import os
 import logging
 
-from momlib import *
-from util import tree, run
+import config
 from model import Distro
 import model.error
-import config
+from momlib import *
+from util import tree, run
 
 logger = logging.getLogger('generate_dpatches')
+
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       default=None,
                       help="Process only this distribution target")
 
+
 def main(options, args):
     logger.info('Extracting debian/patches from packages...')
 
     for target in config.targets(args):
-      d = target.distro
-      for pkg in d.packages(target.dist, target.component):
-        if options.package and pkg.name not in options.package:
-          continue
-        if pkg.name in target.blacklist:
-          logger.debug("%s is blacklisted,skipping", source['Package'])
-          continue
+        d = target.distro
+        for pkg in d.packages(target.dist, target.component):
+            if options.package and pkg.name not in options.package:
+                continue
+            if pkg.name in target.blacklist:
+                logger.debug("%s is blacklisted,skipping", source['Package'])
+                continue
 
-        pvs = pkg.getPoolVersions()
-        pvs.sort()
-        for pv in pvs:
-          try:
-            generate_dpatch(d.name, pv)
-          except model.error.PackageNotFound:
-            logger.exception("Could not find %s/%s for unpacking. How odd.",
-                pkg, version)
+            pvs = pkg.getPoolVersions()
+            pvs.sort()
+            for pv in pvs:
+                try:
+                    generate_dpatch(d.name, pv)
+                except model.error.PackageNotFound:
+                    logger.exception("Could not find %s/%s for unpacking.",
+                                     pkg, version)
+
 
 def generate_dpatch(distro, pv):
     """Generate the extracted patches."""
@@ -74,6 +77,7 @@ def generate_dpatch(distro, pv):
                                                           dirname))
         finally:
             cleanup_source(pv)
+
 
 def extract_dpatches(dirname, pv):
     """Extract patches from debian/patches."""

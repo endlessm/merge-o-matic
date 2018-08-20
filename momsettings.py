@@ -37,8 +37,8 @@ DISTROS = {
             "project": "dderivative",
         },
         "mirror": "http://%s:82/shared/dderivative/" % _OBS_SERVER,
-        "dists": [ "alpha", "beta" ],
-        "components": [ "main", "contrib", "non-free" ],
+        "dists": ["alpha", "beta"],
+        "components": ["main", "contrib", "non-free"],
         "expire": True,
     },
     # uderivative: an example Ubuntu derivative in the same OBS instance
@@ -51,8 +51,8 @@ DISTROS = {
             "project": "home:somebody:uderivative",
         },
         "mirror": "http://%s:82/shared/somebody-uderivative/" % _OBS_SERVER,
-        "dists": [ "aardvark", "badger" ],
-        "components": [ "misc", "other" ],
+        "dists": ["aardvark", "badger"],
+        "components": ["misc", "other"],
         "expire": True,
     },
     # Ubuntu, an upstream project from which we can pull packages
@@ -62,7 +62,7 @@ DISTROS = {
             "precise", "precise-updates", "precise-security",
             "raring", "raring-updates", "raring-security",
         ],
-        "components": [ "main", "restricted", "universe", "multiverse" ],
+        "components": ["main", "restricted", "universe", "multiverse"],
         "expire": True,
     },
     # Debian, another upstream project
@@ -74,15 +74,15 @@ DISTROS = {
             "jessie", "jessie-updates", "testing-proposed-updates",
             "unstable", "experimental",
         ],
-        "components": [ "main", "contrib", "non-free" ],
+        "components": ["main", "contrib", "non-free"],
         "expire": True,
     },
     # Debian's security updates are in a separate apt repository, so we
     # have to treat them like a separate upstream distro
     "debian-security": {
         "mirror": "http://security.debian.org",
-        "dists": [ "squeeze/updates", "wheezy/updates" ],
-        "components": [ "main", "contrib", "non-free" ],
+        "dists": ["squeeze/updates", "wheezy/updates"],
+        "components": ["main", "contrib", "non-free"],
         "expire": True,
     },
 }
@@ -91,66 +91,74 @@ DISTROS = {
 DISTRO_SOURCES = {
     # Ubuntu 'raring' and its updates
     'raring+updates': [
-        { "distro": "ubuntu", "dist": "raring-updates" },
-        { "distro": "ubuntu", "dist": "raring-security" },
-        { "distro": "ubuntu", "dist": "raring" },
+        {"distro": "ubuntu", "dist": "raring-updates"},
+        {"distro": "ubuntu", "dist": "raring-security"},
+        {"distro": "ubuntu", "dist": "raring"},
     ],
     # Ubuntu 'precise' and its updates
     'precise+updates': [
-        { "distro": "ubuntu", "dist": "precise-updates" },
-        { "distro": "ubuntu", "dist": "precise-security" },
-        { "distro": "ubuntu", "dist": "precise" },
+        {"distro": "ubuntu", "dist": "precise-updates"},
+        {"distro": "ubuntu", "dist": "precise-security"},
+        {"distro": "ubuntu", "dist": "precise"},
     ],
     # Debian unstable
     'unstable': [
-        { "distro": "debian", "dist": "unstable" },
+        {"distro": "debian", "dist": "unstable"},
     ],
     # Debian wheezy (Debian 7) and its updates, including security updates
     # from a separate apt repository
     'wheezy+updates': [
-        { "distro": "debian", "dist": "wheezy" },
-        { "distro": "debian", "dist": "wheezy-updates" },
-        { "distro": "debian-security", "dist": "wheezy/updates" },
+        {"distro": "debian", "dist": "wheezy"},
+        {"distro": "debian", "dist": "wheezy-updates"},
+        {"distro": "debian-security", "dist": "wheezy/updates"},
     ],
 }
 
 DISTRO_TARGETS = {}
 
+
 def defineDist(distro, name, upstreams, commitable,
-        sources_per_package=None, sync_upstream_packages=[], unstable_upstreams=[]):
-  """Adds an entry to DISTRO_TARGETS.
+               sources_per_package=None, sync_upstream_packages=[],
+               unstable_upstreams=[]):
+    """Adds an entry to DISTRO_TARGETS.
 
      @param name The name of the distro
-     @param upstream A key from DISTRO_SOURCES, linking this distro with a collection of upstream repos
-     @param commitable Whether or not you want to be able to commit to OBS, or submit merge requests.
+     @param upstream A key from DISTRO_SOURCES, linking this distro with a
+     collection of upstream repos
+     @param commitable Whether or not you want to be able to commit to OBS, or
+     submit merge requests.
      @param distro The distro to use
-     @param sources_per_package A dictionary setting upstream DISTRO_SOURCES for particular packages.
-     @param sync_upstream_packages A list of packages to prefer upstreams version instead of merging.
-     @param unstable_upstreams A list of distros to consider when our version base is newer than the standard distro upstream. This list is processed in order and only the first upstream distro that provides a suitable upgrade will be considered.
+     @param sources_per_package A dictionary setting upstream DISTRO_SOURCES
+     for particular packages.
+     @param sync_upstream_packages A list of packages to prefer upstreams
+     version instead of merging.
+     @param unstable_upstreams A list of distros to consider when our version
+     base is newer than the standard distro upstream. This list is processed in
+     order and only the first upstream distro that provides a suitable upgrade
+     will be considered.
   """
-  if sources_per_package is None:
-    sources_per_package = {}
+    if sources_per_package is None:
+        sources_per_package = {}
 
-  for component in DISTROS[distro]['components']:
-    DISTRO_TARGETS["%s-%s"%(name, component)] = {
-      'distro': distro,
-      'dist': name,
-      'component': component,
-      'sources': upstreams,
-      'unstable_sources': unstable_upstreams,
-      'commit': commitable,
-      'sources_per_package': sources_per_package,
-      'sync_upstream_packages': sync_upstream_packages,
-    }
+    for component in DISTROS[distro]['components']:
+        DISTRO_TARGETS["%s-%s" % (name, component)] = {
+            'distro': distro,
+            'dist': name,
+            'component': component,
+            'sources': upstreams,
+            'unstable_sources': unstable_upstreams,
+            'commit': commitable,
+            'sources_per_package': sources_per_package,
+            'sync_upstream_packages': sync_upstream_packages,
+        }
+
 
 # Some example targets:
 
 # dderivative alpha gets packages from Debian wheezy, except that we
 # need a newer version of miscfiles from unstable for some reason
 defineDist('dderivative', 'alpha', ['wheezy+updates'], False,
-      sources_per_package={
-        'miscfiles': [ 'unstable' ],
-      })
+           sources_per_package={'miscfiles': ['unstable']})
 # dderivative beta is entirely based on unstable
 defineDist('dderivative', 'beta', ['unstable'], False)
 # uderivative aardvark is based on Ubuntu precise
@@ -158,9 +166,7 @@ defineDist('uderivative', 'aardvark', ['precise+updates'], False)
 # uderivative badger is mostly based on Ubuntu raring, but picks up systemd
 # updates from Debian
 defineDist('uderivative', 'badger', ['raring+updates'], False,
-        sources_per_package={
-            'systemd': [ 'unstable' ],
-        })
+           sources_per_package={'systemd': ['unstable']})
 
 # Debian packaging revision suffix for the first derived version; for instance
 # Ubuntu's patched hello_1.2-3 package would be hello_1.2-3ubuntu1,

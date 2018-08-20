@@ -23,27 +23,31 @@ import os.path
 import shutil
 import sys
 
-from momversion import VERSION
-from util import run
 import config
-import update_sources
+import commit_merges
+import expire_pool
 import generate_diffs
 import generate_dpatches
+import merge_status
+from momversion import VERSION
+import notify_action_needed
 import publish_patches
 import produce_merges
-import commit_merges
-import notify_action_needed
+import update_sources
 import stats
 import stats_graphs
-import merge_status
-import expire_pool
+from util import run
+
+logger = logging.getLogger('main')
+
 
 def options(parser):
     parser.add_option("-t", "--target", type="string", metavar="TARGET",
                       help="Process only this distribution target")
-    parser.add_option("-d", "--dry-run", action="store_true", help="Don't actually fiddle with OBS, just print what would've happened.")
+    parser.add_option("-d", "--dry-run", action="store_true",
+                      help="Don't actually fiddle with OBS, just print what "
+                      "would've happened.")
 
-logger = logging.getLogger('main')
 
 def main(options, args):
     logger.info('starting Merge-o-Matic version %s', VERSION)
@@ -69,18 +73,20 @@ def main(options, args):
         try:
             logger.debug('Locking %r', lockdir)
             os.makedirs(lockdir)
-        except:
+        except Exception:
             raise Exception("LOCKED (another one running?)")
 
         try:
             if not os.path.isdir('%s/merges' % ROOT):
                 os.makedirs("%s/merges" % ROOT)
-            shutil.copy2("%s/addcomment.py" % codedir, "%s/merges/addcomment.py" % ROOT)
-        except:
+            shutil.copy2("%s/addcomment.py" % codedir,
+                         "%s/merges/addcomment.py" % ROOT)
+        except Exception:
             logger.exception('Unable to copy addcomment.py into %s/merges:',
-                    ROOT)
+                             ROOT)
 
-        # Update the Sources files against new packages that have been downloaded
+        # Update the Sources files against new packages that have been
+        # downloaded
         update_sources.main(options, args)
 
         # Generate changes, diffs and patches
@@ -120,6 +126,7 @@ def main(options, args):
             os.rmdir(lockdir)
         except Exception as e:
             logger.debug('Failed to unlock %r: %r', lockdir, e)
+
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",

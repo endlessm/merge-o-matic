@@ -19,36 +19,30 @@
 
 from __future__ import with_statement
 
+from cgi import escape
+import datetime
+import errno
+import fcntl
+import gzip
+from hashlib import md5
+import logging
+from optparse import OptionParser
 import os
 import re
 import sys
-try:
-    from hashlib import md5
-except ImportError:
-    import md5 as _mod_md5
-    md5 = _mod_md5.new
-import time
-import fcntl
-import gzip
-import errno
-import logging
-import datetime
 import shutil
 import stat
 import time
+
 import osc.core
 import osc.conf
-
-from cgi import escape
-from optparse import OptionParser
 
 import config
 from deb.controlfile import ControlFile
 from deb.version import Version
-from util import shell, tree, pathhash
-
 from model import Distro
 import model.error
+from util import shell, tree, pathhash
 
 try:
     from xml.etree import ElementTree
@@ -60,6 +54,7 @@ CL_RE = re.compile(r'^(\w[-+0-9a-z.]*) \(([^\(\) \t]+)\)((\s+[-0-9a-z]+)+)\;',
                    re.IGNORECASE)
 
 logger = logging.getLogger('momlib')
+
 
 # --------------------------------------------------------------------------- #
 # Utility functions
@@ -80,6 +75,7 @@ def cleanup(path):
 
         (dirname, basename) = os.path.split(dirname)
 
+
 def md5sum(filename):
     """Return an md5sum."""
     return md5(open(filename).read()).hexdigest()
@@ -95,11 +91,13 @@ def unpack_directory(pv):
                                      pathhash(pv.package.name),
                                      pv.package.name, pv.version)
 
+
 def changes_file(distro, pv):
     """Return the location of a local changes file."""
     return "%s/changes/%s/%s/%s/%s_%s_source.changes" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
               pv.package.name, pv.package.name, pv.version)
+
 
 def dpatch_directory(distro, pv):
     """Return the directory where we put dpatches."""
@@ -107,22 +105,26 @@ def dpatch_directory(distro, pv):
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
               pv.package.name, pv.version)
 
+
 def diff_directory(distro, pv):
     """Return the directory where we can find diffs."""
     return "%s/diffs/%s/%s/%s" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
               pv.package.name)
 
+
 def diff_file(distro, pv):
     """Return the location of a local diff file."""
     return "%s/%s_%s.patch" % (diff_directory(distro, pv),
                                pv.package.name, pv.version)
+
 
 def patch_directory(distro, pv):
     """Return the directory where we can find local patch files."""
     return "%s/patches/%s/%s/%s" \
            % (config.get('ROOT'), distro, pathhash(pv.package.name),
               pv.package.name)
+
 
 def patch_file(distro, pv, slipped=False):
     """Return the location of a local patch file."""
@@ -133,24 +135,30 @@ def patch_file(distro, pv, slipped=False):
     else:
         return path + ".patch"
 
+
 def published_file(distro, pv):
     """Return the location where published patches should be placed."""
     return "%s/published/%s/%s/%s_%s.patch" \
            % (config.get('ROOT'), pathhash(pv.package.name),
               pv.package.name, pv.package.name, pv.version)
 
+
 def patch_list_file():
     """Return the location of the patch list."""
     return "%s/published/PATCHES" % config.get('ROOT')
 
+
 def work_dir(package, version):
     """Return the directory to produce the merge result."""
-    return "%s/work/%s/%s/%s" % (config.get('ROOT'), pathhash(package), package, version)
+    return "%s/work/%s/%s/%s" % (config.get('ROOT'), pathhash(package),
+                                 package, version)
+
 
 def result_dir(target, package):
     """Return the directory to store the result in."""
     return "%s/merges/%s/%s/%s" % (config.get('ROOT'), target,
                                    pathhash(package), package)
+
 
 # --------------------------------------------------------------------------- #
 # Source meta-data handling
@@ -160,14 +168,17 @@ def version_sort(sources):
     """Sort the source list by version number."""
     sources.sort(key=lambda x: Version(x["Version"]))
 
+
 def has_files(pv):
     """Return true if source has a Files entry"""
     return "Files" in pv.getDscContents()
 
+
 def files(source):
     """Return (md5sum, size, name) for each file."""
     files = source["Files"].strip("\n").split("\n")
-    return [ f.split(None, 2) for f in files ]
+    return [f.split(None, 2) for f in files]
+
 
 def read_basis(filename):
     """Read the basis version of a patch from a file."""
@@ -177,6 +188,7 @@ def read_basis(filename):
 
     with open(basis_file) as basis:
         return Version(basis.read().strip())
+
 
 def save_basis(filename, version):
     """Save the basis version of a patch to a file."""
@@ -205,7 +217,8 @@ def unpack_source(pv):
         # output directory for "dpkg-source -x" must not exist
         if (os.path.isdir(destdir)):
             os.rmdir(destdir)
-        shell.run(("dpkg-source", "--skip-patches", "-x", dsc_file, destdir), chdir=srcdir, stdout=sys.stdout, stderr=sys.stderr)
+        shell.run(("dpkg-source", "--skip-patches", "-x", dsc_file, destdir),
+                  chdir=srcdir, stdout=sys.stdout, stderr=sys.stderr)
         # Make sure we can at least read everything under .pc, which isn't
         # automatically true with dpkg-dev 1.15.4.
         pc_dir = os.path.join(destdir, ".pc")
@@ -214,15 +227,17 @@ def unpack_source(pv):
             pc_stat = os.lstat(pc_filename)
             if pc_stat is not None and stat.S_IMODE(pc_stat.st_mode) == 0:
                 os.chmod(pc_filename, 0400)
-    except:
+    except Exception:
         cleanup(destdir)
         raise
 
     return destdir
 
+
 def cleanup_source(pv):
     """Cleanup the given source's unpack location."""
     cleanup(unpack_directory(pv))
+
 
 def save_changes_file(filename, pv, previous=None):
     """Save a changes file for the given source."""
@@ -242,6 +257,7 @@ def save_changes_file(filename, pv, previous=None):
 
     return filename
 
+
 def save_patch_file(filename, last, this):
     """Save a diff or patch file for the difference between two versions."""
     lastdir = unpack_directory(last)
@@ -257,6 +273,7 @@ def save_patch_file(filename, last, this):
     with open(filename, "w") as diff:
         shell.run(("diff", "-pruN", lastdir, thisdir),
                   chdir=diffdir, stdout=diff, okstatus=(0, 1, 2))
+
 
 # --------------------------------------------------------------------------- #
 # Blacklist and whitelist handling
@@ -325,20 +342,25 @@ class PackageList(object):
                 for line in self._lines:
                     f.write(line)
 
+
 class PackageLists(object):
     def __init__(self, manual_includes=[], manual_excludes=[]):
-        """Initialize MoM white/blacklist; manual_includes and manual_excludes are lists of filenames"""
+        """Initialize MoM white/blacklist; manual_includes and
+        manual_excludes are lists of filenames"""
         self.manual = False
         if manual_includes or manual_excludes:
             self.manual = True
-        self.manual_includes = [PackageList(filename) for filename in manual_includes]
-        self.manual_excludes = [PackageList(filename) for filename in manual_excludes]
+        self.manual_includes = [PackageList(filename)
+                                for filename in manual_includes]
+        self.manual_excludes = [PackageList(filename)
+                                for filename in manual_excludes]
         self.include = {}
         self.exclude = {}
 
         distro_targets = config.get('DISTRO_TARGETS')
         for target in distro_targets:
-            filename_exclude = "%s/%s.ignore.txt" % (config.get('ROOT'), target)
+            filename_exclude = "%s/%s.ignore.txt" % (config.get('ROOT'),
+                                                     target)
             self.exclude[target] = PackageList(filename_exclude)
             self.include[target] = {}
 
@@ -347,7 +369,8 @@ class PackageLists(object):
                 filename_include = "%s/%s-%s.list.txt" % (config.get('ROOT'),
                                                           target, src)
                 # Allow short filename form for default sources
-                if src == distro_targets[target]["sources"][0] and not os.path.isfile(filename_include):
+                if src == distro_targets[target]["sources"][0] \
+                        and not os.path.isfile(filename_include):
                     filename_include = "%s/%s.list.txt" % (config.get('ROOT'),
                                                            target)
 
@@ -358,13 +381,15 @@ class PackageLists(object):
         if self.manual:
             return self.check_manual(package)
         includes = []
-        src_is_default = True # src is the default (first) source for target
+        src_is_default = True  # src is the default (first) source for target
         if src is None:
-            includes = [self.include[target][src_] for src_ in self.include[target]]
+            includes = [self.include[target][src_]
+                        for src_ in self.include[target]]
         else:
             includes = [self.include[target][src]]
             distro_targets = config.get('DISTRO_TARGETS')
-            if distro_targets[target]["sources"] and src != distro_targets[target]["sources"][0]:
+            if distro_targets[target]["sources"] \
+                    and src != distro_targets[target]["sources"][0]:
                 src_is_default = False
         found = False
         findable = False
@@ -423,8 +448,10 @@ class PackageLists(object):
 
         return True
 
+
 def get_target_distro_dist_component(target):
-    """Return the distro, dist, and component for a given distribution target"""
+    """Return the distro, dist, and component for a given distribution
+    target"""
     distro_targets = config.get('DISTRO_TARGETS')
     distro = distro_targets[target]["distro"]
     try:
@@ -437,6 +464,7 @@ def get_target_distro_dist_component(target):
         component = None
     return (distro, dist, component)
 
+
 # --------------------------------------------------------------------------- #
 # Comments handling
 # --------------------------------------------------------------------------- #
@@ -444,6 +472,7 @@ def get_target_distro_dist_component(target):
 def comments_file():
     """Return the location of the comments."""
     return "%s/comments.txt" % config.get('ROOT')
+
 
 def get_comments():
     """Extract the comments from file, and return a dictionary
@@ -458,6 +487,7 @@ def get_comments():
 
     return comments
 
+
 def add_comment(package, comment):
     """Add a comment to the comments file"""
     with open(comments_file(), "a") as file_comments:
@@ -466,13 +496,14 @@ def add_comment(package, comment):
         the_comment = escape(the_comment[:100], quote=True)
         file_comments.write("%s: %s\n" % (package, the_comment))
 
+
 def remove_old_comments(status_file, merges):
     """Remove old comments from the comments file using
        component's existing status file and merges"""
     if not os.path.exists(status_file):
         return
 
-    packages = [ m[2] for m in merges ]
+    packages = [m[2] for m in merges]
     toremove = []
 
     with open(status_file, "r") as file_status:

@@ -19,18 +19,18 @@
 
 from __future__ import with_statement
 
-import time
 import logging
+import time
 
-from momlib import *
+import config
 from deb.version import Version
 from model import Distro, UpdateInfo
-from util import run
-import config
-
 import model.error
+from momlib import *
+from util import run
 
 logger = logging.getLogger('stats')
+
 
 def options(parser):
     parser.add_option("-D", "--source-distro", type="string", metavar="DISTRO",
@@ -44,71 +44,75 @@ def options(parser):
                       default=None,
                       help="Distribution target to generate stats for")
 
+
 def main(options, args):
-    # For latest version of each package in the destination distribution, locate the latest in
-    # the source distribution; calculate the base from the destination
+    # For latest version of each package in the destination distribution,
+    # locate the latest in the source distribution; calculate the base from
+    # the destination
     if options.package:
-      logger.info("Skipping stats since -p was specified.")
-      return
+        logger.info("Skipping stats since -p was specified.")
+        return
 
     logger.info('Collecting stats...')
 
     for target in config.targets(args):
-      stats = {}
-      stats["total"] = 0
-      stats["local"] = 0
-      stats["unmodified"] = 0
-      stats["needs-sync"] = 0
-      stats["needs-merge"] = 0
-      stats["repackaged"] = 0
-      stats["modified"] = 0
-      for pkg in target.distro.packages(target.dist, target.component):
-        update_info = UpdateInfo(pkg)
-        upstream = update_info.upstream_version
-        base = update_info.base_version
+        stats = {}
+        stats["total"] = 0
+        stats["local"] = 0
+        stats["unmodified"] = 0
+        stats["needs-sync"] = 0
+        stats["needs-merge"] = 0
+        stats["repackaged"] = 0
+        stats["modified"] = 0
+        for pkg in target.distro.packages(target.dist, target.component):
+            update_info = UpdateInfo(pkg)
+            upstream = update_info.upstream_version
+            base = update_info.base_version
 
-        our_version = pkg.newestVersion()
-        if our_version.version != update_info.version:
-          logger.debug("Skip %s, no UpdateInfo", pkg.name)
-          continue
+            our_version = pkg.newestVersion()
+            if our_version.version != update_info.version:
+                logger.debug("Skip %s, no UpdateInfo", pkg.name)
+                continue
 
-        stats['total'] += 1
+            stats['total'] += 1
 
-        logger.debug("%s: %s, upstream: %s", target.distro,
-            our_version, upstream)
-        if upstream is None:
-          logger.debug("%s: locally packaged", pkg)
-          stats["local"] += 1
-          continue
+            logger.debug("%s: %s, upstream: %s", target.distro,
+                         our_version, upstream)
+            if upstream is None:
+                logger.debug("%s: locally packaged", pkg)
+                stats["local"] += 1
+                continue
 
-        if our_version.version == upstream:
-          logger.debug("%s: unmodified", pkg)
-          stats["unmodified"] += 1
-        elif base > upstream:
-          logger.debug("%s: locally repackaged", pkg)
-          stats["repackaged"] += 1
-        elif our_version.version == base:
-          logger.debug("%s: needs sync", pkg)
-          stats["needs-sync"] += 1
-        elif our_version.version < upstream:
-          logger.debug("%s: needs merge", pkg)
-          stats["needs-merge"] += 1
-        elif "-0co" in str(our_version.version):
-          logger.debug("%s: locally repackaged", pkg)
-          stats["repackaged"] += 1
-        else:
-          logger.debug("%s: modified", pkg)
-          stats["modified"] += 1
+            if our_version.version == upstream:
+                logger.debug("%s: unmodified", pkg)
+                stats["unmodified"] += 1
+            elif base > upstream:
+                logger.debug("%s: locally repackaged", pkg)
+                stats["repackaged"] += 1
+            elif our_version.version == base:
+                logger.debug("%s: needs sync", pkg)
+                stats["needs-sync"] += 1
+            elif our_version.version < upstream:
+                logger.debug("%s: needs merge", pkg)
+                stats["needs-merge"] += 1
+            elif "-0co" in str(our_version.version):
+                logger.debug("%s: locally repackaged", pkg)
+                stats["repackaged"] += 1
+            else:
+                logger.debug("%s: modified", pkg)
+                stats["modified"] += 1
 
-      write_stats(target.name, stats)
+        write_stats(target.name, stats)
+
 
 def write_stats(target, stats):
     """Write out the collected stats."""
     stats_file = "%s/stats.txt" % config.get('ROOT')
     with open(stats_file, "a") as stf:
         stamp = time.strftime("%Y-%m-%d %H:%M", time.gmtime())
-        text = " ".join("%s=%d" % (k, v) for k,v in stats.items())
+        text = " ".join("%s=%d" % (k, v) for k, v in stats.items())
         print >>stf, "%s %s %s" % (stamp, target, text)
+
 
 if __name__ == "__main__":
     run(main, options, usage="%prog",

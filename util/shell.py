@@ -89,15 +89,15 @@ class Process(object):
         # Sanity check mode
         self.mode = mode
         if not len(self.mode) or self.mode[0] not in "rwx":
-            raise ValueError, "invalid mode: %s" % mode
+            raise ValueError("invalid mode: %s" % mode)
         elif self.mode[0] == "r" and stdout is not None:
-            raise ValueError, "cannot capture stdout when mode=r"
+            raise ValueError("cannot capture stdout when mode=r")
         elif self.mode[0] == "w" and stdin is not None:
-            raise ValueError, "cannot provide stdin when mode=w"
+            raise ValueError("cannot provide stdin when mode=w")
 
         # Sanity check chdir
         if chdir is not None and not os.path.isdir(chdir):
-            raise OSError, "cannot chdir to %s" % chdir
+            raise OSError("cannot chdir to %s" % chdir)
 
         self.open(stdin, stdout, stderr, chdir)
 
@@ -120,7 +120,8 @@ class Process(object):
         self.pid = os.fork()
         if self.pid == 0:
             try:
-                self.child(pipe_r, pipe_w, pipe_err_w, stdin, stdout, stderr, chdir)
+                self.child(pipe_r, pipe_w, pipe_err_w, stdin, stdout, stderr,
+                           chdir)
             except OSError:
                 os._exit(250)
             except Exception:
@@ -145,7 +146,7 @@ class Process(object):
                 self._pipe_err = None
         else:
             # Failure
-            raise OSError, "%s failed" % " ".join(self.args)
+            raise OSError("%s failed" % " ".join(self.args))
 
     def child(self, pipe_r, pipe_w, pipe_err_w, stdin, stdout, stderr, chdir):
         """Child process.
@@ -224,26 +225,31 @@ class Process(object):
         if self._pipe_err is not None:
             try:
                 err_output = self._pipe_err.read()
-            except:
+            except Exception:
                 pass
 
             try:
                 self._pipe_err.close()
-            except:
+            except Exception:
                 pass
 
         (pid, status) = os.waitpid(self.pid, 0)
         if not os.WIFEXITED(status):
-            raise OSError, "abnormal exit: %s\n%s" % (" ".join(self.args), err_output)
+            raise OSError("abnormal exit: %s\n%s"
+                          % (" ".join(self.args), err_output))
         elif os.WEXITSTATUS(status) == 250:
-            raise OSError, "exec error: %s\n%s" % (" ".join(self.args), err_output)
+            raise OSError("exec error: %s\n%s"
+                          % (" ".join(self.args), err_output))
         elif os.WEXITSTATUS(status) == 251:
-            raise OSError, "exec error: %s\n%s" % (" ".join(self.args), err_output)
+            raise OSError("exec error: %s\n%s"
+                          % (" ".join(self.args), err_output))
         elif os.WEXITSTATUS(status) == 252:
-            raise OSError, "exec error: %s\n%s" % (" ".join(self.args), err_output)
+            raise OSError("exec error: %s\n%s"
+                          % (" ".join(self.args), err_output))
         elif os.WEXITSTATUS(status) not in self.okstatus:
-            raise ValueError, "process failed %d: %s\n%s" \
-                  % (os.WEXITSTATUS(status), " ".join(self.args), err_output)
+            raise ValueError("process failed %d: %s\n%s"
+                             % (os.WEXITSTATUS(status), " ".join(self.args),
+                                err_output))
 
         return os.WEXITSTATUS(status)
 
@@ -252,15 +258,15 @@ class Process(object):
         if self._pipe is not None:
             return iter(self._pipe)
         else:
-            raise AssertionError, "not open in read or write mode"
+            raise AssertionError("not open in read or write mode")
 
     def __getattr__(self, name):
         """Wraps all functions and properties of the pipe."""
         if self._pipe is not None:
             return getattr(self._pipe, name)
         else:
-            raise AttributeError, "'%s' object has no attribute '%s'" \
-                  % (type(self).__name__, name)
+            raise AttributeError("'%s' object has no attribute '%s'" % (
+                                 type(self).__name__, name))
 
 
 def run(args, stdin=None, stdout=None, stderr=None, chdir=None, okstatus=(0,)):
@@ -273,6 +279,7 @@ def run(args, stdin=None, stdout=None, stderr=None, chdir=None, okstatus=(0,)):
                 chdir=chdir, okstatus=okstatus)
     return p.close()
 
+
 def open(args, mode="r", stdin=None, stdout=None, stderr=None, chdir=None,
          okstatus=(0,)):
     """Open a process.
@@ -282,6 +289,7 @@ def open(args, mode="r", stdin=None, stdout=None, stderr=None, chdir=None,
     """
     return Process(args, mode=mode, stdin=stdin, stdout=stdout, stderr=stderr,
                    chdir=chdir, okstatus=okstatus)
+
 
 def get(args, stdin=None, stderr=None, chdir=None, okstatus=(0,), strip=True):
     """Get process output.

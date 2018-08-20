@@ -1,11 +1,10 @@
 # "packages cannot be executed directly", see __main__.py for main()
 
-import os
+import atexit
 import logging
+import os
 import shutil
 import tempfile
-import shutil
-import atexit
 
 import update_sources
 
@@ -21,4 +20,4 @@ else:
 debsnap_base = tempfile.mkdtemp(prefix='momtest.debsnap.')
 update_sources.SNAPSHOT_BASE = 'file://' + debsnap_base
 if 'MOM_TEST_NO_CLEANUP' not in os.environ:
-  atexit.register(shutil.rmtree, debsnap_base)
+    atexit.register(shutil.rmtree, debsnap_base)

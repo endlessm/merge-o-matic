@@ -38,35 +38,36 @@ logger = logging.getLogger('update_sources')
 
 SNAPSHOT_BASE = 'http://snapshot.debian.org'
 
+
 # Get the list of available versions archived on snapshot.debian.org
 def get_debian_snapshot_versions(package_name):
     url = '%s/mr/package/%s/' % (SNAPSHOT_BASE, package_name)
     try:
-      fd = urllib2.urlopen(url)
-      data = json.load(fd)
+        fd = urllib2.urlopen(url)
+        data = json.load(fd)
     except urllib2.HTTPError, e:
-      if e.code == 404:
-        return []
-      raise
+        if e.code == 404:
+            return []
+        raise
     except urllib2.URLError, e:
-      if isinstance(e.reason, OSError) and e.reason.errno == errno.ENOENT:
-        return []
-      raise
+        if isinstance(e.reason, OSError) and e.reason.errno == errno.ENOENT:
+            return []
+        raise
 
     versions = []
     for vdict in data['result']:
-      versions.append(Version(vdict['version']))
+        versions.append(Version(vdict['version']))
 
     return versions
 
 
 def debsnap_get_file_hash(data, filename):
-  # Find the sha1 hash for a given file from the debsnap data
-  for filehash, files in data['fileinfo'].iteritems():
-    for fileinfo in files:
-      if fileinfo['name'] == filename:
-        return filehash
-  return None
+    # Find the sha1 hash for a given file from the debsnap data
+    for filehash, files in data['fileinfo'].iteritems():
+        for fileinfo in files:
+            if fileinfo['name'] == filename:
+                return filehash
+    return None
 
 
 def debsnap_download_file(url, output_path):
@@ -74,7 +75,7 @@ def debsnap_download_file(url, output_path):
     logging.debug('Downloading debsnap file %s', url)
     fd = urllib2.urlopen(url)
     with open(output_path, 'w') as output:
-      output.write(fd.read())
+        output.write(fd.read())
 
 
 def download_from_debsnap(target_dir, package_name, version):
@@ -95,10 +96,10 @@ def download_from_debsnap(target_dir, package_name, version):
 
     dsc_data = ControlFile(dsc_path_tmp, multi_para=False, signed=True).para
     for filehash, size, filename in files(dsc_data):
-      snapshot_hash = debsnap_get_file_hash(data, filename)
-      url = '%s/file/%s' % (SNAPSHOT_BASE, snapshot_hash)
-      path = os.path.join(target_dir, filename)
-      debsnap_download_file(url, path)
+        snapshot_hash = debsnap_get_file_hash(data, filename)
+        url = '%s/file/%s' % (SNAPSHOT_BASE, snapshot_hash)
+        path = os.path.join(target_dir, filename)
+        debsnap_download_file(url, path)
 
     # Atomically put the .dsc file in place as the last step, making the
     # pool entry valid.
@@ -108,94 +109,99 @@ def download_from_debsnap(target_dir, package_name, version):
 
 
 def find_upstream(target, pv):
-  upstream = None
-  package_name = pv.package.name
-  our_base_version = pv.version.base()
+    upstream = None
+    package_name = pv.package.name
+    our_base_version = pv.version.base()
 
-  for srclist in target.getSourceLists(package_name, include_unstable=False):
-    for src in srclist:
-      logger.debug('considering source %s', src)
-      try:
-        for possible in src.distro.findPackage(package_name,
-                                               searchDist=src.dist):
-          logger.debug('- contains version %s', possible)
-          if upstream is None or possible > upstream:
-            logger.debug('  - that version is the best yet seen')
-            upstream = possible
-      except model.error.PackageNotFound:
-        pass
+    for srclist in target.getSourceLists(package_name, include_unstable=False):
+        for src in srclist:
+            logger.debug('considering source %s', src)
+            try:
+                for possible in src.distro.findPackage(package_name,
+                                                       searchDist=src.dist):
+                    logger.debug('- contains version %s', possible)
+                    if upstream is None or possible > upstream:
+                        logger.debug('    - that version is the best yet seen')
+                        upstream = possible
+            except model.error.PackageNotFound:
+                pass
 
-  # There are two situations in which we will look in unstable distros
-  # for a better version:
-  try_unstable = False
-
-  # 1. If our version is newer than the stable upstream version, we
-  #    assume that our version was sourced from unstable, so let's
-  #    check for an update there.
-  #    However we must use the base version for the comparison here,
-  #    otherwise we would consider our version 1.0-1endless1 newer
-  #    than the stable 1.0-1 and look in unstable for an update.
-  if upstream is not None and pv.version >= upstream.version:
-    logger.debug("our version %s >= their version %s, checking base version %s", pv, upstream, our_base_version)
-    if our_base_version > upstream.version:
-      logger.debug("base version still newer than their version, checking in unstable")
-      try_unstable = True
-
-  # 2. If we didn't find any upstream version at all, it's possible
-  #    that it's a brand new package where our version was imported
-  #    from unstable, so let's see if we can find a better version
-  #    there.
-  if upstream is None:
-    try_unstable = True
-
-  # However, if this package has been assigned a specific source,
-  # we'll honour that.
-  if target.packageHasSpecificSource(package_name):
+    # There are two situations in which we will look in unstable distros
+    # for a better version:
     try_unstable = False
 
-  if try_unstable:
-    for srclist in target.unstable_sources:
-      for src in srclist:
-        logger.debug('considering unstable source %s', src)
-        try:
-          for possible in src.distro.findPackage(package_name,
-                      searchDist=src.dist):
-            logger.debug('- contains version %s', possible)
-            if upstream is None or possible > upstream:
-              logger.debug('  - that version is the best yet seen')
-              upstream = possible
-        except model.error.PackageNotFound:
-          pass
+    # 1. If our version is newer than the stable upstream version, we
+    #        assume that our version was sourced from unstable, so let's
+    #        check for an update there.
+    #        However we must use the base version for the comparison here,
+    #        otherwise we would consider our version 1.0-1endless1 newer
+    #        than the stable 1.0-1 and look in unstable for an update.
+    if upstream is not None and pv.version >= upstream.version:
+        logger.debug("our version %s >= their version %s, "
+                     "checking base version %s",
+                     pv, upstream, our_base_version)
+        if our_base_version > upstream.version:
+            logger.debug("base version still newer than their version, "
+                         "checking in unstable")
+            try_unstable = True
 
-      # Stop at the first upstream that provides a version upgrade
-      if upstream is not None and upstream.version >= our_base_version:
-        break
+    # 2. If we didn't find any upstream version at all, it's possible
+    #        that it's a brand new package where our version was imported
+    #        from unstable, so let's see if we can find a better version
+    #        there.
+    if upstream is None:
+        try_unstable = True
 
-  return upstream
+    # However, if this package has been assigned a specific source,
+    # we'll honour that.
+    if target.packageHasSpecificSource(package_name):
+        try_unstable = False
+
+    if try_unstable:
+        for srclist in target.unstable_sources:
+            for src in srclist:
+                logger.debug('considering unstable source %s', src)
+                try:
+                    for possible in src.distro.findPackage(
+                            package_name, searchDist=src.dist):
+                        logger.debug('- contains version %s', possible)
+                        if upstream is None or possible > upstream:
+                            logger.debug('    - that version is the best '
+                                         'yet seen')
+                            upstream = possible
+                except model.error.PackageNotFound:
+                    pass
+
+            # Stop at the first upstream that provides a version upgrade
+            if upstream is not None and upstream.version >= our_base_version:
+                break
+
+    return upstream
+
 
 def find_and_download_package(target, package_name, version):
-  # Try to find the requested package in the target distro, just in case
-  # it is there
-  try:
-    pv = target.distro.findPackage(package_name, searchDist=target.dist,
-                                   version=version)
-    pv.download()
-  except model.error.PackageNotFound:
-    pass
-
-  # Try all the source distros
-  for source_list in target.getAllSourceLists():
+    # Try to find the requested package in the target distro, just in case
+    # it is there
     try:
-      pv = source_list.findPackage(package_name, version)[0]
-      pv.download()
-      logger.info('Downloaded %s base version %s from distros',
-                   package_name, pv.version)
-      return True
+        pv = target.distro.findPackage(package_name, searchDist=target.dist,
+                                       version=version)
+        pv.download()
     except model.error.PackageNotFound:
-      pass
+        pass
 
-  logger.debug('Did not find %s base %s in distros', package_name, version)
-  return False
+    # Try all the source distros
+    for source_list in target.getAllSourceLists():
+        try:
+            pv = source_list.findPackage(package_name, version)[0]
+            pv.download()
+            logger.info('Downloaded %s base version %s from distros',
+                        package_name, pv.version)
+            return True
+        except model.error.PackageNotFound:
+            pass
+
+    logger.debug('Did not find %s base %s in distros', package_name, version)
+    return False
 
 
 def download_removed_package(target_dir, target, package_name, version):
@@ -209,12 +215,12 @@ def download_removed_package(target_dir, target, package_name, version):
     # indexes a package version newer than the one we are looking for.
     found = None
     for pv in target.findSourcePackage(package_name):
-      if pv.version >= version:
-        found = pv
-        break
+        if pv.version >= version:
+            found = pv
+            break
 
     if not found:
-      return False
+        return False
 
     mirror = found.package.distro.mirrorURL()
     pooldir = found.package.getCurrentSources()[0]['Directory']
@@ -224,30 +230,31 @@ def download_removed_package(target_dir, target, package_name, version):
     dsc_file_tmp = "%s.tmp" % dsc_file
     logger.debug("Downloading %s to %s", url, dsc_file_tmp)
     try:
-      fd = urllib2.urlopen(url)
-      open(dsc_file_tmp, 'w').write(fd.read())
+        fd = urllib2.urlopen(url)
+        open(dsc_file_tmp, 'w').write(fd.read())
     except urllib2.HTTPError, e:
-      if e.code == 404:
-        return False
-      raise
+        if e.code == 404:
+            return False
+        raise
 
     dsc_data = ControlFile(dsc_file_tmp, multi_para=False, signed=True).para
     for md5sum, size, name in files(dsc_data):
-      url = "%s/%s/%s" % (mirror, pooldir, name)
-      outfile = "%s/%s" % (target_dir, name)
-      try:
-        fd = urllib2.urlopen(url)
-        open(outfile, 'w').write(fd.read())
-      except urllib2.HTTPError, e:
-        if e.code == 404:
-          return False
-        raise
+        url = "%s/%s/%s" % (mirror, pooldir, name)
+        outfile = "%s/%s" % (target_dir, name)
+        try:
+            fd = urllib2.urlopen(url)
+            open(outfile, 'w').write(fd.read())
+        except urllib2.HTTPError, e:
+            if e.code == 404:
+                return False
+            raise
 
     # Atomically put the .dsc file in place as the last step, making it's
     # entry in the pool valid.
     os.rename(dsc_file_tmp, dsc_file)
     logger.info('Downloaded removed package %s %s', package_name, version)
     return True
+
 
 # Set the stage for updating a specific package
 def handle_package(target, package, force=False):
@@ -265,22 +272,22 @@ def handle_package(target, package, force=False):
     # upgrade to.
     upstream = find_upstream(target, pv)
     if upstream is not None:
-      upstream_version = upstream.version
+        upstream_version = upstream.version
     else:
-      upstream_version = None
+        upstream_version = None
 
     # Make that new version available for the upgrade process
     if upstream is not None and upstream > pv:
-      upstream.download()
+        upstream.download()
 
     # If UpdateInfo is already recorded to upgrade this version to the
     # detected upstream, then nothing has changed since last time and we
     # do not need to repeat that work.
     if not force and update_info.version == pv.version \
-        and update_info.upstream_version == upstream_version:
-      logger.debug('Already have base info for base=%s upstream=%s',
-                    pv, upstream)
-      return
+            and update_info.upstream_version == upstream_version:
+        logger.debug('Already have base info for base=%s upstream=%s',
+                     pv, upstream)
+        return
 
     update_info.set_version(pv.version)
     update_info.set_upstream_version(upstream_version)
@@ -295,40 +302,40 @@ def handle_package(target, package, force=False):
     # we have taken the package as-is from upstream, so no merging
     # is necessary.
     if base_version == pv.version:
-      logger.debug('%s is unmodified from upstream', pv)
-      update_info.save()
-      return
+        logger.debug('%s is unmodified from upstream', pv)
+        update_info.save()
+        return
 
     # If we already have the base version present in a local pool
     # then we have nothing else to do.
     pool_versions = target.getAllPoolVersions(pv.package.name)
     pool_versions = map(lambda x: x.version, pool_versions)
     if base_version in pool_versions:
-      logger.info('%s base %s was found in local pool', pv, base_version)
-      update_info.save()
-      return
+        logger.info('%s base %s was found in local pool', pv, base_version)
+        update_info.save()
+        return
 
     # Look for the base package in one of our standard distros and
     # download it from there.
     if find_and_download_package(target, pv.package.name, base_version):
-      update_info.save()
-      return
+        update_info.save()
+        return
 
     # Fall back on checking snapshot.debian.org
     debsnap_versions = get_debian_snapshot_versions(pv.package.name)
     if base_version in debsnap_versions:
-      ret = download_from_debsnap(pv.package.poolPath, pv.package.name,
-                                  base_version)
-      if ret:
-        update_info.save()
-        return
+        ret = download_from_debsnap(pv.package.poolPath, pv.package.name,
+                                    base_version)
+        if ret:
+            update_info.save()
+            return
 
     # Fall back on plucking the file from the source distro server
-    ret = download_removed_package(pv.package.poolPath, target, pv.package.name,
-                                   base_version)
+    ret = download_removed_package(pv.package.poolPath, target,
+                                   pv.package.name, base_version)
     if ret:
-      update_info.save()
-      return
+        update_info.save()
+        return
 
     # We can't find that base version anywhere. Examine our package
     # changelog and see if we have access to any of the other previous
@@ -338,38 +345,38 @@ def handle_package(target, package, force=False):
     changelog_versions = read_changelog(unpacked_dir + '/debian/changelog')
     found = None
     for cl_version, text in changelog_versions:
-      # Only consider versions that correspond to unmodified packages
-      if cl_version.base() != cl_version:
-        continue
+        # Only consider versions that correspond to unmodified packages
+        if cl_version.base() != cl_version:
+            continue
 
-      logger.debug('Considering changelog version %s', cl_version)
+        logger.debug('Considering changelog version %s', cl_version)
 
-      # Do we have it in the pool?
-      if cl_version in pool_versions:
-        logger.debug('Found %s in pool', cl_version)
-        found = cl_version
-        break
+        # Do we have it in the pool?
+        if cl_version in pool_versions:
+            logger.debug('Found %s in pool', cl_version)
+            found = cl_version
+            break
 
-      # Can we get it from a standard distro?
-      if find_and_download_package(target, pv.package.name, cl_version):
-        found = cl_version
-        break
+        # Can we get it from a standard distro?
+        if find_and_download_package(target, pv.package.name, cl_version):
+            found = cl_version
+            break
 
-      # Can we get it with debsnap?
-      if cl_version in debsnap_versions:
-        ret = download_from_debsnap(pv.package.poolPath, pv.package.name,
-                                    cl_version)
-        if ret:
-          found = cl_version
-          break
+        # Can we get it with debsnap?
+        if cl_version in debsnap_versions:
+            ret = download_from_debsnap(pv.package.poolPath, pv.package.name,
+                                        cl_version)
+            if ret:
+                found = cl_version
+                break
 
     cleanup_source(pv)
     if found:
-      logger.info('Couldn\'t find %s true base %s, using %s instead',
-                   pv, base_version, found)
-      update_info.set_base_version(found)
-      update_info.save()
-      return
+        logger.info('Couldn\'t find %s true base %s, using %s instead',
+                    pv, base_version, found)
+        update_info.set_base_version(found)
+        update_info.save()
+        return
 
     # None of the above approaches worked, so we won't be able to merge.
     # Record this and move on.
@@ -384,23 +391,25 @@ def main(options, args):
     upstreamSources = []
     packages = []
     for target in config.targets(args):
-      logger.info("Updating sources for %s", target)
-      d = target.distro
-      d.updateSources(target.dist)
+        logger.info("Updating sources for %s", target)
+        d = target.distro
+        d.updateSources(target.dist)
 
-      for upstreamList in target.getAllSourceLists():
-        for source in upstreamList:
-          if source not in upstreamSources:
-            logger.info("Updating upstream sources for %s", source)
-            source.distro.updateSources(source.dist)
+        for upstreamList in target.getAllSourceLists():
+            for source in upstreamList:
+                if source not in upstreamSources:
+                    logger.info("Updating upstream sources for %s", source)
+                    source.distro.updateSources(source.dist)
 
-      for package in target.distro.packages(target.dist, target.component):
-        if options.package and package.name not in options.package:
-          continue
-        try:
-          handle_package(target, package, options.force)
-        except urllib2.HTTPError, e:
-          logger.warning('Caught HTTPError while handling %s: %s:', package, e)
+        for package in target.distro.packages(target.dist, target.component):
+            if options.package and package.name not in options.package:
+                continue
+            try:
+                handle_package(target, package, options.force)
+            except urllib2.HTTPError, e:
+                logger.warning('Caught HTTPError while handling %s: %s:',
+                               package, e)
+
 
 if __name__ == "__main__":
     run(main, usage="%prog [DISTRO...]",

@@ -19,13 +19,13 @@
 from __future__ import with_statement
 
 import codecs
+from collections import (OrderedDict)
 import json
 import logging
 import os
 import re
-import time
-from collections import (OrderedDict)
 from textwrap import fill
+import time
 
 import jinja2
 
@@ -42,9 +42,11 @@ from util.jinja import patch_environment
 logger = logging.getLogger('merge_report')
 
 jinja_env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.abspath(os.path.dirname(__file__)) + '/templates'),
+    loader=jinja2.FileSystemLoader(os.path.abspath(os.path.dirname(__file__))
+                                   + '/templates'),
     autoescape=True)
 patch_environment(jinja_env)
+
 
 class MergeResult(str):
     def __new__(cls, s):
@@ -58,17 +60,19 @@ class MergeResult(str):
     def __repr__(self):
         return 'MergeResult(%r)' % str(self)
 
+
 # We have to bypass MergeResult.__new__ here, to avoid chicken/egg:
 # we're ensuring that there are constants in MergeResult.__dict__ so
 # that MergeResult.__new__ will work :-)
 MergeResult.UNKNOWN = str.__new__(MergeResult, 'UNKNOWN')
 MergeResult.UNKNOWN.message = "???"
 MergeResult.NO_BASE = str.__new__(MergeResult, 'NO_BASE')
-MergeResult.NO_BASE.message = ("Failed to merge because the base version " +
-        "required for a 3-way merge is missing from the pool")
+MergeResult.NO_BASE.message = "Failed to merge because the base version " \
+                               "required for a 3-way merge is missing from " \
+                               "the pool"
 MergeResult.SYNC_THEIRS = str.__new__(MergeResult, 'SYNC_THEIRS')
-MergeResult.SYNC_THEIRS.message = ("Version in 'right' distro supersedes the "
-        "'left' version")
+MergeResult.SYNC_THEIRS.message = "Version in 'right' distro supersedes the " \
+                                  "'left' version"
 MergeResult.KEEP_OURS = str.__new__(MergeResult, 'KEEP_OURS')
 MergeResult.KEEP_OURS.message = "Version in 'left' distro is up-to-date"
 MergeResult.FAILED = str.__new__(MergeResult, 'FAILED')
@@ -77,6 +81,7 @@ MergeResult.MERGED = str.__new__(MergeResult, 'MERGED')
 MergeResult.MERGED.message = "Merge appears to have been successful"
 MergeResult.CONFLICTS = str.__new__(MergeResult, 'CONFLICTS')
 MergeResult.CONFLICTS.message = "3-way merge encountered conflicts"
+
 
 def read_report(output_dir):
     """Read the report to determine the versions that went into it."""
@@ -95,14 +100,15 @@ def read_report(output_dir):
                     report[k] = v
                 except KeyError:
                     logger.exception('ignoring unknown key in JSON %r:',
-                            filename)
+                                     filename)
     elif os.path.isfile(filename):
         _read_report_text(output_dir, filename, report)
     else:
-        raise ValueError, "No report exists"
+        raise ValueError("No report exists")
 
     report.check()
     return report
+
 
 def _read_report_text(output_dir, filename, report):
     """Read an old-style semi-human-readable REPORT."""
@@ -165,6 +171,7 @@ def _read_report_text(output_dir, filename, report):
         report["result"] = MergeResult.FAILED
 
     return report
+
 
 class MergeReport(object):
     __slots__ = (
@@ -299,7 +306,7 @@ class MergeReport(object):
                     self.obs_package = left.package.obsName
                 except Exception:
                     logger.exception('ignoring error getting obsName for %s:',
-                            left.package)
+                                     left.package)
 
     def __setitem__(self, k, v):
         if k not in self.__slots__:
@@ -323,28 +330,28 @@ class MergeReport(object):
 
         if self.source_package is None:
             raise AttributeError('Insufficient detail in report: no '
-                    'source package')
+                                 'source package')
 
         if self.left_version is None:
             raise AttributeError('Insufficient detail in report: our '
-                    'version is missing')
+                                 'version is missing')
 
         if self.left_distro is None:
             raise AttributeError('Insufficient detail in report: our '
-                    'distro is missing')
+                                 'distro is missing')
 
         if self.result not in (MergeResult.KEEP_OURS, MergeResult.FAILED):
             if self.right_version is None:
                 raise AttributeError('Insufficient detail in report: '
-                        'their version is missing')
+                                     'their version is missing')
 
             if self.right_distro is None:
                 raise AttributeError('Insufficient detail in report: '
-                        'their distro is missing')
+                                     'their distro is missing')
 
         # promote versions to Version objects
         for k in ("left_version", "right_version", "base_version",
-                "merged_version"):
+                  "merged_version"):
             v = getattr(self, k)
 
             if v is not None:
@@ -368,11 +375,11 @@ class MergeReport(object):
             assert self.conflicts
 
         if self.result in (MergeResult.CONFLICTS, MergeResult.FAILED,
-                MergeResult.MERGED):
+                           MergeResult.MERGED):
             if (self.merged_version is None or
-                    (self.merged_version.revision is not None and
-                        self.left_version.upstream !=
-                        self.merged_version.upstream)):
+                (self.merged_version.revision is not None
+                 and self.left_version.upstream !=
+                 self.merged_version.upstream)):
                 maybe_sa = ' -sa'
             else:
                 maybe_sa = ''
@@ -390,15 +397,17 @@ class MergeReport(object):
             bases_not_found="these common ancestors could not be found",
             right_version="'their' version",
             right_patch="diff(base version ... right version)",
-            proposed_patch="diff(our old version ... our new version) for review",
-            merged_patch="diff(their version ... our new version) if the proposed patch is applied",
-            genchanges=("Pass these arguments to dpkg-genchanges, " +
-                "dpkg-buildpackage or debuild when you have completed the " +
-                "merge"),
+            proposed_patch="diff(our old version ... our new version) for "
+            "review",
+            merged_patch="diff(their version ... our new version) if the "
+            "proposed patch is applied",
+            genchanges="Pass these arguments to dpkg-genchanges, "
+            "dpkg-buildpackage or debuild when you have completed the "
+            "merge",
         )
         for f in self.__slots__:
             if f in ('left_version', 'right_version', 'merged_version',
-                    'base_version'):
+                     'base_version'):
                 # each of these is a Version, which we can't serialize directly
                 v = getattr(self, f)
                 if v is not None:
@@ -440,32 +449,32 @@ class MergeReport(object):
         else:
             # Use a unicode object to avoid errors when decoding
             # with implicit ascii codec for inclusion in Jinja
-            left_changelog_text = codecs.open(output_dir + '/' +
-                    self.left_changelog, encoding='utf-8',
-                    errors='replace').read()
+            left_changelog_text = codecs.open(
+                output_dir + '/' + self.left_changelog, encoding='utf-8',
+                errors='replace').read()
 
         if self.right_changelog is None:
             right_changelog_text = u''
         else:
-            right_changelog_text = codecs.open(output_dir + '/' +
-                    self.right_changelog, encoding='utf-8',
-                    errors='replace').read()
+            right_changelog_text = codecs.open(
+                output_dir + '/' + self.right_changelog, encoding='utf-8',
+                errors='replace').read()
 
         with open(filename + '.tmp', "w") as fh:
             # we decode the JSON report and pass that in, rather than
             # using this object directly, so that the values are
             # consistently unicode as expected by jinja
             template.stream(report=json.loads(json_report, encoding='utf-8'),
-                    left_changelog_text=left_changelog_text,
-                    right_changelog_text=right_changelog_text,
-                    ).dump(fh, encoding='utf-8')
+                            left_changelog_text=left_changelog_text,
+                            right_changelog_text=right_changelog_text,
+                            ).dump(fh, encoding='utf-8')
         os.rename(filename + '.tmp', filename)
 
-def write_text_report(left, left_patch,
-                 base, tried_bases,
-                 right, right_patch,
-                 merged_version, conflicts, src_file, patch_file, output_dir,
-                 merged_dir, merged_is_right, build_metadata_changed):
+
+def write_text_report(left, left_patch, base, tried_bases, right, right_patch,
+                      merged_version, conflicts, src_file, patch_file,
+                      output_dir, merged_dir, merged_is_right,
+                      build_metadata_changed):
     """Write the merge report."""
 
     package = left.package.name
@@ -537,7 +546,8 @@ def write_text_report(left, left_patch,
             print >>report
 
         # Right version and files
-        print >>report, "source distro (%s): %s" % (right_distro, right.version)
+        print >>report, "source distro (%s): %s" % (right_distro,
+                                                    right.version)
         for md5sum, size, name in files(right.getDscContents()):
             print >>report, "    %s" % name
         print >>report
@@ -553,11 +563,13 @@ def write_text_report(left, left_patch,
         print >>report
         if base is None:
             print >>report, fill("Failed to merge because the base version "
-                                 "required for a 3-way diff is missing from %s pool. "
-                                 "You will need to either merge manually; or add the "
-                                 "missing base version sources to '%s/%s/*/%s/' and run "
-                                 "update_sources.py."
-                                 % (right_distro, config.get('ROOT'), right_distro, package))
+                                 "required for a 3-way diff is missing from "
+                                 "%s pool. Uou will need to either merge "
+                                 "manually; or add the missing base version "
+                                 "sources to '%s/%s/*/%s/' and run "
+                                 "update_sources.py." % (
+                                    right_distro, config.get('ROOT'),
+                                    right_distro, package))
             print >>report
         elif merged_is_right:
             print >>report, fill("The %s version supercedes the %s version "
@@ -573,24 +585,24 @@ def write_text_report(left, left_patch,
         else:
             if src_file.endswith(".dsc"):
                 print >>report, fill("No problems were encountered during the "
-                                    "merge, so a source package has been "
-                                    "produced along with a patch containing "
-                                    "the differences from the %s version to the "
-                                    "new version." % right_distro.title())
+                                     "merge, so a source package has been "
+                                     "produced along with a patch containing "
+                                     "the differences from the %s version to "
+                                     "the new version." % right_distro.title())
                 print >>report
                 print >>report, fill("You should compare the generated patch "
-                                    "against the patch for the %s version "
-                                    "given above and ensure that there are no "
-                                    "unexpected changes.  You should also "
-                                    "sanity check the source package."
-                                    % left_distro.title())
+                                     "against the patch for the %s version "
+                                     "given above and ensure that there are "
+                                     "no unexpected changes.  You should also "
+                                     "sanity check the source package."
+                                     % left_distro.title())
                 print >>report
 
                 print >>report, "generated: %s" % merged_version
 
                 # Files from the dsc
                 dsc = ControlFile("%s/%s" % (output_dir, src_file),
-                                multi_para=False, signed=True).para
+                                  multi_para=False, signed=True).para
                 print >>report, "    %s" % src_file
                 for md5sum, size, name in files(dsc):
                     print >>report, "    %s" % name
@@ -604,12 +616,12 @@ def write_text_report(left, left_patch,
                     print >>report
             else:
                 print >>report, fill("Due to conflict or error, it was not "
-                                    "possible to automatically create a source "
-                                    "package.  Instead the result of the merge "
-                                    "has been placed into the following tar file "
-                                    "which you will need to turn into a source "
-                                    "package once the problems have been "
-                                    "resolved.")
+                                     "possible to automatically create a "
+                                     "source package.  Instead the result of "
+                                     "the mergehas been placed into the "
+                                     "following tar file which you will need "
+                                     "to turn into a source package once the "
+                                     "problems have been resolved.")
                 print >>report
                 print >>report, "    %s" % src_file
                 print >>report
@@ -619,24 +631,28 @@ def write_text_report(left, left_patch,
                 print >>report, "Conflicts"
                 print >>report, "========="
                 print >>report
-                print >>report, fill("In one or more cases, there were different "
-                                    "changes made in both %s and %s to the same "
-                                    "file; these are known as conflicts."
-                                    % (left_distro.title(), right_distro.title()))
+                print >>report, fill("In one or more cases, there were "
+                                     "different changes made in both %s and "
+                                     "%s to the same file; these are known as "
+                                     "conflicts." % (
+                                        left_distro.title(),
+                                        right_distro.title()))
                 print >>report
                 print >>report, fill("It is not possible for these to be "
-                                    "automatically resolved, so this source "
-                                    "needs human attention.")
+                                     "automatically resolved, so this source "
+                                     "needs human attention.")
                 print >>report
-                print >>report, fill("Those files marked with 'C ' contain diff3 "
-                                    "conflict markers, which can be resolved "
-                                    "using the text editor of your choice.  "
-                                    "Those marked with 'C*' could not be merged "
-                                    "that way, so you will find .%s and .%s "
-                                    "files instead and should chose one of them "
-                                    "or a combination of both, moving it to the "
-                                    "real filename and deleting the other."
-                                    % (left_distro.upper(), right_distro.upper()))
+                print >>report, fill("Those files marked with 'C ' contain "
+                                     "diff3 conflict markers, which can be "
+                                     "resolved using the text editor of your "
+                                     "choice. Those marked with 'C*' could "
+                                     "not be merged that way, so you will "
+                                     "find .%s and .%s files instead and "
+                                     "should chose one of them or a "
+                                     "combination of both, moving it to the "
+                                     "real filename and deleting the other."
+                                     % (left_distro.upper(),
+                                        right_distro.upper()))
                 print >>report
 
                 conflicts.sort()
@@ -648,22 +664,24 @@ def write_text_report(left, left_patch,
                 print >>report
 
             if merged_version.revision is not None \
-                and left.version.upstream != merged_version.upstream:
+                    and left.version.upstream != merged_version.upstream:
                 sa_arg = " -sa"
             else:
                 sa_arg = ""
 
             print >>report
-            print >>report, fill("Once you have a source package you are happy "
-                                "to upload, you should make sure you include "
-                                "the orig.tar.gz if appropriate and information "
-                                "about all the versions included in the merge.")
+            print >>report, fill("Once you have a source package you are "
+                                 "happy to upload, you should make sure you "
+                                 "include the orig.tar.gz if appropriate and "
+                                 "information about all the versions included "
+                                 "in the merge.")
             print >>report
             print >>report, fill("Use the following command to generate a "
-                                "correct .changes file:")
+                                 "correct .changes file:")
             print >>report
-            print >>report, "  $ dpkg-genchanges -S -v%s%s" \
-                % (left.version, sa_arg)
+            print >>report, "  $ dpkg-genchanges -S -v%s%s" % (
+                left.version, sa_arg)
+
 
 def write_report(report,
                  left,

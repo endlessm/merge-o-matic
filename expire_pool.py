@@ -20,12 +20,13 @@
 import errno
 import logging
 
+from model.base import Distro
+from merge_report import (read_report, MergeResult)
 from momlib import *
 from util import tree, run
-from merge_report import (read_report, MergeResult)
-from model.base import Distro
 
 logger = logging.getLogger('expire_pool')
+
 
 def main(options, args):
     if len(args):
@@ -46,23 +47,24 @@ def main(options, args):
                 report = read_report(output_dir)
                 base = report["base_version"]
             except ValueError:
-                logger.debug('Skipping package %s: unable to read merge report',
-                        pkg.name)
+                logger.debug('Skipping package %s: unable to read merge '
+                             'report', pkg.name)
                 continue
 
             if report['result'] not in (MergeResult.SYNC_THEIRS,
-                    MergeResult.KEEP_OURS, MergeResult.MERGED,
-                    MergeResult.CONFLICTS):
+                                        MergeResult.KEEP_OURS,
+                                        MergeResult.MERGED,
+                                        MergeResult.CONFLICTS):
                 logger.debug('Skipping expiry for package %s: result=%s',
-                        pkg.name, report['result'])
+                             pkg.name, report['result'])
                 continue
 
             if base is None:
                 # If there's no suitable base for merges, we don't
                 # automatically expire any versions.
                 logger.debug('Skipping expiry for package %s: '
-                        'no base version found (result=%s)',
-                        pkg.name, report['result'])
+                             'no base version found (result=%s)',
+                             pkg.name, report['result'])
                 continue
 
             base = Version(base)
@@ -71,8 +73,9 @@ def main(options, args):
             for distro in distros:
                 if distro.shouldExpire():
                     for component in distro.components():
-                      distro_pkg = distro.package(target.dist, component, pkg.name)
-                      expire_pool_sources(distro_pkg, base)
+                        distro_pkg = distro.package(target.dist, component,
+                                                    pkg.name)
+                        expire_pool_sources(distro_pkg, base)
 
 
 def expire_pool_sources(pkg, base):
@@ -104,7 +107,7 @@ def expire_pool_sources(pkg, base):
         version_sort(bases)
         pv = bases.pop()
         logger.info("Leaving %s %s (is newest before base)",
-                     distro, pv)
+                    distro, pv)
 
         keep.append(pv)
 
