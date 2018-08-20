@@ -250,6 +250,7 @@ class MergeReport(object):
             self.base_component = base.package.component
             self.base_pool_dir = base.package.poolPath
             self.base_files = [f[2] for f in files(base.getDscContents())]
+            self.base_files.append(base.dscFilename)
 
     def set_right(self, right):
         if right is None:
@@ -267,6 +268,7 @@ class MergeReport(object):
             self.right_version = right.version
             self.right_pool_dir = right.package.poolPath
             self.right_files = [f[2] for f in files(right.getDscContents())]
+            self.right_files.append(right.dscFilename)
 
     def set_left(self, left):
         if left is None:
@@ -284,6 +286,7 @@ class MergeReport(object):
             self.left_version = left.version
             self.left_pool_dir = left.package.poolPath
             self.left_files = [f[2] for f in files(left.getDscContents())]
+            self.left_files.append(left.dscFilename)
 
             if isinstance(left.package.distro, OBSDistro):
                 self.obs_project = left.package.distro.obsProject(

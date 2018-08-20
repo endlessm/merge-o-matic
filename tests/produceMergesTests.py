@@ -41,6 +41,11 @@ class ProduceMergeTest(unittest.TestCase):
     self.assertEqual(report.result, MergeResult.SYNC_THEIRS)
     self.assertEqual(report.merged_version, upstream.version)
 
+    self.assertEqual(len(report.merged_files), 2)
+    tarfiles = [x for x in report.merged_files if x.startswith('foo_2.0.tar.')]
+    self.assertEqual(len(tarfiles), 1)
+    self.assertIn('foo_2.0.dsc', report.merged_files)
+
   # Base version foo-1.0-1
   # Target has foo-1.0-1mom1 with modified changelog only
   # Source has foo-1.2-1
