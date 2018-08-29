@@ -169,12 +169,21 @@ def handle_package(options, output_dir, target, pkg, our_version):
         report.merged_version = upstream.version
         report.message = "Using version in upstream distro per " \
             "sync_upstream_packages configuration"
+        if update_info.specific_upstream:
+            report.notes.append('Synced with specific upstream %s due to '
+                                'runtime parameters'
+                                % update_info.specific_upstream)
         return report
 
     logger.info("local: %s, upstream: %s", our_version, upstream)
 
     try:
-        return produce_merge(target, base, our_version, upstream, output_dir)
+        report = produce_merge(target, base, our_version, upstream, output_dir)
+        if update_info.specific_upstream:
+            report.notes.append('Merged with specific upstream %s due to '
+                                'runtime parameters'
+                                % update_info.specific_upstream)
+        return report
     except ValueError as e:
         logger.exception("Could not produce merge, "
                          "perhaps %s changed components upstream?", pkg)

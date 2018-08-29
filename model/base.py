@@ -537,6 +537,17 @@ class UpdateInfo(object):
         else:
             self.data['upstream_version'] = str(version)
 
+    @property
+    def specific_upstream(self):
+        return self.data.get('specific_upstream', None)
+
+    def set_specific_upstream(self, upstream):
+        if upstream is None:
+            if 'specific_upstream' in self.data:
+                del self.data['specific_upstream']
+        else:
+            self.data['specific_upstream'] = upstream
+
 
 def files(source):
     """Return (md5sum, size, name) for each file.

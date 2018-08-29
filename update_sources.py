@@ -108,12 +108,18 @@ def download_from_debsnap(target_dir, package_name, version):
     return True
 
 
-def find_upstream(target, pv):
+def find_upstream(target, pv, specific_upstream=None):
     upstream = None
     package_name = pv.package.name
     our_base_version = pv.version.base()
 
-    for srclist in target.getSourceLists(package_name, include_unstable=False):
+    if specific_upstream:
+        sourcelists = [config.SourceList(specific_upstream)]
+    else:
+        sourcelists = target.getSourceLists(package_name,
+                                            include_unstable=False)
+
+    for srclist in sourcelists:
         for src in srclist:
             logger.debug('considering source %s', src)
             try:
@@ -257,7 +263,7 @@ def download_removed_package(target_dir, target, package_name, version):
 
 
 # Set the stage for updating a specific package
-def handle_package(target, package, force=False):
+def handle_package(target, package, force=False, specific_upstream=None):
     # Store our results in a UpdateInfo file and use that to avoid repeating
     # the work we do below.
     update_info = UpdateInfo(package)
@@ -270,7 +276,7 @@ def handle_package(target, package, force=False):
 
     # Look at the upstreams and figure out which is the right version to
     # upgrade to.
-    upstream = find_upstream(target, pv)
+    upstream = find_upstream(target, pv, specific_upstream)
     if upstream is not None:
         upstream_version = upstream.version
     else:
@@ -281,16 +287,20 @@ def handle_package(target, package, force=False):
         upstream.download()
 
     # If UpdateInfo is already recorded to upgrade this version to the
-    # detected upstream, then nothing has changed since last time and we
-    # do not need to repeat that work.
+    # detected upstream (or a better version), then nothing has changed since
+    # last time and we do not need to repeat that work.
     if not force and update_info.version == pv.version \
-            and update_info.upstream_version == upstream_version:
-        logger.debug('Already have base info for base=%s upstream=%s',
+            and ((update_info.upstream_version is not None
+                  and upstream_version is not None
+                  and update_info.upstream_version >= upstream_version)
+                 or update_info.upstream_version == upstream_version):
+        logger.debug('Using existing base info for base=%s upstream=%s',
                      pv, upstream)
         return
 
     update_info.set_version(pv.version)
     update_info.set_upstream_version(upstream_version)
+    update_info.set_specific_upstream(specific_upstream)
 
     # Now we try to figure out which version that our package is based
     # upon, and we make a strong effort to download that version to
@@ -405,7 +415,8 @@ def main(options, args):
             if options.package and package.name not in options.package:
                 continue
             try:
-                handle_package(target, package, options.force)
+                handle_package(target, package, options.force,
+                               options.use_upstream)
             except urllib2.HTTPError, e:
                 logger.warning('Caught HTTPError while handling %s: %s:',
                                package, e)

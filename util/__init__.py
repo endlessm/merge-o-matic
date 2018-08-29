@@ -47,6 +47,8 @@ def get_option_parser(usage=None, description=None):
     parser.add_option("-f", "--force", action="store_true",
                       help="Force processing (ignore caches and previous "
                       "merges)")
+    parser.add_option("--use-upstream", help="Only consider the specified "
+                      "upstream distro")
     return parser
 
 

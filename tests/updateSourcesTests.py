@@ -179,6 +179,27 @@ class FindUnstableUpstreamTest(unittest.TestCase):
         self.assertEqual(upstream.package.name, 'foo')
         self.assertEqual(upstream.version, '2.4')
 
+    # Target distro has foo-2.0
+    # Stable source distro has foo-2.2
+    # Unstable source distro has foo-2.4
+    # Unstable source is specifically selected even though it wouldn't
+    # normally be used
+    def test_upstreamCorrectUnstableSource(self):
+        th.build_and_import_simple_package('foo', '2.0', self.target_repo)
+        th.build_and_import_simple_package('foo', '2.2',
+                                           self.stable_source_repo)
+        th.build_and_import_simple_package('foo', '2.4',
+                                           self.unstable1_source_repo)
+        th.update_all_distro_sources()
+
+        target = config.targets()[0]
+        pkg_version = target.distro.findPackage('foo', version='2.0')[0]
+
+        upstream = update_sources.find_upstream(
+            target, pkg_version, specific_upstream='unstable0distro_source')
+        self.assertEqual(upstream.package.name, 'foo')
+        self.assertEqual(upstream.version, '2.4')
+
 
 class HandlePackageTest(unittest.TestCase):
     def setUp(self):
