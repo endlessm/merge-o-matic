@@ -3,6 +3,7 @@ import os
 import shutil
 from stat import *
 import subprocess
+from subprocess import Popen
 from tempfile import mkdtemp
 
 from deb.controlfile import ControlFile
@@ -643,10 +644,14 @@ class DebTreeMerger(object):
             return self.merge_pot(filename)
         elif base_stat is not None and S_ISREG(base_stat.st_mode):
             # was file in base: diff3 possible
-            return self.diff3_merge(filename)
-        else:
-            # general file conflict
-            return False
+            if self.diff3_merge(filename):
+                return True
+            if self.sbtm_merge(filename):
+                return True
+            if self.sbtm_merge(filename, fast=True):
+                return True
+        # general file conflict
+        return False
 
     def merge_changelog(self, filename):
         """Merge a changelog file."""
@@ -724,6 +729,45 @@ class DebTreeMerger(object):
         else:
             logger.debug("Conflict in %s", filename)
             return False
+
+    def sbtm_merge(self, filename, fast=False):
+        """Merge a file using State-Based Text Merge tool.
+        This is experimental and often fails, but has been shown to
+        work correctly in some cases.
+
+        The alternate "--fast" algorithm is less likely to exhaust
+        recursion limits, but also less likely to produce accurate
+        results."""
+        dest = "%s/%s" % (self.merged_dir, filename)
+        tree.ensure(dest)
+
+        # We run this python app as a separate process as it does a lot of
+        # recursion and can cause high memory usage, stack overflow, etc.
+        args = [os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                             'sbtm.py')]
+        if fast:
+            args.append('--fast')
+        args.append("%s/%s" % (self.base_dir, filename))
+        args.append("%s/%s" % (self.left_dir, filename))
+        args.append("%s/%s" % (self.right_dir, filename))
+
+        process = Popen(args,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            return False
+
+        with open(dest, "w") as output:
+            output.write(stdout)
+
+        note = '%s was merged with an experimental '\
+               'State-Based Text Merge tool' % filename
+        if fast:
+            note += ' using the fast diff algorithm (particularly prone to ' \
+                    'inaccuracies)'
+        self.notes.append(note)
+
+        return True
 
     def merge_attr(self, filename):
         """Set initial and merge changed attributes."""

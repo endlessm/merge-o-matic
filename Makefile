@@ -41,6 +41,9 @@ tmpl_nonexe_files = \
 	templates/merge_report.html \
 	$(NULL)
 
+util_exe_files = \
+	util/sbtm.py
+
 util_nonexe_files = \
 	util/__init__.py \
 	util/debtreemerger.py \
@@ -61,6 +64,7 @@ all_files = \
 	$(main_nonexe_files) \
 	$(deb_nonexe_files) \
 	$(tmpl_nonexe_files) \
+	$(util_exe_files) \
 	$(util_nonexe_files) \
 	$(model_nonexe_files) \
 	COPYING \
@@ -83,6 +87,7 @@ install: $(all_files)
 	install -m 0755 $(main_exe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic
 	install -m 0644 $(deb_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/deb
 	install -m 0644 $(tmpl_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/templates
+	install -m 0755 $(util_exe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/util
 	install -m 0644 $(util_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/util
 	install -m 0644 $(model_nonexe_files) "$(DESTDIR)$(PREFIX)/$(LIBDIR)"/merge-o-matic/model
 	[[ x"$(PY_COMPILE)" = xyes ]] && \

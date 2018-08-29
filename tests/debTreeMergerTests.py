@@ -327,3 +327,49 @@ class DebTreeMergerTest(unittest.TestCase):
                          'Source: cheese\n'
                          'Uploaders: Fish <fish@fish.com>, Frog <fr@g.com>\n'
                          'Build-Depends: debhelper\n')
+
+    # If diff3 fails to merge, we use a State-Based Text Merge tool to see
+    # if that can help. Here's one example where it produces the right
+    # results.
+    def test_sbtmMerge(self):
+        with open(self.base_dir + '/myfile', 'w') as fd:
+            fd.write('confflags = \\\n'
+                     ' --libexecdir=/usr/lib/colord \\\n'
+                     ' --disable-examples \\\n'
+                     ' --disable-static \\\n'
+                     ' --with-daemon-user=colord \\\n'
+                     ' --with-systemdsystemunitdir=/lib/systemd/system \\\n'
+                     ' --with-udevrulesdir=/lib/udev/rules.d \\\n'
+                     ' --enable-vala \\\n'
+                     ' --disable-silent-rules')
+
+        # Remove the daemon-user line on left
+        with open(self.left_dir + '/myfile', 'w') as fd:
+            fd.write('confflags = \\\n'
+                     ' --libexecdir=/usr/lib/colord \\\n'
+                     ' --disable-examples \\\n'
+                     ' --disable-static \\\n'
+                     ' --with-systemdsystemunitdir=/lib/systemd/system \\\n'
+                     ' --with-udevrulesdir=/lib/udev/rules.d \\\n'
+                     ' --enable-vala \\\n'
+                     ' --disable-silent-rules')
+
+        # Remove the unitdir line on right
+        with open(self.right_dir + '/myfile', 'w') as fd:
+            fd.write('confflags = \\\n'
+                     ' --libexecdir=/usr/lib/colord \\\n'
+                     ' --disable-examples \\\n'
+                     ' --disable-static \\\n'
+                     ' --with-daemon-user=colord \\\n'
+                     ' --with-udevrulesdir=/lib/udev/rules.d \\\n'
+                     ' --enable-vala \\\n'
+                     ' --disable-silent-rules')
+
+        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
+                               self.right_dir, 'foo', '', 'right',
+                               self.base_dir, self.merged_dir)
+        merger.run()
+
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertEqual(len(merger.notes), 1)
+        self.assertIn('myfile', merger.changes_made)
