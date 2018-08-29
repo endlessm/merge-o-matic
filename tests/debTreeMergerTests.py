@@ -290,3 +290,40 @@ class DebTreeMergerTest(unittest.TestCase):
         self.assertIn('debian/patches/series', merger.changes_made)
         merged = open(self.merged_dir + '/debian/patches/series', 'r').read()
         self.assertEqual(merged, 'one.patch\ntwo.patch\nendless.patch\n')
+
+    # Some development routines involve the downstream developer being
+    # added to debian/control Uploaders when modifying packages. This
+    # can cause merge conflicts going forward. Test our codepath that
+    # explicitly drops the Uploaders modification to avoid a conflicting file.
+    def test_controlFileUploadersReset(self):
+        os.makedirs(self.base_dir + '/debian')
+        os.makedirs(self.left_dir + '/debian')
+        os.makedirs(self.right_dir + '/debian')
+
+        with open(self.base_dir + '/debian/control', 'w') as fd:
+            fd.write('Source: cheese\n'
+                     'Uploaders: Fish <fish@fish.com>\n'
+                     'Build-Depends: debhelper\n')
+
+        with open(self.left_dir + '/debian/control', 'w') as fd:
+            fd.write('Source: cheese\n'
+                     'Uploaders: Fish <fish@fish.com>, me <down@stream.com>\n'
+                     'Build-Depends: debhelper\n')
+
+        with open(self.right_dir + '/debian/control', 'w') as fd:
+            fd.write('Source: cheese\n'
+                     'Uploaders: Fish <fish@fish.com>, Frog <fr@g.com>\n'
+                     'Build-Depends: debhelper\n')
+
+        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
+                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
+                               self.base_dir, self.merged_dir)
+        merger.run()
+
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertIn('debian/control', merger.changes_made)
+        merged = open(self.merged_dir + '/debian/control', 'r').read()
+        self.assertEqual(merged,
+                         'Source: cheese\n'
+                         'Uploaders: Fish <fish@fish.com>, Frog <fr@g.com>\n'
+                         'Build-Depends: debhelper\n')

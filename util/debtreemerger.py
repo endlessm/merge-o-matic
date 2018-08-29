@@ -5,6 +5,8 @@ from stat import *
 import subprocess
 from tempfile import mkdtemp
 
+from deb.controlfile import ControlFile
+from deb.controlfilepatcher import ControlFilePatcher
 from momlib import *
 from util import tree
 
@@ -333,6 +335,9 @@ class DebTreeMerger(object):
         # Intelligently handle added quilt patches
         self.handle_quilt_patches()
 
+        # Intelligently handle control file
+        self.handle_control_file()
+
         # Now apply the remaining changes through simple means
         self.apply_pending_changes()
 
@@ -484,6 +489,58 @@ class DebTreeMerger(object):
                 self.notes.append('Our patch %s fails to apply to the new '
                                   'version' % patch)
                 return
+
+    def handle_control_file(self):
+        control_file = 'debian/control'
+        if control_file not in self.pending_changes or \
+                self.pending_changes[control_file] != self.PENDING_MERGE:
+            return
+
+        try:
+            base_stat = os.stat("%s/%s" % (self.base_dir, control_file))
+        except OSError:
+            return
+
+        if not S_ISREG(base_stat.st_mode):
+            return
+
+        # If we have a base version, see if diff3 can figure it out cleanly
+        if self.diff3_merge(control_file):
+            del self.pending_changes[control_file]
+            self.record_change(control_file, self.FILE_MODIFIED)
+            logger.debug('Merged debian/control file via diff3')
+            return
+
+        our_control_path = os.path.join(self.left_dir, control_file)
+        base_control = ControlFile(os.path.join(self.base_dir, control_file),
+                                   multi_para=True)
+        our_control = ControlFile(our_control_path, multi_para=True)
+
+        # See if we've modified Uploaders in our version
+        base_uploaders = base_control.paras[0].get('Uploaders', None)
+        our_uploaders = our_control.paras[0].get('Uploaders', None)
+        if base_uploaders == our_uploaders:
+            return
+
+        # If so, rewrite our own control file with the original Uploaders
+        logging.debug('Restoring Uploaders to base value to see if it helps '
+                      'with conflict resolution')
+        control_patcher = ControlFilePatcher(filename=our_control_path)
+        control_patcher.patch('Uploaders', base_uploaders)
+
+        # Try diff3 again with the modified left version.
+        with open(our_control_path, "w") as new_control:
+            new_control.write(control_patcher.get_text())
+            new_control.flush()
+
+        if self.diff3_merge(control_file):
+            logging.debug('control file merge now succeeded')
+            del self.pending_changes[control_file]
+            self.record_change(control_file, self.FILE_MODIFIED)
+            self.notes.append('Dropped uninteresting Uploaders change in '
+                              'downstream debian/control file')
+        else:
+            logging.debug('control file still could not be merged')
 
     # Handle po files separately as they need special merging
     def handle_po_files(self):
