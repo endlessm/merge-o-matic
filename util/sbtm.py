@@ -49,6 +49,8 @@
 ################################################################################
 ################################################################################
 
+import sys
+
 ################################################################################
 ################################################################################
 # String Diffing
@@ -472,8 +474,6 @@ def merge(ancestor, a, b):
 ################################################################################
 ################################################################################
 
-import sys
-
 # split a string by spaces / newlines, but unlike the built-in split function,
 # we want to preserve the separators so we can reconstruct the document
 # afterward.  to do this, we treat whitespace characters as words.
@@ -512,7 +512,7 @@ if len(sys.argv) != 4:
   print ""
   print "   merger.py ancestor_file alice_file bob_file"
   print ""
-  exit(0)
+  sys.exit(1)
 
 # open files a, b, and c (a is the common ancestor)
 try:
@@ -526,15 +526,17 @@ try:
   b = smart_split(open(sys.argv[3], "r").read())
 except:
   print "error:  unable to one or more open input files"
-  exit(0)
+  sys.exit(1)
 
 # try to merge
 try:
   # since we merged lists of words rather than the raw strings, we
   # need to join the words back into a string for nice printing
   print "".join(merge(a, b, c)),
+  sys.exit(0)
 
 # report any conflicts
 except MergeConflictList as mc:
   for c in mc.conflicts:
     print "conflict:  " + str(c)
+  sys.exit(1)
