@@ -49,6 +49,8 @@
 ################################################################################
 ################################################################################
 
+import argparse
+import difflib
 import sys
 
 ################################################################################
@@ -82,7 +84,7 @@ class Delete(Change):
 # takes 2 indexable objects (e.g. strings or lists)
 # returns a list of Change objects (Delete or Insert)
 # guaranteed to produce an optimal diff
-def str_diff(a, b):
+def str_diff_optimal(a, b):
   ls = len(a)
   lf = len(b)
   memo = {}
@@ -143,19 +145,16 @@ def str_diff(a, b):
       offset_b -=  length
   return changes
 
-"""
 
 # Here is an alternative version of the str_diff(a, b) function.
 # Unlike the version above, it is NOT guaranteed to produce optimal
 # diffs.  Diffs that are not optimal can sometimes produce unexpected
 # results.  However, this version is much faster.
 
-import difflib
-
 # takes 2 indexable objects (e.g. strings or lists)
 # returns a list of Change objects (Delete or Insert)
 # not guaranteed to produce an optimal diff
-def str_diff(a, b):
+def str_diff_fast(a, b):
   d = difflib.Differ()
   diff = list(d.compare(a, b))
   changes = []
@@ -187,7 +186,9 @@ def str_diff(a, b):
       changes.append(Delete(a[range_a_0:pos_a], (range_a_0, pos_a), pos_b))
   return changes
 
-"""
+
+# Default to optimal version
+str_diff = str_diff_optimal
 
 ################################################################################
 ################################################################################
@@ -491,28 +492,30 @@ def smart_split(s):
       result[-1] +=  s[i]
   return result
 
-# check the number of arguments
-if len(sys.argv) != 4:
-  print ""
-  print "State-Based Text Merging Algorithm"
-  print "For 6.033 Design Project 2"
-  print "TA: Katherine Fang"
-  print "9 May 2012"
-  print ""
-  print "Stephan Boyer"
-  print "Ami Patel"
-  print "Vo Thanh Minh Tue"
-  print ""
-  print "Description:"
-  print ""
-  print "  Attempts to automatically perform a three-way merge."
-  print "  Prints the result to standard output."
-  print ""
-  print "Usage:"
-  print ""
-  print "   merger.py ancestor_file alice_file bob_file"
-  print ""
-  sys.exit(1)
+epilog="""For 6.033 Design Project 2
+TA: Katherine Fang
+9 May 2012
+
+Stephan Boyer
+Ami Patel
+Vo Thanh Minh Tue
+
+Attempts to automatically perform a three-way merge.
+Prints the result to standard output."""
+
+parser = argparse.ArgumentParser(
+    description='State-Based Text Merging Algorithm',
+    epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+parser.add_argument('ancestor_file')
+parser.add_argument('alice_file')
+parser.add_argument('bob_file')
+parser.add_argument('--fast', action='store_true',
+                    help='use faster diff algorithm')
+
+args = parser.parse_args()
+
+if args.fast:
+  str_diff = str_diff_fast
 
 # open files a, b, and c (a is the common ancestor)
 try:
@@ -521,9 +524,9 @@ try:
   # merging the raw strings of characters, we choose to split the
   # text into words and do the merge on that granularity.  this
   # gives more intuitive results.
-  a = smart_split(open(sys.argv[1], "r").read())
-  c = smart_split(open(sys.argv[2], "r").read())
-  b = smart_split(open(sys.argv[3], "r").read())
+  a = smart_split(open(args.ancestor_file, "r").read())
+  c = smart_split(open(args.alice_file, "r").read())
+  b = smart_split(open(args.bob_file, "r").read())
 except:
   print "error:  unable to one or more open input files"
   sys.exit(1)
