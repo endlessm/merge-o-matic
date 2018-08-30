@@ -532,7 +532,7 @@ except:
 try:
   # since we merged lists of words rather than the raw strings, we
   # need to join the words back into a string for nice printing
-  print "".join(merge(a, b, c))
+  print "".join(merge(a, b, c)),
 
 # report any conflicts
 except MergeConflictList as mc:
