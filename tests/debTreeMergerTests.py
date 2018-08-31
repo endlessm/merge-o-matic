@@ -291,6 +291,52 @@ class DebTreeMergerTest(unittest.TestCase):
         merged = open(self.merged_dir + '/debian/patches/series', 'r').read()
         self.assertEqual(merged, 'one.patch\ntwo.patch\nendless.patch\n')
 
+    # Our version applies two (closely related) patches on top of the base.
+    # Upstream version has those patches applied.
+    # Check that those patches were detected as reversable and were hence
+    # dropped. In this case, as all patches were dropped, the debian/patches
+    # dir should also be not present in the merged output.
+    def test_quiltRevertablePatches(self):
+        with open(self.base_dir + '/myfile', 'w') as fd:
+            fd.write('one\ntwo\nthree\n')
+
+        shutil.copyfile(self.base_dir + '/myfile', self.left_dir + '/myfile')
+
+        with open(self.right_dir + '/myfile', 'w') as fd:
+            fd.write('one\n2222\nthree\n')
+
+        os.makedirs(self.left_dir + '/debian/patches')
+        with open(self.left_dir + '/debian/patches/series', 'w') as fd:
+            fd.write('one.patch\ntwo.patch\n')
+
+        with open(self.left_dir + '/debian/patches/one.patch', 'w') as fd:
+            fd.write('--- foo.orig/myfile\n')
+            fd.write('+++ foo/myfile\n')
+            fd.write('@@ -1,3 +1,3 @@\n')
+            fd.write(' one\n')
+            fd.write('-two\n')
+            fd.write('+t w o\n')
+            fd.write(' three\n')
+
+        with open(self.left_dir + '/debian/patches/two.patch', 'w') as fd:
+            fd.write('--- foo.orig/myfile\n')
+            fd.write('+++ foo/myfile\n')
+            fd.write('@@ -1,3 +1,3 @@\n')
+            fd.write(' one\n')
+            fd.write('-t w o\n')
+            fd.write('+2222\n')
+            fd.write(' three\n')
+
+        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
+                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
+                               self.base_dir, self.merged_dir)
+        merger.run()
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertEqual(len(merger.changes_made), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.merged_dir,
+                                                     'debian', 'patches')))
+        self.assertEqual(len(merger.notes), 3)
+
     # Some development routines involve the downstream developer being
     # added to debian/control Uploaders when modifying packages. This
     # can cause merge conflicts going forward. Test our codepath that

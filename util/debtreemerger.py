@@ -4,7 +4,7 @@ import shutil
 from stat import *
 import subprocess
 from subprocess import Popen
-from tempfile import mkdtemp
+from tempfile import mkdtemp, NamedTemporaryFile
 
 from deb.controlfile import ControlFile
 from deb.controlfilepatcher import ControlFilePatcher
@@ -419,18 +419,99 @@ class DebTreeMerger(object):
                           'conflicted')
             return
 
-        # Create a temporary copy of the package where we will experiment with
-        # patches
-        tmpdir = mkdtemp(prefix='mom.quilt.')
-        os.rmdir(tmpdir)
-        shutil.copytree(self.merged_dir, tmpdir)
-
+        # Experiment with patch reverts under a temporary copy
+        tmpdir = mkdtemp(prefix='mom.quiltrevert.')
         try:
-            self.__iterate_quilt_patches(tmpdir)
+            os.rmdir(tmpdir)
+            shutil.copytree(self.merged_dir, tmpdir)
+            self.__revert_quilt_patches(tmpdir)
         finally:
             shutil.rmtree(tmpdir)
 
-    def __iterate_quilt_patches(self, tmpdir):
+        # Experiment with patch refreshes under a temporary copy
+        tmpdir = mkdtemp(prefix='mom.quiltrefresh.')
+        try:
+            os.rmdir(tmpdir)
+            shutil.copytree(self.merged_dir, tmpdir)
+            self.__refresh_quilt_patches(tmpdir)
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def __revert_quilt_patches(self, tmpdir):
+        # get list of patches applied in base version
+        proc = subprocess.Popen(['quilt', 'series'], stdout=subprocess.PIPE,
+                                env={'QUILT_PATCHES': 'debian/patches'},
+                                cwd=self.base_dir)
+        base_series, stderr = proc.communicate()
+        if proc.returncode != 0:
+            logging.debug('quilt series failed in base version')
+            return
+
+        # get list of patches applied in our version
+        proc = subprocess.Popen(['quilt', 'series'], stdout=subprocess.PIPE,
+                                env={'QUILT_PATCHES': 'debian/patches'},
+                                cwd=self.left_dir)
+        our_series, stderr = proc.communicate()
+        if proc.returncode != 0:
+            logging.debug('quilt series failed in left version')
+            return
+
+        # find list of patches that we add - without losing order
+        base_series = base_series.split("\n")
+        our_series = our_series.split("\n")
+        our_added_patches = []
+        for patch in our_series:
+            if patch not in base_series:
+                our_added_patches.append(os.path.basename(patch))
+
+        # revert them one by one
+        patches_to_drop = []
+        for patch in reversed(our_added_patches):
+            logging.debug('Trying to revert our patch %s', patch)
+            args = ['patch', '--dry-run', '-p1', '--reverse', '--force',
+                    '--quiet', '-i',
+                    os.path.join(self.left_dir, 'debian', 'patches', patch)]
+            rc = subprocess.call(args, cwd=tmpdir)
+            if rc != 0:
+                continue
+
+            # Patch can be reverted. Note this and do the revert, in case
+            # the following patches depend on this one being reverted.
+            del args[1]
+            subprocess.call(args, cwd=tmpdir)
+            patches_to_drop.append(patch)
+
+        if not patches_to_drop:
+            return
+
+        # Remove revertable patches from series file
+        series_file = os.path.join(self.merged_dir, 'debian', 'patches',
+                                   'series')
+        written = False
+        with open(series_file) as series, NamedTemporaryFile() as new_series:
+            for line in series.readlines():
+                if line.strip() in patches_to_drop:
+                    continue
+                new_series.write(line)
+                written = True
+            new_series.flush()
+            shutil.copyfile(new_series.name, series_file)
+
+        for patch in patches_to_drop:
+            logging.debug('Dropping revertable patch %s', patch)
+            del self.pending_changes['debian/patches/' + patch]
+            self.notes.append('Dropped patch %s because it can be reverted '
+                              'cleanly' % patch)
+
+        if not written:
+            logging.debug('No quilt patches remaining, removing directory')
+            self.notes.append('debian/patches was entirely removed as there '
+                              'were no patches remaining.')
+            os.unlink(series_file)
+            os.rmdir(os.path.join(self.merged_dir, 'debian', 'patches'))
+            del self.changes_made['debian/patches/series']
+
+    def __refresh_quilt_patches(self, tmpdir):
         # Put our downstream-added patches in place. Must be done
         # before we 'quilt push' the preceding patch to avoid quilt being
         # unhappy.
