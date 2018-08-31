@@ -49,8 +49,9 @@ def get_option_parser(usage=None, description=None):
                       "merges)")
     parser.add_option("--use-upstream", help="Only consider the specified "
                       "upstream distro")
-    parser.add_option("--sync-to-upstream", help="Sync to upstream version "
-                      "(rather than considering a merge)")
+    parser.add_option("--sync-to-upstream", action="store_true",
+                      help="Sync to upstream version (rather than "
+                      "considering a merge)")
     return parser
 
 
