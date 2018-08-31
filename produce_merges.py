@@ -175,6 +175,22 @@ def handle_package(options, output_dir, target, pkg, our_version):
                                 % update_info.specific_upstream)
         return report
 
+    if options.sync_to_upstream:
+        logger.info("Syncing to %s per command line", upstream)
+        cleanup(output_dir)
+        report = MergeReport(left=our_version, right=upstream)
+        report.target = target.name
+        report.result = MergeResult.SYNC_THEIRS
+        report.merged_version = upstream.version
+        if update_info.specific_upstream:
+            report.notes.append('Synced with specific upstream %s due to '
+                                'runtime parameters'
+                                % update_info.specific_upstream)
+        else:
+            report.notes.append('Force-synced to upstream due to runtime '
+                                'parameters')
+        return report
+
     logger.info("local: %s, upstream: %s", our_version, upstream)
 
     try:
