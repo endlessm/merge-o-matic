@@ -481,11 +481,8 @@ def save_changelog(output_dir, cl_versions, pv, bases, limit=None):
     return name
 
 
-def produce_merge(target, base, left, upstream, output_dir):
-    left_dir = unpack_source(left)
-    upstream_dir = unpack_source(upstream)
-    base_dir = unpack_source(base)
-
+def __produce_merge(target, base, base_dir, left, left_dir,
+                    upstream, upstream_dir, output_dir):
     report = MergeReport(left=left, right=upstream)
     report.target = target.name
     report.mom_version = str(VERSION)
@@ -603,10 +600,6 @@ def produce_merge(target, base, left, upstream, output_dir):
                      merged_dir=None)
 
         cleanup(merged_dir)
-        cleanup_source(upstream)
-        cleanup_source(base)
-        cleanup_source(left)
-
         return report
 
     if 'debian/changelog' not in merger.conflicts:
@@ -670,10 +663,20 @@ def produce_merge(target, base, left, upstream, output_dir):
                  output_dir=output_dir, merged_dir=merged_dir)
     logger.info("Wrote output to %s", src_file)
     cleanup(merged_dir)
-    cleanup_source(upstream)
-    cleanup_source(base)
-    cleanup_source(left)
     return report
+
+
+def produce_merge(target, base, left, upstream, output_dir):
+    left_dir = unpack_source(left)
+    upstream_dir = unpack_source(upstream)
+    base_dir = unpack_source(base)
+    try:
+        return __produce_merge(target, base, base_dir, left, left_dir,
+                               upstream, upstream_dir, output_dir)
+    finally:
+        cleanup_source(upstream)
+        cleanup_source(base)
+        cleanup_source(left)
 
 
 if __name__ == "__main__":
