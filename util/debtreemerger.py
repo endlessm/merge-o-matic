@@ -423,7 +423,7 @@ class DebTreeMerger(object):
         tmpdir = mkdtemp(prefix='mom.quiltrevert.')
         try:
             os.rmdir(tmpdir)
-            shutil.copytree(self.merged_dir, tmpdir)
+            shutil.copytree(self.merged_dir, tmpdir, symlinks=True)
             self.__revert_quilt_patches(tmpdir)
         finally:
             shutil.rmtree(tmpdir)
@@ -432,7 +432,7 @@ class DebTreeMerger(object):
         tmpdir = mkdtemp(prefix='mom.quiltrefresh.')
         try:
             os.rmdir(tmpdir)
-            shutil.copytree(self.merged_dir, tmpdir)
+            shutil.copytree(self.merged_dir, tmpdir, symlinks=True)
             self.__refresh_quilt_patches(tmpdir)
         finally:
             shutil.rmtree(tmpdir)
