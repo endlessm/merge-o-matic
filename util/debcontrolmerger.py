@@ -39,6 +39,11 @@ class DebControlMerger(object):
         self.merged_control_path = os.path.join(merged_dir, control_path)
         tree.ensure(self.merged_control_path)
 
+        self.base_control = ControlFileParser(filename=self.base_control_path)
+        self.left_control = ControlFileParser(filename=self.left_control_path)
+        self.right_control = \
+            ControlFileParser(filename=self.right_control_path)
+
         self.orig_right_md5sum = md5sum(self.right_control_path)
 
     def record_note(self, note, changelog_worthy=False):
@@ -77,23 +82,17 @@ class DebControlMerger(object):
     # Drop Uploaders changes from the left side as they are irrelevant and
     # just generate merge noise.
     def merge_uploaders(self):
-        base_control = ControlFile(self.base_control_path, multi_para=True)
-        left_control = ControlFile(self.left_control_path, multi_para=True)
+        left_para0 = self.left_control.parse()[0]
+        base_para0 = self.base_control.parse()[0]
 
         # See if we've modified Uploaders in our version
-        base_uploaders = base_control.paras[0].get('Uploaders', None)
-        left_uploaders = left_control.paras[0].get('Uploaders', None)
-        if base_uploaders == left_uploaders:
+        base_uploaders = base_para0.get('Uploaders')
+        if base_uploaders == left_para0.get('Uploaders'):
             return
 
         # If so, rewrite our own control file with the original Uploaders
-        logger.debug('Restoring Uploaders to base value to see if it helps '
-                     'with conflict resolution')
-        control_parser = ControlFileParser(filename=self.left_control_path)
-        control_parser.patch('Uploaders', base_uploaders)
-
-        with open(self.left_control_path, "w") as new_control:
-            new_control.write(control_parser.get_text())
-            new_control.flush()
-
+        logging.debug('Restoring Uploaders to base value to see if it helps '
+                      'with conflict resolution')
+        left_control.patch(None, 'Uploaders', base_uploaders)
+        left_control.write()
         self.record_note('Dropped uninteresting Uploaders change')
