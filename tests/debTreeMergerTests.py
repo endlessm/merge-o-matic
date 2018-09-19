@@ -367,7 +367,7 @@ class DebTreeMergerTest(unittest.TestCase):
         merger.run()
 
         self.assertEqual(len(merger.conflicts), 0)
-        self.assertIn('debian/control', merger.changes_made)
+        self.assertEqual(len(merger.changes_made), 0)
         merged = open(self.merged_dir + '/debian/control', 'r').read()
         self.assertEqual(merged,
                          'Source: cheese\n'

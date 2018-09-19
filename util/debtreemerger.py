@@ -103,6 +103,9 @@ class DebTreeMerger(object):
 
     # Record a change made relative to the right version
     def record_change(self, filename, change_type):
+        if change_type == 0:
+            return
+
         if filename in self.changes_made:
             assert self.changes_made[filename] == change_type
 
@@ -114,7 +117,8 @@ class DebTreeMerger(object):
         self.pending_changes[filename] = pending_change_type
 
     # Apply a specific pending change to a file.
-    # Return the type of change made, or None if it conflicted
+    # Return the type of change made, 0 if there was ultimately no change
+    # made (relative to right version), or None if it conflicted
     def apply_pending_change(self, filename, change_type):
         if change_type == self.PENDING_SYNC:
             # sync from left (file or non file)
@@ -148,6 +152,21 @@ class DebTreeMerger(object):
                 right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
             except OSError:
                 right_stat = None
+
+            # Even though the file was originally enqueued for merge,
+            # some of our post-processing might have dropped local
+            # changes, in which case we can just use the right
+            # version as-is.
+            if left_stat and base_stat \
+                    and same_file(left_stat, self.left_dir,
+                                  base_stat, self.base_dir, filename):
+                # same file contents in left and base, so just copy
+                # over the right version
+                logger.debug('%s left and base are now the same file',
+                             filename)
+                tree.copyfile("%s/%s" % (self.right_dir, filename),
+                              "%s/%s" % (self.merged_dir, filename))
+                return 0
 
             if self.merge_file_contents(left_stat, right_stat, base_stat,
                                         filename):
@@ -589,10 +608,10 @@ class DebTreeMerger(object):
             return
 
         # If we have a base version, see if diff3 can figure it out cleanly
-        if self.diff3_merge(control_file):
-            del self.pending_changes[control_file]
-            self.record_change(control_file, self.FILE_MODIFIED)
-            logger.debug('Merged debian/control file via diff3')
+        # We don't actually do the merge here, but even if mergeable,
+        # we leave it as pending and the generic code will then merge it
+        # later.
+        if self.do_diff3(control_file) == 0:
             return
 
         our_control_path = os.path.join(self.left_dir, control_file)
@@ -617,14 +636,11 @@ class DebTreeMerger(object):
             new_control.write(control_parser.get_text())
             new_control.flush()
 
-        if self.diff3_merge(control_file):
-            logging.debug('control file merge now succeeded')
-            del self.pending_changes[control_file]
-            self.record_change(control_file, self.FILE_MODIFIED)
-            self.notes.append('Dropped uninteresting Uploaders change in '
-                              'downstream debian/control file')
-        else:
-            logging.debug('control file still could not be merged')
+        self.notes.append('Dropped uninteresting Uploaders change in '
+                          'downstream debian/control file')
+
+        if self.do_diff3(control_file) == 0:
+            return
 
     # Handle po files separately as they need special merging
     def handle_pot_files(self):
@@ -772,23 +788,26 @@ class DebTreeMerger(object):
 
         return False
 
+    def do_diff3(self, filename, output=subprocess.PIPE):
+        args = ("diff3", "-E", "-m",
+                "-L", self.left_name,
+                "%s/%s" % (self.left_dir, filename),
+                "-L", "BASE",
+                "%s/%s" % (self.base_dir, filename),
+                "-L", self.right_name,
+                "%s/%s" % (self.right_dir, filename))
+        proc = subprocess.Popen(args, stdout=output)
+        outdata, errdata = proc.communicate()
+        return proc.returncode
+
     def diff3_merge(self, filename):
         """Merge a file using diff3."""
         dest = "%s/%s" % (self.merged_dir, filename)
         tree.ensure(dest)
 
         with open(dest, "w") as output:
-            status = shell.run(("diff3", "-E", "-m",
-                                "-L", self.left_name,
-                                "%s/%s" % (self.left_dir, filename),
-                                "-L", "BASE",
-                                "%s/%s" % (self.base_dir, filename),
-                                "-L", self.right_name,
-                                "%s/%s" % (self.right_dir, filename)),
-                               stdout=output, okstatus=(0, 1, 2))
-
-        if status == 0:
-            return True
+            if self.do_diff3(filename, output) == 0:
+                return True
 
         if not tree.exists(dest) or os.stat(dest).st_size == 0:
             # Probably binary
