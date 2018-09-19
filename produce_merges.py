@@ -584,6 +584,7 @@ def __produce_merge(target, base, base_dir, left, left_dir,
 
         report.result = MergeResult.SYNC_THEIRS
         report.build_metadata_changed = False
+        report.left_patch = copy_in(output_dir, left)
         report.right_patch = copy_in(output_dir, upstream)
         report.merged_version = upstream.version
         report.merged_patch = report.right_patch
