@@ -35,6 +35,7 @@ deb_nonexe_files = \
 	deb/controlfile.py \
 	deb/controlfileparser.py \
 	deb/controlfileparser.lark \
+	deb/deplist.lark \
 	deb/source.py \
 	deb/version.py
 

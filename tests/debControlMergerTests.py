@@ -74,3 +74,163 @@ class DebControlMergerTest(unittest.TestCase):
         merger, merged = self.merge()
         self.assertTrue(merged)
         self.assertFalse(merger.modified)
+
+    # Downstream version modifies the version constraint of a build dep.
+    # Upstream version drops that build dep altogether.
+    # Check that we auto-merge by dropping our local change.
+    def test_changeBuildDepVersionOfDroppedDep(self):
+        self.write_base('Source: appstream\n'
+                        'Build-Depends: cmake (>= 2.8),\n'
+                        ' debhelper (>= 10),\n'
+                        ' gettext,\n'
+                        'Uploaders: Fish <fish@fish.com>\n')
+
+        self.write_left('Source: appstream\n'
+                        'Build-Depends: cmake (>= 3.2),\n'
+                        ' debhelper (>= 10),\n'
+                        ' gettext,\n'
+                        'Uploaders: Fish <fish@fish.com>\n')
+
+        self.write_right('Source: appstream\n'
+                         'Build-Depends: debhelper (>= 11),\n'
+                         ' gettext,\n'
+                         'Uploaders: Fish <fish@fish.com>\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
+
+    # Downstream version removes the version constraint of 2 build deps.
+    # Upstream version drops that build dep altogether.
+    # Check that we auto-merge by dropping our local changes.
+    # Also tests 2 modifications on the same line
+    def test_removeBuildDepVersionOfDroppedDep(self):
+        self.write_base('Source: fonts-cantarell\n'
+                        'Build-Depends-Indep: fontforge (>= 1), foo (> 3)\n'
+                        'Uploaders: Fish <fish@fish.com>\n')
+
+        self.write_left('Source: fonts-cantarell\n'
+                        'Build-Depends-Indep: fontforge, foo\n'
+                        'Uploaders: Fish <fish@fish.com>\n')
+
+        self.write_right('Source: fonts-cantarell\n'
+                         'Build-Depends-Indep: fontmake, bar\n'
+                         'Uploaders: Fish <fish@fish.com>\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
+
+    # If the left side modifies a version constraint, this should be carried
+    # over to the new version
+    def test_changeVersionConstraint(self):
+        self.write_base('Source: foo\n'
+                        'Build-Depends: one (> 3.0), two\n')
+
+        self.write_left('Source: foo\n'
+                        'Build-Depends: one (> 4.0), two\n')
+
+        self.write_right('Source: foo\n'
+                         'Build-Depends: one (> 3.0), three\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult('Source: foo\n'
+                          'Build-Depends: one (> 4.0), three\n')
+
+    # If the left side increases a "greater than" version constraint
+    # but the right side increases it even further, then we can
+    # drop our local change.
+    def test_changeVersionConstraintGtUpgrade(self):
+        self.write_base('Source: foo\n'
+                        'Uploaders: a <b@c.com>\n\n'
+                        'Package: pkg\n'
+                        'Depends: one (> 3.0), two\n')
+
+        self.write_left('Source: foo\n'
+                        'Uploaders: a <b@c.com>\n\n'
+                        'Package: pkg\n'
+                        'Depends: one (> 4.0), two\n')
+
+        self.write_right('Source: foo\n'
+                         'Uploaders: a <b@c.com>\n\n'
+                         'Package: pkg\n'
+                         'Depends: one (> 5.0), four\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
+
+    # Downstream version removes a build dep
+    # Upstream version removes the same build dep, and otherwise conflicts
+    # Should take the upstream version
+    def test_removeEliminatedBuildDep(self):
+        self.write_base('Source: gnome-online-accounts\n'
+                        'Build-Depends: soup,\n'
+                        ' telepathy,\n'
+                        ' webkit\n')
+
+        self.write_left('Source: gnome-online-accounts\n'
+                        'Build-Depends: soup,\n'
+                        ' webkit\n')
+
+        self.write_right('Source: gnome-online-accounts\n'
+                         'Build-Depends: other,\n'
+                         ' stuff\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
+
+    # If there are only syntactical changes in the build deps, they
+    # should be dropped.
+    def test_buildDepNoChange(self):
+        self.write_base('Source: foo\n'
+                        'Build-Depends: one, two\n')
+
+        self.write_left('Source: foo\n'
+                        'Build-Depends: two,   one,\n')
+
+        self.write_right('Source: foo\n'
+                         'Build-Depends: one, three\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
+
+    # Left side adds a Build-Depends-Indep entry
+    # Right side removes that field altogether
+    # Check that the field is readded
+    def test_buildDepFieldRemoved(self):
+        self.write_base('Source: foo\n'
+                        'Build-Depends-Indep: one, two\n')
+
+        self.write_left('Source: foo\n'
+                        'Build-Depends-Indep: one, foo, two\n')
+
+        self.write_right('Source: foo\n'
+                         'Build-Depends: one, two\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult('Source: foo\n'
+                          'Build-Depends: one, two\n'
+                          'Build-Depends-Indep: foo\n')
+
+    def test_addArchList(self):
+        self.write_base('Source: foo\n'
+                        'Build-Depends: one, two\n')
+
+        self.write_left('Source: foo\n'
+                        'Build-Depends: one [!armhf], two\n')
+
+        self.write_right('Source: foo\n'
+                         'Build-Depends: one, three\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult('Source: foo\n'
+                          'Build-Depends: one [!armhf], three\n')
