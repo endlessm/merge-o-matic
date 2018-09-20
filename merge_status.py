@@ -34,7 +34,13 @@ from util import run
 # Order of priorities
 PRIORITY = ["unknown", "required", "important", "standard", "optional",
             "extra"]
-COLOURS = ["#fffd80", "#ffb580", "#ffea80", "#dfff80", "#abff80", "#80ff8b"]
+COLOURS = {
+    MergeResult.SYNC_THEIRS: "#7dcea0",  # green
+    MergeResult.MERGED: "#5dade2",  # blue
+    MergeResult.CONFLICTS: "orange",
+    MergeResult.FAILED: "#d98880",  # red
+    MergeResult.NO_BASE: "grey",
+}
 
 # Sections
 SECTIONS = ["outstanding", "new", "committed"]
@@ -237,10 +243,8 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
 
     print >>status, "<table cellspacing=0>"
     print >>status, "<tr bgcolor=#d0d0d0>"
-    print >>status, "<td rowspan=2><b>Package</b></td>"
-    print >>status, "<td rowspan=2><b>Comment</b></td>"
-    print >>status, "</tr>"
-    print >>status, "<tr bgcolor=#d0d0d0>"
+    print >>status, "<td><b>Package</b></td>"
+    print >>status, "<td><b>Comment</b></td>"
     print >>status, "<td><b>%s Version</b></td>" % our_distro.title()
     print >>status, "<td><b>%s Version</b></td>" % default_src_distro.title()
     print >>status, "<td><b>Base Version</b></td>"
@@ -252,7 +256,7 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
             output_dir, report in merges:
         escaped_root = re.escape(config.get('ROOT'))
 
-        print >>status, "<tr bgcolor=%s class=first>" % COLOURS[priority]
+        print >>status, "<tr bgcolor=%s class=first>" % COLOURS[report.result]
 
         if os.path.exists(output_dir + '/REPORT.html'):
             print >>status, "<td><tt><a href=\"%s/REPORT.html\">" \
@@ -273,12 +277,10 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
         print >>status, " <sup><a href=\"http://packages.qa.debian.org/" \
             "%s\">PTS</a></sup>" % package
         print >>status, " <sup><a href=\"%s/package/show?package=%s" \
-            "&project=%s\">OBS</a></sup></td>" % (web_ui, package, obsProject)
-        print >>status, "<td rowspan=2>%s</td>" % (
+            "&project=%s\">OBS</a></sup><br>" % (web_ui, package, obsProject)
+        print >>status, "<small>%s</small></td>" % source["Binary"]
+        print >>status, "<td>%s</td>" % (
             comments[package] if package in comments else "")
-        print >>status, "</tr>"
-        print >>status, "<tr bgcolor=%s>" % COLOURS[priority]
-        print >>status, "<td><small>%s</small></td>" % source["Binary"]
         print >>status, "<td>%s</td>" % left_version
         print >>status, "<td>%s" % right_version
         if right_distro != default_src_distro:
