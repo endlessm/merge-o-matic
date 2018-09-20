@@ -217,6 +217,8 @@ def write_status_page(target, merges, our_distro, obsProject):
             do_table(status, section_merges, comments, our_distro, target,
                      obsProject)
 
+        do_totals(status, merges)
+
         print >>status, "<h2 id=stats>Statistics</h2>"
         print >>status, ("<img src=\"%s-now.png\" title=\"Current stats\">"
                          % target)
@@ -294,6 +296,24 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
         print >>status, "<td>%s</td>" % report.result
 
         print >>status, "</tr>"
+
+    print >>status, "</table>"
+
+
+def do_totals(status, merges):
+    totals = {}
+    for uploaded, priority, package, source, \
+            base_version, left_version, right_version, right_distro, \
+            output_dir, report in merges:
+        if report.result in totals:
+            totals[report.result] += 1
+        else:
+            totals[report.result] = 1
+
+    print >>status, "<h2>Total by status</h2>"
+    print >>status, "<table border=1><tr><th>Status</th><th>Count</th></tr>"
+    for key, value in totals.iteritems():
+        print >>status, "<tr><td>%s</td><td>%s</td></tr>" % (key, value)
 
     print >>status, "</table>"
 
