@@ -331,6 +331,8 @@ class DebTreeMerger(object):
         # methods, which are likely to avoid conflicts.
 
         # Handle po files separately as they need special merging
+        # Do POT files because they can be useful when later merging PO files
+        self.handle_pot_files()
         self.handle_po_files()
 
         # Intelligently handle added quilt patches
@@ -625,6 +627,21 @@ class DebTreeMerger(object):
             logging.debug('control file still could not be merged')
 
     # Handle po files separately as they need special merging
+    def handle_pot_files(self):
+        for filename, change_type in self.pending_changes.items():
+            if not filename.endswith('.pot'):
+                continue
+            if change_type != self.PENDING_MERGE:
+                continue
+
+            if self.merge_pot(filename):
+                self.merge_attr(filename)
+                self.record_change(filename, self.FILE_MODIFIED)
+                del self.pending_changes[filename]
+            else:
+                self.conflicts.add(filename)
+
+    # Handle po files separately as they need special merging
     def handle_po_files(self):
         for filename, change_type in self.pending_changes.items():
             if not filename.endswith('.po'):
@@ -661,7 +678,7 @@ class DebTreeMerger(object):
         merged_po = "%s/%s" % (self.merged_dir, filename)
         closest_pot = self.find_closest_pot(merged_po)
         if closest_pot is None:
-                return self.merge_pot(filename)
+            return self.merge_pot(filename)
 
         left_po = "%s/%s" % (self.left_dir, filename)
         right_po = "%s/%s" % (self.right_dir, filename)
@@ -681,10 +698,10 @@ class DebTreeMerger(object):
         """Find the closest .pot file to the po file given."""
         dirname = os.path.dirname(po_file)
         for entry in os.listdir(dirname):
-                if entry.endswith(".pot"):
-                        return os.path.join(dirname, entry)
+            if entry.endswith(".pot"):
+                return os.path.join(dirname, entry)
         else:
-                return None
+            return None
 
     def handle_file(self, left_stat, right_stat, base_stat, filename):
         """Handle the common case of a file in both left and right."""
@@ -720,9 +737,6 @@ class DebTreeMerger(object):
                 return True
             except Exception:
                 return False
-        elif filename.endswith(".pot"):
-            # two-way merge of pot contents
-            return self.merge_pot(filename)
         elif base_stat is not None and S_ISREG(base_stat.st_mode):
             # was file in base: diff3 possible
             if self.diff3_merge(filename):
