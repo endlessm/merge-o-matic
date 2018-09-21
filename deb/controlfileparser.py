@@ -4,7 +4,7 @@ from __future__ import with_statement
 import gzip
 
 
-class ControlFilePatcher(object):
+class ControlFileParser(object):
     def __init__(self, text=None, filename=None, fd=None):
         if text:
             self.text = text

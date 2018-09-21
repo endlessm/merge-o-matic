@@ -7,7 +7,7 @@ from subprocess import Popen
 from tempfile import mkdtemp, NamedTemporaryFile
 
 from deb.controlfile import ControlFile
-from deb.controlfilepatcher import ControlFilePatcher
+from deb.controlfileparser import ControlFileParser
 from momlib import *
 from util import tree
 
@@ -609,12 +609,12 @@ class DebTreeMerger(object):
         # If so, rewrite our own control file with the original Uploaders
         logging.debug('Restoring Uploaders to base value to see if it helps '
                       'with conflict resolution')
-        control_patcher = ControlFilePatcher(filename=our_control_path)
-        control_patcher.patch('Uploaders', base_uploaders)
+        control_parser = ControlFileParser(filename=our_control_path)
+        control_parser.patch('Uploaders', base_uploaders)
 
         # Try diff3 again with the modified left version.
         with open(our_control_path, "w") as new_control:
-            new_control.write(control_patcher.get_text())
+            new_control.write(control_parser.get_text())
             new_control.flush()
 
         if self.diff3_merge(control_file):

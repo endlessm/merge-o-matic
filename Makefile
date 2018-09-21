@@ -33,7 +33,7 @@ main_nonexe_files = \
 deb_nonexe_files = \
 	deb/__init__.py \
 	deb/controlfile.py \
-	deb/controlfilepatcher.py \
+	deb/controlfileparser.py \
 	deb/source.py \
 	deb/version.py
 
