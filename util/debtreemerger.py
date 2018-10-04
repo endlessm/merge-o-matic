@@ -452,6 +452,16 @@ class DebTreeMerger(object):
         finally:
             shutil.rmtree(tmpdir)
 
+        # Experiment with patch reverts when the right side patches have
+        # been applied first
+        tmpdir = mkdtemp(prefix='mom.quiltrevert.')
+        try:
+            os.rmdir(tmpdir)
+            shutil.copytree(self.merged_dir, tmpdir, symlinks=True)
+            self.__revert_quilt_patches(tmpdir, apply_right=True)
+        finally:
+            shutil.rmtree(tmpdir)
+
         # Experiment with patch refreshes under a temporary copy
         tmpdir = mkdtemp(prefix='mom.quiltrefresh.')
         try:
@@ -461,7 +471,7 @@ class DebTreeMerger(object):
         finally:
             shutil.rmtree(tmpdir)
 
-    def __revert_quilt_patches(self, tmpdir):
+    def __revert_quilt_patches(self, tmpdir, apply_right=False):
         # get list of patches applied in base version
         proc = subprocess.Popen(['quilt', 'series'], stdout=subprocess.PIPE,
                                 env={'QUILT_PATCHES': 'debian/patches'},
@@ -488,9 +498,49 @@ class DebTreeMerger(object):
             if patch not in base_series:
                 our_added_patches.append(os.path.basename(patch))
 
-        # revert them one by one
+        # Optionally apply all of the patches on the right side, up until
+        # we find one of our own patches.
+        # This can be used to detect the case when our patch can be reverted
+        # because the new upstream version added it as a quilt patch.
+        if apply_right:
+            proc = subprocess.Popen(['quilt', 'series'],
+                                    stdout=subprocess.PIPE,
+                                    env={'QUILT_PATCHES': 'debian/patches'},
+                                    cwd=tmpdir)
+            merged_series, stderr = proc.communicate()
+            if proc.returncode != 0:
+                logging.debug('quilt series failed in left version')
+                return
+            merged_series = merged_series.splitlines()
+
+            last_patch = None
+            for patch in merged_series:
+                patch = os.path.basename(patch)
+                if patch in our_added_patches:
+                    break
+                last_patch = patch
+
+            if last_patch is None:
+                return
+
+            logger.debug('Applying upstream series up to %s', last_patch)
+            proc = subprocess.Popen(['quilt', 'push', last_patch],
+                                    stdout=subprocess.PIPE,
+                                    env={'QUILT_PATCHES': 'debian/patches'},
+                                    cwd=tmpdir)
+            stdout, stderr = proc.communicate()
+            if proc.returncode != 0:
+                logger.debug('quilt failed to apply up to last patch %s',
+                             last_patch)
+                return
+
+        # Revert our patches one by one
         patches_to_drop = []
         for patch in reversed(our_added_patches):
+            # Skip if the patch has already been dropped
+            if 'debian/patches/' + patch not in self.pending_changes:
+                continue
+
             logging.debug('Trying to revert our patch %s', patch)
             args = ['patch', '--dry-run', '-p1', '--reverse', '--force',
                     '--quiet', '-i',
@@ -524,8 +574,13 @@ class DebTreeMerger(object):
         for patch in patches_to_drop:
             logging.debug('Dropping revertable patch %s', patch)
             del self.pending_changes['debian/patches/' + patch]
-            self.record_note('%s: Dropped because it can be reverted '
-                             'cleanly' % patch, True)
+            if apply_right:
+                self.record_note('Dropped patch %s because it can be reverted '
+                                 'cleanly after applying upstream quilt '
+                                 'patches' % patch, True)
+            else:
+                self.record_note('%s: Dropped because it can be reverted '
+                                 'cleanly from upstream source' % patch, True)
 
         if not written:
             logging.debug('No quilt patches remaining, removing directory')

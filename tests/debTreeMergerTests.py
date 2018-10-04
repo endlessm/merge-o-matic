@@ -267,7 +267,7 @@ class DebTreeMergerTest(unittest.TestCase):
         self.assertEqual(merged, 'one.patch\ntwo.patch\nendless.patch\n')
 
     # Our version applies two (closely related) patches on top of the base.
-    # Upstream version has those patches applied.
+    # Upstream version has those patches applied at the source level.
     # Check that those patches were detected as reversable and were hence
     # dropped. In this case, as all patches were dropped, the debian/patches
     # dir should also be not present in the merged output.
@@ -308,6 +308,42 @@ class DebTreeMergerTest(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.merged_dir,
                                                      'debian', 'patches')))
         self.assertEqual(len(merger.notes), 3)
+
+    # Our version applies a patch on top of the base.
+    # Upstream version has those patches applied in the debian patches.
+    # Check that the patch was detected as reversable and hence was
+    # dropped.
+    def test_quiltRevertablePatches2(self):
+        with open(self.base_dir + '/myfile', 'w') as fd:
+            fd.write('one\ntwo\nthree\n')
+
+        shutil.copyfile(self.base_dir + '/myfile', self.left_dir + '/myfile')
+        shutil.copyfile(self.base_dir + '/myfile', self.right_dir + '/myfile')
+
+        os.makedirs(self.left_dir + '/debian/patches')
+        with open(self.left_dir + '/debian/patches/series', 'w') as fd:
+            fd.write('one.patch\n')
+
+        with open(self.left_dir + '/debian/patches/one.patch', 'w') as fd:
+            fd.write('--- foo.orig/myfile\n')
+            fd.write('+++ foo/myfile\n')
+            fd.write('@@ -1,3 +1,3 @@\n')
+            fd.write(' one\n')
+            fd.write('-two\n')
+            fd.write('+t w o\n')
+            fd.write(' three\n')
+
+        os.makedirs(self.right_dir + '/debian/patches')
+        shutil.copyfile(self.left_dir + '/debian/patches/one.patch',
+                        self.right_dir + '/debian/patches/upstream.patch')
+        with open(self.right_dir + '/debian/patches/series', 'w') as fd:
+            fd.write('upstream.patch\n')
+
+        merger = self.merge(source_format='3.0 (quilt)')
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.merged_dir,
+                                                     'debian', 'patches',
+                                                     'one.patch')))
 
     # Some development routines involve the downstream developer being
     # added to debian/control Uploaders when modifying packages. This
