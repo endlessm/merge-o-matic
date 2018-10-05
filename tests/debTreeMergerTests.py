@@ -241,6 +241,49 @@ class DebTreeMergerTest(unittest.TestCase):
                     'debian/patches/test.patch'],
                    cwd=self.merged_dir)
 
+    # Test the SBTM patch refresh fallback codepath.
+    # The left patch below can't be applied by patch to the right version,
+    # however we can recreate the patch with SBTM.
+    def test_quiltSbtmRefresh(self):
+        open(self.base_dir + '/myfile', 'w').write(
+            'done\n'
+            'else\n'
+            'dracut_instmods -s "drm_crtc_init" "=drivers/gpu/drm"\n'
+            'fi\n'
+            '}\n')
+        open(self.right_dir + '/myfile', 'w').write(
+            'done\n'
+            'else\n'
+            'dracut_instmods -o -s "drm_crtc_init" "=drivers/gpu/drm" '
+            '"=drivers/staging"\n'
+            'fi\n'
+            '}\n')
+
+        shutil.copyfile(self.base_dir + '/myfile', self.left_dir + '/myfile')
+
+        os.makedirs(self.left_dir + '/debian/patches')
+        with open(self.left_dir + '/debian/patches/series', 'w') as fd:
+            fd.write('one.patch\n')
+
+        with open(self.left_dir + '/debian/patches/one.patch', 'w') as fd:
+            fd.write(
+                '--- a/myfile	2018-10-04 18:49:28.911213248 +0800\n'
+                '+++ b/myfile	2018-10-04 18:49:48.831351453 +0800\n'
+                '@@ -1,5 +1,6 @@\n'
+                ' done\n'
+                ' else\n'
+                ' dracut_instmods -s "drm_crtc_init" "=drivers/gpu/drm"\n'
+                '+dracut_instmods -o -s "drm_crtc_init" "=ubuntu"\n'
+                ' fi\n'
+                ' }\n')
+
+        merger = self.merge(source_format='3.0 (quilt)')
+        self.assertEqual(len(merger.conflicts), 0)
+
+        # Check that refreshed patch can be applied
+        check_call(['patch', '-p1', '--dry-run', '--fuzz=0', '-i',
+                    'debian/patches/one.patch'], cwd=self.merged_dir)
+
     # Our downstream changes just append a quilt patch to the end of the list.
     # Upstream then makes conflicting changes to the series file.
     # This should be merged by taking the new upstream series file and

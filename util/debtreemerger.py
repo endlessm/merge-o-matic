@@ -3,7 +3,7 @@ import os
 import shutil
 from stat import *
 import subprocess
-from subprocess import Popen
+from subprocess import Popen, CalledProcessError
 from tempfile import mkdtemp, NamedTemporaryFile
 
 from deb.controlfile import ControlFile
@@ -590,6 +590,143 @@ class DebTreeMerger(object):
             os.rmdir(os.path.join(self.merged_dir, 'debian', 'patches'))
             del self.changes_made['debian/patches/series']
 
+    def __sbtm_refresh(self, patch, patched_files, base_dir, left_dir,
+                       merged_dir):
+        quiltenv = {'QUILT_PATCHES': 'debian/patches'}
+
+        # Apply all patches in base copy
+        if os.path.exists(base_dir + '/debian/patches/series') \
+                and os.path.getsize(base_dir + '/debian/patches/series') > 0:
+            rc = subprocess.call(['quilt', 'push', '-a', '-q'],
+                                 env=quiltenv, cwd=base_dir)
+            if rc != 0:
+                logger.debug('Failed to apply patches in base dir')
+                return False
+
+        # Apply patches in left copy, up to and including this one
+        rc = subprocess.call(['quilt', 'push', '-q', patch],
+                             env=quiltenv, cwd=left_dir)
+        if rc != 0:
+            logger.debug('Failed to apply patches in left dir')
+            return False
+
+        # Create a new patch where we will store our work
+        rc = subprocess.call(['quilt', 'new', 'mommodify.patch'],
+                             env=quiltenv, cwd=merged_dir)
+        if rc != 0:
+            logger.debug('Failed to create new patch')
+            return False
+
+        # Add all the files that are to be modified
+        rc = subprocess.call(['quilt', 'add'] + patched_files,
+                             env=quiltenv, cwd=merged_dir)
+        if rc != 0:
+            logger.debug('Failed to add files to new patch')
+            return False
+
+        # Work on a file-by-file basis
+        for filename in patched_files:
+            # Use filterdiff piped to patch to attempt to apply the hunks
+            # to this given file. If this file can be patched in this way,
+            # we do not need to use sbtm.
+            args = ['filterdiff', '-p1', filename, patch]
+            filterdiff = subprocess.Popen(args, stdout=subprocess.PIPE,
+                                          cwd=left_dir)
+            patch_proc = subprocess.Popen(['patch', '-p1', '--quiet', '-f'],
+                                          stdin=filterdiff.stdout,
+                                          cwd=merged_dir)
+            patch_proc.communicate()
+            if filterdiff.returncode == 0 and patch_proc.returncode == 0:
+                logger.debug('Applied patch to %s', filename)
+                continue
+
+            # If that failed, try using SBTM to do the merge.
+            merged = self.__sbtm_merge(os.path.join(base_dir, filename),
+                                       os.path.join(left_dir, filename),
+                                       os.path.join(merged_dir, filename))
+
+            # If sbtm fails too, we're out of luck.
+            if merged is None:
+                logger.debug('sbtm failed on %s', filename)
+
+                return False
+
+            logger.debug('Successfully merged %s with sbtm', filename)
+            with open(os.path.join(merged_dir, filename), 'w') as fd:
+                fd.write(merged)
+
+        # Write our updated patch out to disk, preserving the original
+        # patch header.
+        rc = subprocess.call(['quilt', 'refresh'],
+                             env=quiltenv, cwd=merged_dir)
+        if rc != 0:
+            logger.debug('Failed to refresh new patch')
+            return False
+
+        try:
+            header = subprocess.check_output(['quilt', 'header', patch],
+                                             env=quiltenv, cwd=left_dir)
+        except CalledProcessError:
+            logger.exception('Failed to get %s header', patch)
+            return False
+
+        proc = subprocess.Popen(['quilt', 'header', '-r'],
+                                stdin=subprocess.PIPE,
+                                env=quiltenv, cwd=merged_dir)
+        proc.communicate(header)
+        if proc.returncode != 0:
+            logger.debug('Failed to get %s header', patch)
+            return False
+
+        # Save the new patch into the right location
+        dest = os.path.join(merged_dir, patch)
+        tree.copyfile(merged_dir + '/debian/patches/mommodify.patch', dest)
+
+        # Remove the temporary patch we made
+        rc = subprocess.call(['quilt', 'delete', '-r'],
+                             env=quiltenv, cwd=merged_dir)
+        if rc != 0:
+            logger.debug('Failed to remove temporary patch')
+            return False
+
+        return True
+
+    # Try to recreate the given patch file using SBTM
+    # The given merged_tmp tree is assumed to have all preceeding patches
+    # already applied.
+    def sbtm_refresh(self, merged_tmp, patch):
+        logging.debug('Attempting to refresh %s with SBTM', patch)
+
+        # We can only proceed if all the files affected by the patch
+        # exist on the right side too.
+        try:
+            patched_files = subprocess.check_output(['lsdiff', '--strip=1',
+                                                     patch],
+                                                    cwd=self.left_dir)
+        except CalledProcessError:
+            logger.exception('Failed to list %s patched files', patch)
+            return False
+
+        patched_files = patched_files.splitlines()
+        for filename in patched_files:
+            if not os.path.exists(os.path.join(self.right_dir, filename)):
+                logger.debug('%s doesn\'t exist on right, skipping patch',
+                             filename)
+                return False
+
+        # Set up temporary copies of base, left and right which we will
+        # use for patch reconstruction
+        tmpdir = mkdtemp(prefix='mom.sbtm_refresh.')
+        try:
+            base_tmp = os.path.join(tmpdir, 'base')
+            left_tmp = os.path.join(tmpdir, 'left')
+            shutil.copytree(self.base_dir, base_tmp, symlinks=True)
+            shutil.copytree(self.left_dir, left_tmp, symlinks=True)
+            return self.__sbtm_refresh(patch, patched_files, base_tmp,
+                                       left_tmp, merged_tmp)
+        finally:
+            shutil.rmtree(tmpdir)
+
     def __refresh_quilt_patches(self, tmpdir):
         # Put our downstream-added patches in place. Must be done
         # before we 'quilt push' the preceding patch to avoid quilt being
@@ -646,11 +783,24 @@ class DebTreeMerger(object):
                              os.path.join(self.merged_dir, patch))
                 del self.pending_changes[patch]
                 self.record_change(patch, self.FILE_ADDED)
-            else:
-                logging.debug('%s still failed to apply', patch)
-                self.record_note('Our patch %s fails to apply to the new '
-                                 'version' % patch)
-                return
+                continue
+
+            # Fall back on SBTM reconstruction
+            if self.sbtm_refresh(tmpdir, patch) \
+                    and subprocess.call(['quilt', 'push'], **quiltexec) == 0:
+                shutil.copy2(os.path.join(tmpdir, patch),
+                             os.path.join(self.merged_dir, patch))
+                self.record_note('%s was refreshed with an experimental '
+                                 'State-Based Text Merge tool' % patch)
+                del self.pending_changes[patch]
+                self.record_change(patch, self.FILE_ADDED)
+                continue
+
+            logging.debug('%s still failed to apply', patch)
+            self.record_note('Our patch %s fails to apply to the new '
+                             'version' % patch)
+
+            return
 
     def handle_control_file(self):
         control_file = 'debian/control'
@@ -903,6 +1053,23 @@ class DebTreeMerger(object):
             logger.debug("Conflict in %s", filename)
             return False
 
+    def __sbtm_merge(self, base_file, left_file, right_file, fast=False):
+        # We run this python app as a separate process as it does a lot of
+        # recursion and can cause high memory usage, stack overflow, etc.
+        args = [os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                             'sbtm.py')]
+        if fast:
+            args.append('--fast')
+        args.extend([base_file, left_file, right_file])
+
+        process = Popen(args,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            return None
+
+        return stdout
+
     def sbtm_merge(self, filename, fast=False):
         """Merge a file using State-Based Text Merge tool.
         This is experimental and often fails, but has been shown to
@@ -914,24 +1081,15 @@ class DebTreeMerger(object):
         dest = "%s/%s" % (self.merged_dir, filename)
         tree.ensure(dest)
 
-        # We run this python app as a separate process as it does a lot of
-        # recursion and can cause high memory usage, stack overflow, etc.
-        args = [os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                             'sbtm.py')]
-        if fast:
-            args.append('--fast')
-        args.append("%s/%s" % (self.base_dir, filename))
-        args.append("%s/%s" % (self.left_dir, filename))
-        args.append("%s/%s" % (self.right_dir, filename))
-
-        process = Popen(args,
-                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = process.communicate()
-        if process.returncode != 0:
+        merged = self.__sbtm_merge(os.path.join(self.base_dir, filename),
+                                   os.path.join(self.left_dir, filename),
+                                   os.path.join(self.right_dir, filename),
+                                   fast)
+        if merged is None:
             return False
 
         with open(dest, "w") as output:
-            output.write(stdout)
+            output.write(merged)
 
         note = '%s was merged with an experimental '\
                'State-Based Text Merge tool' % filename
