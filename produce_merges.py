@@ -369,7 +369,7 @@ def create_source(package, version, since, output_dir, merged_dir):
     try:
         tree.copytree(merged_dir, "%s/%s" % (parent, contained))
 
-        match = '%s_%s.orig(-\w+)?.tar.(gz|bz2|xz)$' \
+        match = r'%s_%s.orig(-[-\w]+)?.tar.(gz|bz2|xz)$' \
                 % (re.escape(package), re.escape(version.upstream))
         for filename in os.listdir(output_dir):
             if re.match(match, filename) is None:
