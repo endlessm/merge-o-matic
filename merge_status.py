@@ -119,7 +119,8 @@ def main(options, args):
             merges.append((section, priority_idx, source["Package"],
                            source, report["base_version"],
                            report["left_version"], report["right_version"],
-                           report["right_distro"], output_dir, report))
+                           report["right_distro"], report.notes,
+                           output_dir, report))
 
         merges.sort()
 
@@ -255,7 +256,7 @@ def do_table(status, merges, comments, our_distro, target, obsProject):
 
     for uploaded, priority, package, source, \
             base_version, left_version, right_version, right_distro, \
-            output_dir, report in merges:
+            notes, output_dir, report in merges:
         escaped_root = re.escape(config.get('ROOT'))
 
         print >>status, "<tr bgcolor=%s class=first>" % COLOURS[report.result]
@@ -304,7 +305,7 @@ def do_totals(status, merges):
     totals = {}
     for uploaded, priority, package, source, \
             base_version, left_version, right_version, right_distro, \
-            output_dir, report in merges:
+            notes, output_dir, report in merges:
         if report.result in totals:
             totals[report.result] += 1
         else:
@@ -328,7 +329,7 @@ def write_status_json(target, merges):
         cur_merge = 0
         for uploaded, priority, package, source, \
                 base_version, left_version, right_version, right_distro, \
-                output_dir, report in merges:
+                notes, output_dir, report in merges:
             print >>status, ' {',
             # source_package, short_description, and link are for
             # Harvest (http://daniel.holba.ch/blog/?p=838).
@@ -352,7 +353,10 @@ def write_status_json(target, merges):
             if merged_version is None:
                 merged_version = '???'
             print >>status, '"merged_version": "%s",' % merged_version,
-            print >>status, '"result": "%s"' % report['result']
+            print >>status, '"result": "%s",' % report['result'],
+            print >>status, '"notes": [',
+            print >>status, ', '.join(['"%s"' % note for note in notes]),
+            print >>status, ']',
             cur_merge += 1
             if cur_merge < len(merges):
                 print >>status, '},'
@@ -368,7 +372,7 @@ def write_status_file(status_file, merges):
     with open(status_file + ".new", "w") as status:
         for uploaded, priority, package, source, \
                 base_version, left_version, right_version, right_distro, \
-                output_dir, report in merges:
+                notes, output_dir, report in merges:
             if base_version is None:
                 base_version = "???"
             print >>status, "%s %s %s %s %s, %s" % (package, priority,
