@@ -650,6 +650,14 @@ def __produce_merge(target, base, base_dir, left, left_dir,
             report.build_metadata_changed = is_build_metadata_changed(
                 left.getDscContents(), dsc)
             report.merged_files = [src_file] + [f[2] for f in files(dsc)]
+
+            # Some of our merge magic may have tweaked the upstream and left
+            # dirs. Recreate them now so that the diff is accurate.
+            cleanup_source(upstream)
+            upstream_dir = unpack_source(upstream)
+            cleanup_source(left)
+            left_dir = unpack_source(left)
+
             report.merged_patch = create_patch(
                 report.merged_version,
                 "%s/%s_%s_from-theirs.patch" % (output_dir, left.package.name,
