@@ -10,6 +10,7 @@ from deb.controlfile import ControlFile
 from deb.controlfileparser import ControlFileParser
 from momlib import *
 from util import tree
+from util.debcontrolmerger import DebControlMerger
 
 logger = logging.getLogger('debtreemerger')
 
@@ -808,48 +809,20 @@ class DebTreeMerger(object):
                 self.pending_changes[control_file] != self.PENDING_MERGE:
             return
 
-        try:
-            base_stat = os.stat("%s/%s" % (self.base_dir, control_file))
-        except OSError:
+        if not os.path.isfile("%s/%s" % (self.base_dir, control_file)):
             return
 
-        if not S_ISREG(base_stat.st_mode):
-            return
-
-        # If we have a base version, see if diff3 can figure it out cleanly
-        # We don't actually do the merge here, but even if mergeable,
-        # we leave it as pending and the generic code will then merge it
-        # later.
-        if self.do_diff3(control_file) == 0:
-            return
-
-        our_control_path = os.path.join(self.left_dir, control_file)
-        base_control = ControlFile(os.path.join(self.base_dir, control_file),
-                                   multi_para=True)
-        our_control = ControlFile(our_control_path, multi_para=True)
-
-        # See if we've modified Uploaders in our version
-        base_uploaders = base_control.paras[0].get('Uploaders', None)
-        our_uploaders = our_control.paras[0].get('Uploaders', None)
-        if base_uploaders == our_uploaders:
-            return
-
-        # If so, rewrite our own control file with the original Uploaders
-        logging.debug('Restoring Uploaders to base value to see if it helps '
-                      'with conflict resolution')
-        control_parser = ControlFileParser(filename=our_control_path)
-        control_parser.patch('Uploaders', base_uploaders)
-
-        # Try diff3 again with the modified left version.
-        with open(our_control_path, "w") as new_control:
-            new_control.write(control_parser.get_text())
-            new_control.flush()
-
-        self.record_note('Dropped uninteresting Uploaders change in '
-                         'downstream debian/control file')
-
-        if self.do_diff3(control_file) == 0:
-            return
+        control_merger = DebControlMerger(self.left_dir, self.left_name,
+                                          self.right_dir, self.right_name,
+                                          self.base_dir, self.merged_dir)
+        merged = control_merger.run()
+        if merged:
+            self.merge_attr(control_file)
+            if control_merger.modified:
+                self.record_change(control_file, self.FILE_MODIFIED)
+            del self.pending_changes[control_file]
+        for note, changelog_worthy in control_merger.notes:
+            self.record_note('debian/control: ' + note, changelog_worthy)
 
     # Handle po files separately as they need special merging
     def handle_pot_files(self):

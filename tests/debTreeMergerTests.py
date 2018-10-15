@@ -388,39 +388,6 @@ class DebTreeMergerTest(unittest.TestCase):
                                                      'debian', 'patches',
                                                      'one.patch')))
 
-    # Some development routines involve the downstream developer being
-    # added to debian/control Uploaders when modifying packages. This
-    # can cause merge conflicts going forward. Test our codepath that
-    # explicitly drops the Uploaders modification to avoid a conflicting file.
-    def test_controlFileUploadersReset(self):
-        os.makedirs(self.base_dir + '/debian')
-        os.makedirs(self.left_dir + '/debian')
-        os.makedirs(self.right_dir + '/debian')
-
-        with open(self.base_dir + '/debian/control', 'w') as fd:
-            fd.write('Source: cheese\n'
-                     'Uploaders: Fish <fish@fish.com>\n'
-                     'Build-Depends: debhelper\n')
-
-        with open(self.left_dir + '/debian/control', 'w') as fd:
-            fd.write('Source: cheese\n'
-                     'Uploaders: Fish <fish@fish.com>, me <down@stream.com>\n'
-                     'Build-Depends: debhelper\n')
-
-        with open(self.right_dir + '/debian/control', 'w') as fd:
-            fd.write('Source: cheese\n'
-                     'Uploaders: Fish <fish@fish.com>, Frog <fr@g.com>\n'
-                     'Build-Depends: debhelper\n')
-
-        merger = self.merge(source_format='3.0 (quilt)')
-        self.assertEqual(len(merger.conflicts), 0)
-        self.assertEqual(len(merger.changes_made), 0)
-        merged = open(self.merged_dir + '/debian/control', 'r').read()
-        self.assertEqual(merged,
-                         'Source: cheese\n'
-                         'Uploaders: Fish <fish@fish.com>, Frog <fr@g.com>\n'
-                         'Build-Depends: debhelper\n')
-
     # If diff3 fails to merge, we use a State-Based Text Merge tool to see
     # if that can help. Here's one example where it produces the right
     # results.
