@@ -77,6 +77,7 @@ class DebControlMerger(object):
 
         merge_funcs = (
             (self.merge_uploaders, ()),
+            (self.merge_architecture, ()),
             (self.merge_depends, (None, 'Build-Depends')),
             (self.merge_depends, (None, 'Build-Depends-Indep')),
             (self.merge_depends, (None, 'Build-Conflicts')),
@@ -91,23 +92,89 @@ class DebControlMerger(object):
 
         return False
 
+    def __restore_original_value(self, package, field):
+        left_para = self.left_control.get_paragraph(package)
+        base_para = self.base_control.get_paragraph(package)
+        if left_para is None or base_para is None:
+            return False
+
+        # See if we've modified the field in our version
+        base_value = base_para.get(field)
+        if base_value == left_para.get(field):
+            return False
+
+        # Yes, it's been modified.
+        logger.debug('Restoring %s to base value', field_name(package, field))
+
+        if field not in left_para:
+            # If we totally removed the field, we should restore it.
+            # But because removing is easier than readding, we just remove
+            # the field from the base version.
+            self.base_control.remove_field(package, field)
+            self.base_control.write()
+        elif base_value is None:
+            # If the field was not present in the base vesion, just remove
+            # it from the left version
+            self.left_control.remove_field(package, field)
+            self.left_control.write()
+        else:
+            # Otherwise restore the left field with the value from base
+            self.left_control.patch(package, field, base_value)
+            self.left_control.write()
+        return True
+
     # Drop Uploaders changes from the left side as they are irrelevant and
     # just generate merge noise.
     def merge_uploaders(self):
-        left_para0 = self.left_control.parse()[0]
-        base_para0 = self.base_control.parse()[0]
+        if self.__restore_original_value(None, 'Uploaders'):
+            self.record_note('Dropped uninteresting Uploaders change')
 
-        # See if we've modified Uploaders in our version
-        base_uploaders = base_para0.get('Uploaders')
-        if base_uploaders == left_para0.get('Uploaders'):
-            return
+    # If the left side appended to the Architectures list for a package,
+    # re-append the same additions to the right side packages
+    def merge_architecture(self):
+        for left_pkg in self.left_control.parse():
+            if 'Package' not in left_pkg or 'Architecture' not in left_pkg:
+                continue
 
-        # If so, rewrite our own control file with the original Uploaders
-        logging.debug('Restoring Uploaders to base value to see if it helps '
-                      'with conflict resolution')
-        left_control.patch(None, 'Uploaders', base_uploaders)
-        left_control.write()
-        self.record_note('Dropped uninteresting Uploaders change')
+            package = left_pkg['Package']
+            base_pkg = self.base_control.get_paragraph(package)
+            if not base_pkg or 'Architecture' not in base_pkg:
+                continue
+
+            base_arch = unicode(base_pkg['Architecture'])
+            left_arch = unicode(left_pkg['Architecture'])
+
+            if base_arch == left_arch or not left_arch.startswith(base_arch):
+                continue
+
+            # Left package appended something onto the Architecture list.
+            added_part = left_arch[len(base_arch):]
+
+            # If the package was removed on the right, just drop our
+            # local change.
+            right_pkg = self.right_control.get_paragraph(package)
+            if right_pkg is None:
+                self.__restore_original_value(package, 'Architecture')
+                self.record_note('Dropped change to add %s architecture(s) '
+                                 '%s because this package was removed '
+                                 'upstream' % (package, added_part), True)
+                continue
+
+            if 'Architecture' not in right_pkg:
+                continue
+
+            # Re-apply those changes on the right
+            right_arch = unicode(right_pkg['Architecture'])
+            new_value = right_arch + added_part
+            self.right_control.patch(package, 'Architecture', new_value)
+            self.right_control.write()
+
+            # And drop our local change to prevent it being remerged
+            self.left_control.patch(package, 'Architecture', base_arch)
+            self.left_control.write()
+
+            self.record_note('Readded architecture(s) %s to %s in control file'
+                             % (added_part.strip(), package))
 
     def __merge_modified_version_constraint(self, package, field, entry,
                                             base_dep, left_dep, right_dep):

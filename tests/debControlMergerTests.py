@@ -234,3 +234,50 @@ class DebControlMergerTest(unittest.TestCase):
         self.assertTrue(merger.modified)
         self.assertResult('Source: foo\n'
                           'Build-Depends: one [!armhf], three\n')
+
+    # Downstream version adds an Architecture to the end of the list
+    # Upstream version otherwise conflicts
+    # Check that the architecture is readded
+    def test_addArchitecture(self):
+        self.write_base('Source: binutils\n\n'
+                        'Package: binutils-aarch64-linux-gnu\n'
+                        'Architecture: amd64 i386 x32\n'
+                        'Depends: binutils\n')
+
+        self.write_left('Source: binutils\n\n'
+                        'Package: binutils-aarch64-linux-gnu\n'
+                        'Architecture: amd64 i386 x32 armhf\n'
+                        'Depends: binutils\n')
+
+        self.write_right('Source: binutils\n\n'
+                         'Package: binutils-aarch64-linux-gnu\n'
+                         'Architecture: arm64 amd64 i386 x32 ppc64el\n'
+                         'Depends: binutils\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult('Source: binutils\n\n'
+                          'Package: binutils-aarch64-linux-gnu\n'
+                          'Architecture: arm64 amd64 i386 x32 ppc64el armhf\n'
+                          'Depends: binutils\n')
+
+    # Downstream version adds an Architecture to the end of the list
+    # That package disappeared upstream
+    # Merge succeeds using upstream version
+    def test_addArchToRemovedPackage(self):
+        self.write_base('Source: gcc-defaults\n\n'
+                        'Package: gcj\n'
+                        'Architecture: amd64 i386 x32\n')
+
+        self.write_left('Source: gcc-defaults\n\n'
+                        'Package: gcj\n'
+                        'Architecture: amd64 i386 x32 armhf\n')
+
+        self.write_right('Source: gcc-defaults\n\n'
+                         'Package: gfortran\n'
+                         'Architecture: amd64 i386 x32\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
