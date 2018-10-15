@@ -46,6 +46,7 @@ util_exe_files = \
 
 util_nonexe_files = \
 	util/__init__.py \
+	util/debcontrolmerger.py \
 	util/debtreemerger.py \
 	util/jinja2-AUTHORS \
 	util/jinja.py \
