@@ -166,7 +166,7 @@ def result_dir(target, package):
 
 def version_sort(sources):
     """Sort the source list by version number."""
-    sources.sort(key=lambda x: Version(x["Version"]))
+    sources.sort(key=lambda x: x.version)
 
 
 def has_files(pv):

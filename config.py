@@ -316,7 +316,7 @@ class Target(object):
         return self._name
 
     def __str__(self):
-        return repr(self)
+        return self._name
 
     def __repr__(self):
         return "Target(%s)" % (self._name)

@@ -20,7 +20,9 @@
 import errno
 import logging
 
+import config
 from model.base import Distro
+from model.error import PackageNotFound
 from merge_report import (read_report, MergeResult)
 from momlib import *
 from util import tree, run
@@ -47,8 +49,8 @@ def main(options, args):
                 report = read_report(output_dir)
                 base = report["base_version"]
             except ValueError:
-                logger.debug('Skipping package %s: unable to read merge '
-                             'report', pkg.name)
+                logger.exception('Skipping package %s: unable to read merge '
+                                 'report', pkg.name)
                 continue
 
             if report['result'] not in (MergeResult.SYNC_THEIRS,
@@ -73,9 +75,12 @@ def main(options, args):
             for distro in distros:
                 if distro.shouldExpire():
                     for component in distro.components():
-                        distro_pkg = distro.package(target.dist, component,
-                                                    pkg.name)
-                        expire_pool_sources(distro_pkg, base)
+                        try:
+                            distro_pkg = distro.package(target.dist, component,
+                                                        pkg.name)
+                            expire_pool_sources(distro_pkg, base)
+                        except PackageNotFound:
+                            continue
 
 
 def expire_pool_sources(pkg, base):
@@ -91,14 +96,14 @@ def expire_pool_sources(pkg, base):
     base_found = False
     keep = []
     for pv in pkg.getPoolVersions():
-        if base > pv:
+        if base > pv.version:
             bases.append(pv)
         else:
-            if base == pv.version():
+            if base == pv.version:
                 base_found = True
-                logger.info("Leaving %s %s (is base)", distro, pv)
+                logger.info("Leaving %s (is base)", pv)
             else:
-                logger.info("Leaving %s %s (is newer)", distro, pv)
+                logger.info("Leaving %s (is newer)", pv)
 
             keep.append(pv)
 
@@ -106,8 +111,7 @@ def expire_pool_sources(pkg, base):
     if not base_found and len(bases):
         version_sort(bases)
         pv = bases.pop()
-        logger.info("Leaving %s %s (is newest before base)",
-                    distro, pv)
+        logger.info("Leaving %s (is newest before base)", pv)
 
         keep.append(pv)
 
@@ -115,15 +119,15 @@ def expire_pool_sources(pkg, base):
     keep_files = []
     for pv in keep:
         if has_files(pv):
-            for md5sum, size, name in files(pv):
+            for md5sum, size, name in files(pv.getDscContents()):
                 keep_files.append(name)
 
     # Expire the older packages
     need_update = False
     for pv in bases:
-        logger.info("Expiring %s %s", distro, pv)
+        logger.info("Expiring %s", pv)
 
-        for md5sum, size, name in files(pv):
+        for md5sum, size, name in files(pv.getDscContents()):
             if name in keep_files:
                 logger.debug("Not removing %s/%s", pooldir, name)
                 continue
