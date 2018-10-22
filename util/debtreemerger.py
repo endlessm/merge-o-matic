@@ -1131,6 +1131,7 @@ class DebTreeMerger(object):
 
     def conflict_file(self, filename):
         """Copy both files as conflicts of each other."""
+        base_src = "%s/%s" % (self.base_dir, filename)
         left_src = "%s/%s" % (self.left_dir, filename)
         right_src = "%s/%s" % (self.right_dir, filename)
         dest = "%s/%s" % (self.merged_dir, filename)
@@ -1146,6 +1147,11 @@ class DebTreeMerger(object):
         # one.
         #
         # Fortunately this is so rare it may never happen!
+
+        if tree.exists(base_src):
+            tree.copyfile(base_src, "%s.BASE" % dest)
+        if os.path.isdir(base_src):
+            os.symlink("%s.BASE" % os.path.basename(dest), dest)
 
         if tree.exists(left_src):
             tree.copyfile(left_src, "%s.%s" % (dest, self.left_distro.upper()))
