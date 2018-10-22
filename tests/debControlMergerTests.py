@@ -379,3 +379,25 @@ class DebControlMergerTest(unittest.TestCase):
                           'Breaks: foo7\n\n'
                           'Package: bar\n'
                           'Suggests: foo3\n')
+
+    # If it comes down to it, we drop comment modifications if that helps
+    # with the merge.
+    def test_commentRemoval(self):
+        self.write_base('Source: foo\n'
+                        '# a comment that we will remove\n'
+                        '# another comment\n'
+                        'Build-Depends: foo3\n')
+
+        self.write_left('Source: foo\n'
+                        '# another comment\n'
+                        'Build-Depends: foo3\n')
+
+        self.write_right('Source: foo\n'
+                         '# a comment that we will remove\n'
+                         '# newly added comment that conflicts\n'
+                         '# another comment\n'
+                         'Build-Depends: foo3\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)

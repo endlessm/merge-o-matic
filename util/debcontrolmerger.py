@@ -85,6 +85,7 @@ class DebControlMerger(object):
             (self.merge_depends, (None, 'Build-Depends-Indep')),
             (self.merge_depends, (None, 'Build-Conflicts')),
             (self.merge_package_depends, ()),
+            (self.remove_comments, ()),
         )
 
         # Try all the merge strategies until diff3 is happy
@@ -467,3 +468,28 @@ class DebControlMerger(object):
 
             self.record_note('Carried forward removal of %s binary package '
                              'from debian/control' % pkg)
+
+    def __write_non_comments(self, filename):
+        with open(filename, 'r') as fd:
+            base_text = [line for line in fd if not line.startswith('#')]
+        with open(filename, 'w') as fd:
+            fd.writelines(base_text)
+
+    # If we couldn't find a more intelligent merge, try to drop any changes
+    # that were made to the comments in the file. This is done with a heavy
+    # handed approach of removing all the comments from base and left.
+    def remove_comments(self):
+        with open(self.base_control_path, 'r') as fd:
+            base_comments = [line for line in fd if line.startswith('#')]
+
+        with open(self.left_control_path, 'r') as fd:
+            left_comments = [line for line in fd if line.startswith('#')]
+
+        if base_comments == left_comments:
+            return
+
+        logger.debug('Drop all comments from base and left to ease the merge')
+        self.__write_non_comments(self.base_control_path)
+        self.__write_non_comments(self.left_control_path)
+        self.record_note('Dropped debian/control comment changes to '
+                         'simplify the merge', True)
