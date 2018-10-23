@@ -25,6 +25,7 @@ import time
 import logging
 import subprocess
 import tempfile
+from textwrap import TextWrapper
 
 import config
 from deb.controlfile import ControlFile
@@ -282,9 +283,10 @@ def is_build_metadata_changed(left_source, right_source):
 
 
 def add_changelog(package, merged_version, left_distro, left_dist,
-                  right_distro, right_dist, merged_dir):
+                  right_distro, right_dist, merger_notes, merged_dir):
     """Add a changelog entry to the package."""
     changelog_file = "%s/debian/changelog" % merged_dir
+    wrapper = TextWrapper(initial_indent='  * ', subsequent_indent='    ')
 
     with open(changelog_file) as changelog:
         with open(changelog_file + ".new", "w") as new_changelog:
@@ -293,6 +295,9 @@ def add_changelog(package, merged_version, left_distro, left_dist,
             print >>new_changelog
             print >>new_changelog, "  * Merge from %s %s." % (
                 right_distro.title(), right_dist)
+            for note, changelog_worthy in merger_notes:
+                if changelog_worthy:
+                    print >>new_changelog, wrapper.fill(note)
             print >>new_changelog
             print >>new_changelog, (" -- %s <%s>  " % (
                 config.get('MOM_NAME'),
@@ -571,7 +576,8 @@ def __produce_merge(target, base, base_dir, left, left_dir,
         report.write_report(output_dir)
         return report
 
-    report.notes.extend(merger.notes)
+    for note, changelog_worthy in merger.notes:
+        report.notes.append(note)
 
     if len(merger.conflicts) == 0 and merger.total_changes_made == 1 \
             and len(merger.modified_files) == 1 \
@@ -608,7 +614,7 @@ def __produce_merge(target, base, base_dir, left, left_dir,
             add_changelog(left.package.name, report.merged_version,
                           left.package.distro.name, left.package.dist,
                           upstream.package.distro.name, upstream.package.dist,
-                          merged_dir)
+                          merger.notes, merged_dir)
         except IOError as e:
             logger.exception("Could not update changelog for %s!", left)
             report.result = MergeResult.FAILED

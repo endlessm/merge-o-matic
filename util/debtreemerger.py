@@ -91,6 +91,9 @@ class DebTreeMerger(object):
         # Files that generated conflicts when merging
         self.conflicts = set()
 
+    def record_note(self, note, changelog_worthy=False):
+        self.notes.append((note, changelog_worthy))
+
     @property
     def total_changes_made(self):
         """Total number of modifications made relative to the right version"""
@@ -421,8 +424,8 @@ class DebTreeMerger(object):
 
         del self.pending_changes[series_file]
         self.record_change(series_file, self.FILE_MODIFIED)
-        self.notes.append('Downstream additions to quilt series file were '
-                          're-appended on top of new upstream version')
+        self.record_note('Downstream additions to quilt series file were '
+                         're-appended on top of new upstream version')
         return True
 
     def handle_quilt_patches(self):
@@ -521,13 +524,13 @@ class DebTreeMerger(object):
         for patch in patches_to_drop:
             logging.debug('Dropping revertable patch %s', patch)
             del self.pending_changes['debian/patches/' + patch]
-            self.notes.append('Dropped patch %s because it can be reverted '
-                              'cleanly' % patch)
+            self.record_note('%s: Dropped because it can be reverted '
+                             'cleanly' % patch, True)
 
         if not written:
             logging.debug('No quilt patches remaining, removing directory')
-            self.notes.append('debian/patches was entirely removed as there '
-                              'were no patches remaining.')
+            self.record_note('debian/patches was entirely removed as there '
+                             'were no patches remaining.')
             os.unlink(series_file)
             os.rmdir(os.path.join(self.merged_dir, 'debian', 'patches'))
             del self.changes_made['debian/patches/series']
@@ -581,7 +584,8 @@ class DebTreeMerger(object):
             if rc == 0:
                 # Patch applies with fuzz, refresh it
                 logging.debug('%s now applied, refreshing', patch)
-                self.notes.append('%s was refreshed to eliminate fuzz' % patch)
+                self.record_note('%s: refreshed to eliminate fuzz' % patch,
+                                 True)
                 subprocess.check_call(['quilt', 'refresh'], **quiltexec)
                 shutil.copy2(os.path.join(tmpdir, patch),
                              os.path.join(self.merged_dir, patch))
@@ -589,8 +593,8 @@ class DebTreeMerger(object):
                 self.record_change(patch, self.FILE_ADDED)
             else:
                 logging.debug('%s still failed to apply', patch)
-                self.notes.append('Our patch %s fails to apply to the new '
-                                  'version' % patch)
+                self.record_note('Our patch %s fails to apply to the new '
+                                 'version' % patch)
                 return
 
     def handle_control_file(self):
@@ -636,8 +640,8 @@ class DebTreeMerger(object):
             new_control.write(control_parser.get_text())
             new_control.flush()
 
-        self.notes.append('Dropped uninteresting Uploaders change in '
-                          'downstream debian/control file')
+        self.record_note('Dropped uninteresting Uploaders change in '
+                         'downstream debian/control file')
 
         if self.do_diff3(control_file) == 0:
             return
@@ -879,7 +883,7 @@ class DebTreeMerger(object):
         if fast:
             note += ' using the fast diff algorithm (particularly prone to ' \
                     'inaccuracies)'
-        self.notes.append(note)
+        self.record_note(note)
 
         return True
 
