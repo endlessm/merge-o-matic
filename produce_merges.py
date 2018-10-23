@@ -338,21 +338,29 @@ def copy_in(output_dir, pkgver):
 
 def create_tarball(package, version, output_dir, merged_dir):
     """Create a tarball of a merge with conflicts."""
-    filename = "%s/%s_%s.src.tar.gz" % (output_dir, package,
-                                        version.without_epoch)
-    contained = "%s-%s" % (package, version.without_epoch)
+    quilt_format = False
+    try:
+        with open(merged_dir + '/debian/source/format', 'r') as fd:
+            quilt_format = fd.read().strip() == '3.0 (quilt)'
+    except IOError:
+        pass
+
+    if quilt_format:
+        filename = '%s/%s_%s.debian.tar.gz' % (output_dir, package,
+                                               version.without_epoch)
+        contained = 'debian'
+        source = merged_dir + '/debian'
+    else:
+        filename = "%s/%s_%s.src.tar.gz" % (output_dir, package,
+                                            version.without_epoch)
+        contained = "%s-%s" % (package, version.without_epoch)
+        source = merged_dir
 
     tree.ensure("%s/tmp/" % config.get('ROOT'))
     parent = tempfile.mkdtemp(dir="%s/tmp/" % config.get('ROOT'))
     try:
-        tree.copytree(merged_dir, "%s/%s" % (parent, contained))
-
-        debian_rules = "%s/%s/debian/rules" % (parent, contained)
-        if os.path.isfile(debian_rules):
-            os.chmod(debian_rules, os.stat(debian_rules).st_mode | 0111)
-
+        tree.copytree(source, "%s/%s" % (parent, contained))
         shell.run(("tar", "czf", filename, contained), chdir=parent)
-
         logger.info("Created %s", tree.subdir(config.get('ROOT'), filename))
         return os.path.basename(filename)
     finally:
