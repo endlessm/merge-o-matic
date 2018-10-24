@@ -25,6 +25,13 @@ class DebTreeMergerTest(unittest.TestCase):
             shutil.rmtree(self.right_dir)
             shutil.rmtree(self.merged_dir)
 
+    def merge(self, source_format=''):
+        merger = DebTreeMerger(self.left_dir, 'foo', source_format, 'left',
+                               self.right_dir, 'foo', source_format, 'right',
+                               self.base_dir, self.merged_dir)
+        merger.run()
+        return merger
+
     def clone_dir(self, source, target):
         os.rmdir(target)
         shutil.copytree(source, target, symlinks=True)
@@ -41,11 +48,7 @@ class DebTreeMergerTest(unittest.TestCase):
         self.clone_dir(self.left_dir, self.right_dir)
         self.clone_dir(self.left_dir, self.base_dir)
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
-                               self.right_dir, 'foo', '', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge()
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(
             stat.S_IMODE(os.stat(self.merged_dir + '/file1').st_mode),
@@ -80,11 +83,7 @@ class DebTreeMergerTest(unittest.TestCase):
         # Modify a file on the left side
         open(self.left_dir + '/dir1/file3', 'a').write('three')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
-                               self.right_dir, 'foo', '', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge()
         self.assertEqual(len(merger.conflicts), 0)
         self.assertTrue(os.path.exists(self.merged_dir + '/file1'))
         self.assertFalse(os.path.exists(self.merged_dir + '/file2'))
@@ -101,11 +100,7 @@ class DebTreeMergerTest(unittest.TestCase):
         os.mkdir(self.left_dir + '/debian')
         open(self.left_dir + '/debian/newfile2', 'w').write('New file2')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
-                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge(source_format='3.0 (quilt)')
         self.assertEqual(len(merger.conflicts), 0)
         self.assertFalse(os.path.exists(self.merged_dir + '/newfile'))
         self.assertTrue(os.path.exists(self.merged_dir + '/debian/newfile2'))
@@ -123,11 +118,7 @@ class DebTreeMergerTest(unittest.TestCase):
         os.chmod(self.left_dir + '/file2', 0755)
         open(self.left_dir + '/file2', 'a').write('2')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
-                               self.right_dir, 'foo', '', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge()
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(
             stat.S_IMODE(os.stat(self.merged_dir + '/file1').st_mode),
@@ -157,11 +148,7 @@ class DebTreeMergerTest(unittest.TestCase):
         # Remove a link on the right
         os.unlink(self.right_dir + '/link3')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
-                               self.right_dir, 'foo', '', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge()
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(os.readlink(self.merged_dir + '/link1'), 'file1')
         self.assertEqual(os.readlink(self.merged_dir + '/linkL'), 'fileNewL')
@@ -206,11 +193,7 @@ class DebTreeMergerTest(unittest.TestCase):
         os.unlink(self.right_dir + '/file3')
         os.symlink('rightconflict', self.right_dir + '/file3')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
-                               self.right_dir, 'foo', '', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge()
         self.assertEqual(len(merger.conflicts), 6)
         self.assertIn('file1', merger.conflicts)
         self.assertIn('file2', merger.conflicts)
@@ -247,11 +230,7 @@ class DebTreeMergerTest(unittest.TestCase):
                         self.left_dir + '/debian/patches/test.patch'],
                        cwd=self.right_dir)
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
-                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge(source_format='3.0 (quilt)')
         self.assertEqual(len(merger.conflicts), 0)
         self.assertIn('debian/patches/series', merger.changes_made)
         self.assertIn('debian/patches/test.patch', merger.changes_made)
@@ -281,11 +260,7 @@ class DebTreeMergerTest(unittest.TestCase):
             fd.write('one.patch\n')
             fd.write('two.patch\n')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
-                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge(source_format='3.0 (quilt)')
         self.assertEqual(len(merger.conflicts), 0)
         self.assertIn('debian/patches/series', merger.changes_made)
         merged = open(self.merged_dir + '/debian/patches/series', 'r').read()
@@ -327,10 +302,7 @@ class DebTreeMergerTest(unittest.TestCase):
             fd.write('+2222\n')
             fd.write(' three\n')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
-                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
+        merger = self.merge(source_format='3.0 (quilt)')
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(len(merger.changes_made), 0)
         self.assertFalse(os.path.exists(os.path.join(self.merged_dir,
@@ -361,11 +333,7 @@ class DebTreeMergerTest(unittest.TestCase):
                      'Uploaders: Fish <fish@fish.com>, Frog <fr@g.com>\n'
                      'Build-Depends: debhelper\n')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '3.0 (quilt)', 'left',
-                               self.right_dir, 'foo', '3.0 (quilt)', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge(source_format='3.0 (quilt)')
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(len(merger.changes_made), 0)
         merged = open(self.merged_dir + '/debian/control', 'r').read()
@@ -411,11 +379,7 @@ class DebTreeMergerTest(unittest.TestCase):
                      ' --enable-vala \\\n'
                      ' --disable-silent-rules')
 
-        merger = DebTreeMerger(self.left_dir, 'foo', '', 'left',
-                               self.right_dir, 'foo', '', 'right',
-                               self.base_dir, self.merged_dir)
-        merger.run()
-
+        merger = self.merge()
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(len(merger.notes), 1)
         self.assertIn('myfile', merger.changes_made)
