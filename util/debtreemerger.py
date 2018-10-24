@@ -466,9 +466,9 @@ class DebTreeMerger(object):
         # Experiment with patch refreshes under a temporary copy
         tmpdir = mkdtemp(prefix='mom.quiltrefresh.')
         try:
-            os.rmdir(tmpdir)
-            shutil.copytree(self.merged_dir, tmpdir, symlinks=True)
-            self.__refresh_quilt_patches(tmpdir)
+            dest = os.path.join(tmpdir, self.left_name)
+            shutil.copytree(self.merged_dir, dest, symlinks=True)
+            self.__refresh_quilt_patches(dest)
         finally:
             shutil.rmtree(tmpdir)
 
@@ -758,14 +758,15 @@ class DebTreeMerger(object):
                     or self.pending_changes[patch] != self.PENDING_ADD:
                 # Only work on patches that we added in our version
                 logging.debug('%s is not our patch, apply and skip', patch)
-                rc = subprocess.call(['quilt', 'push'], **quiltexec)
+                rc = subprocess.call(['quilt', 'push', '-q'], **quiltexec)
                 if rc != 0:
                     logging.warning('Failed to apply base patch %s', patch)
                     return
                 continue
 
             # Try to apply with no fuzz, like Debian does
-            rc = subprocess.call(['quilt', 'push', '--fuzz=0'], **quiltexec)
+            rc = subprocess.call(['quilt', 'push', '-q', '--fuzz=0'],
+                                 **quiltexec)
             if rc == 0:
                 # Patch applied without fuzz, nothing to do
                 logging.debug('%s applied without fuzz, nothing to do', patch)
@@ -773,7 +774,7 @@ class DebTreeMerger(object):
 
             # Try applying with fuzz
             logging.debug('%s failed to apply, trying with fuzz', patch)
-            rc = subprocess.call(['quilt', 'push'], **quiltexec)
+            rc = subprocess.call(['quilt', 'push', '-q'], **quiltexec)
             if rc == 0:
                 # Patch applies with fuzz, refresh it
                 logging.debug('%s now applied, refreshing', patch)
@@ -788,7 +789,8 @@ class DebTreeMerger(object):
 
             # Fall back on SBTM reconstruction
             if self.sbtm_refresh(tmpdir, patch) \
-                    and subprocess.call(['quilt', 'push'], **quiltexec) == 0:
+                    and subprocess.call(['quilt', 'push', '-q'],
+                                        **quiltexec) == 0:
                 shutil.copy2(os.path.join(tmpdir, patch),
                              os.path.join(self.merged_dir, patch))
                 self.record_note('%s was refreshed with an experimental '
