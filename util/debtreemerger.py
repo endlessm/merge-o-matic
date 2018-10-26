@@ -1,3 +1,4 @@
+import errno
 import logging
 import os
 import shutil
@@ -258,7 +259,7 @@ class DebTreeMerger(object):
                 if not same_file(base_stat, self.base_dir,
                                  left_stat, self.left_dir, filename):
                     # Changed on LHS
-                    self.conflicts.add(filename)
+                    self.record_pending_change(filename, self.PENDING_MERGE)
 
             elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
                 # Common case: left and right are both files
@@ -388,8 +389,7 @@ class DebTreeMerger(object):
             base_stat = None
 
         # If we have a base version, see if diff3 can figure it out cleanly
-        if base_stat is not None and S_ISREG(base_stat.st_mode) \
-                and self.diff3_merge(series_file):
+        if self.diff3_merge(series_file):
             del self.pending_changes[series_file]
             self.record_change(series_file, self.FILE_MODIFIED)
             return True
@@ -419,8 +419,15 @@ class DebTreeMerger(object):
                       'additions')
         added_data = left[len(base):]
         tree.ensure(os.path.join(self.merged_dir, series_file))
-        shutil.copy2(os.path.join(self.right_dir, series_file),
-                     os.path.join(self.merged_dir, series_file))
+
+        try:
+            shutil.copy2(os.path.join(self.right_dir, series_file),
+                         os.path.join(self.merged_dir, series_file))
+        except IOError, e:
+            # series file might have been completely dropped on right
+            if e.errno == errno.ENOENT:
+                pass
+
         with open(os.path.join(self.merged_dir, series_file), 'a') as fd:
             fd.write(added_data)
 
@@ -1010,6 +1017,14 @@ class DebTreeMerger(object):
 
     def diff3_merge(self, filename):
         """Merge a file using diff3."""
+        try:
+            # Check that we have the 3 input files
+            base_stat = os.lstat("%s/%s" % (self.base_dir, filename))
+            left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
+            right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
+        except OSError:
+            return False
+
         dest = "%s/%s" % (self.merged_dir, filename)
         tree.ensure(dest)
 
@@ -1019,27 +1034,21 @@ class DebTreeMerger(object):
 
         if not tree.exists(dest) or os.stat(dest).st_size == 0:
             # Probably binary
-            if same_file(os.stat("%s/%s" % (self.left_dir, filename)),
-                         self.left_dir,
-                         os.stat("%s/%s" % (self.right_dir, filename)),
-                         self.right_dir,
+            if same_file(left_stat, self.left_dir,
+                         right_stat, self.right_dir,
                          filename):
                 logger.debug("binary files are the same: %s", filename)
                 tree.copyfile("%s/%s" % (self.left_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
-            elif same_file(os.stat("%s/%s" % (self.base_dir, filename)),
-                           self.base_dir,
-                           os.stat("%s/%s" % (self.left_dir, filename)),
-                           self.left_dir,
+            elif same_file(base_stat, self.base_dir,
+                           left_stat, self.left_dir,
                            filename):
                 logger.debug("preserving binary change in %s: %s",
                              self.right_distro, filename)
                 tree.copyfile("%s/%s" % (self.right_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
-            elif same_file(os.stat("%s/%s" % (self.base_dir, filename)),
-                           self.base_dir,
-                           os.stat("%s/%s" % (self.right_dir, filename)),
-                           self.right_dir,
+            elif same_file(base_stat, self.base_dir,
+                           right_stat, self.right_dir,
                            filename):
                 logger.debug("preserving binary change in %s: %s",
                              self.left_distro, filename)

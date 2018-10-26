@@ -309,6 +309,25 @@ class DebTreeMergerTest(unittest.TestCase):
         merged = open(self.merged_dir + '/debian/patches/series', 'r').read()
         self.assertEqual(merged, 'one.patch\ntwo.patch\nendless.patch\n')
 
+    # Our downstream changes just append a quilt patch to the end of the list.
+    # Upstream completely removes the series file.
+    # We should recreate the series file with our patch.
+    def test_quiltSeriesMergeRightDropped(self):
+        os.makedirs(self.base_dir + '/debian/patches')
+        with open(self.base_dir + '/debian/patches/series', 'w') as fd:
+            fd.write('one.patch\n')
+
+        os.makedirs(self.left_dir + '/debian/patches')
+        with open(self.left_dir + '/debian/patches/series', 'w') as fd:
+            fd.write('one.patch\n')
+            fd.write('endless.patch\n')
+
+        merger = self.merge(source_format='3.0 (quilt)')
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertIn('debian/patches/series', merger.changes_made)
+        merged = open(self.merged_dir + '/debian/patches/series', 'r').read()
+        self.assertEqual(merged, 'endless.patch\n')
+
     # Our version applies two (closely related) patches on top of the base.
     # Upstream version has those patches applied at the source level.
     # Check that those patches were detected as reversable and were hence
