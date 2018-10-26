@@ -362,7 +362,8 @@ class DebTreeMerger(object):
         self.handle_quilt_patches()
 
         # Intelligently handle control file
-        self.handle_control_file()
+        self.handle_control_file('debian/control')
+        self.handle_control_in_file()
 
         # Now apply the remaining changes through simple means
         self.apply_pending_changes()
@@ -805,8 +806,7 @@ class DebTreeMerger(object):
 
             return
 
-    def handle_control_file(self):
-        control_file = 'debian/control'
+    def handle_control_file(self, control_file):
         if control_file not in self.pending_changes or \
                 self.pending_changes[control_file] != self.PENDING_MERGE:
             return
@@ -814,7 +814,8 @@ class DebTreeMerger(object):
         if not os.path.isfile("%s/%s" % (self.base_dir, control_file)):
             return
 
-        control_merger = DebControlMerger(self.left_dir, self.left_name,
+        control_merger = DebControlMerger(control_file,
+                                          self.left_dir, self.left_name,
                                           self.right_dir, self.right_name,
                                           self.base_dir, self.merged_dir)
         merged = control_merger.run()
@@ -824,7 +825,29 @@ class DebTreeMerger(object):
                 self.record_change(control_file, self.FILE_MODIFIED)
             del self.pending_changes[control_file]
         for note, changelog_worthy in control_merger.notes:
-            self.record_note('debian/control: ' + note, changelog_worthy)
+            self.record_note('%s: %s' % (control_file, note), changelog_worthy)
+
+    def handle_control_in_file(self):
+        control_file = 'debian/control.in'
+
+        if control_file not in self.pending_changes or \
+                self.pending_changes[control_file] != self.PENDING_MERGE:
+            return
+
+        if not os.path.isfile("%s/%s" % (self.base_dir, control_file)):
+            return
+
+        if not os.path.isfile("%s/%s" % (self.right_dir, control_file)):
+            # If the control file was completely removed on the right,
+            # then we can discard our local changes, with the expectation
+            # that they were fully represented in debian/control anyway.
+            self.record_note('debian/control.in: dropped downstream '
+                             'changes because control.in was removed upstream',
+                             True)
+            del self.pending_changes[control_file]
+
+        # Otherwise fall back on a regular control merge
+        self.handle_control_file(control_file)
 
     # Handle po files separately as they need special merging
     def handle_pot_files(self):

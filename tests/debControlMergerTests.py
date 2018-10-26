@@ -49,7 +49,8 @@ class DebControlMergerTest(unittest.TestCase):
             self.assertEqual(fd.read(), result)
 
     def merge(self):
-        merger = DebControlMerger(self.left_dir, 'left',
+        merger = DebControlMerger('debian/control',
+                                  self.left_dir, 'left',
                                   self.right_dir, 'right',
                                   self.base_dir, self.merged_dir)
         return merger, merger.run()
