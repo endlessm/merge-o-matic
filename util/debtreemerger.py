@@ -544,10 +544,10 @@ class DebTreeMerger(object):
                 continue
 
             logging.debug('Trying to revert our patch %s', patch)
-            args = ['patch', '--dry-run', '-p1', '--reverse', '--force',
-                    '--quiet', '-i',
+            args = ['patch', '--dry-run', '-p1', '--reverse', '-i',
                     os.path.join(self.left_dir, 'debian', 'patches', patch)]
-            rc = subprocess.call(args, cwd=tmpdir)
+            with open('/dev/null', 'w') as fd:
+                rc = subprocess.call(args, cwd=tmpdir, stdout=fd)
             if rc != 0:
                 continue
 
@@ -572,6 +572,7 @@ class DebTreeMerger(object):
                 written = True
             new_series.flush()
             shutil.copyfile(new_series.name, series_file)
+        self.record_change('debian/patches/series', self.FILE_MODIFIED)
 
         for patch in patches_to_drop:
             logging.debug('Dropping revertable patch %s', patch)
