@@ -19,6 +19,7 @@ logger = logging.getLogger('debtreemerger')
 class FileInfo(object):
     def __init__(self, path):
         self.path = path
+        self.__orig_md5sum = None
 
     def __str__(self):
         return str(self.path)
@@ -46,6 +47,17 @@ class FileInfo(object):
     @property
     def md5sum(self):
         return md5sum(self.path)
+
+    @property
+    def orig_md5sum(self):
+        return self.__orig_md5sum
+
+    def save_orig_md5sum(self):
+        try:
+            self.__orig_md5sum = self.md5sum
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                pass
 
     def same_as(self, other):
         """Are two filesystem objects the same?"""
@@ -143,7 +155,28 @@ class DebTreeMerger(object):
         if change_type == 0:
             return
 
-        if filename in self.changes_made:
+        # If we're being asked to record a file modification, double check
+        # that it is actually the modified.
+        # Some merge strategies may appear to have taken action while
+        # actually ending up outputting a merged file that is identical
+        # to the right version.
+        if change_type == self.FILE_MODIFIED:
+            right_file_info = \
+                self.get_file_info(os.path.join(self.right_dir, filename))
+            if right_file_info.orig_md5sum \
+                    == md5sum(os.path.join(self.merged_dir, filename)):
+                if filename in self.changes_made:
+                    del self.changes_made[filename]
+                return
+
+        existing_change = self.changes_made.get(filename)
+
+        # Handle our merge strategies modifying a file that was added;
+        # in this case we only need to report it as an added file.
+        if existing_change == self.FILE_ADDED \
+                and change_type == self.FILE_MODIFIED:
+            return
+        elif existing_change is not None:
             assert self.changes_made[filename] == change_type
 
         self.changes_made[filename] = change_type
@@ -151,6 +184,17 @@ class DebTreeMerger(object):
     # Record a pending change to make in the merge directory
     def record_pending_change(self, filename, pending_change_type):
         assert filename not in self.pending_changes
+
+        # This is the first hint we have that we're going to do a merge,
+        # or similar. Record the md5sum of the pristine file on the right,
+        # as we'll need it later to figure out if the merged file differs
+        # from this. The merge strategies may modify the right side file,
+        # so we do need to record this in advance.
+        if pending_change_type == self.PENDING_MERGE:
+            right_file_info = \
+                self.get_file_info(os.path.join(self.right_dir, filename))
+            right_file_info.save_orig_md5sum()
+
         self.pending_changes[filename] = pending_change_type
 
     # Apply a specific pending change to a file.
@@ -599,7 +643,8 @@ class DebTreeMerger(object):
                              'were no patches remaining.')
             os.unlink(series_file)
             os.rmdir(os.path.join(self.merged_dir, 'debian', 'patches'))
-            del self.changes_made['debian/patches/series']
+            if 'debian/patches/series' in self.changes_made:
+                del self.changes_made['debian/patches/series']
 
     def __sbtm_refresh(self, patch, patched_files, base_dir, left_dir,
                        merged_dir):

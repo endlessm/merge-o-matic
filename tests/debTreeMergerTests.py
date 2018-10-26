@@ -467,3 +467,20 @@ class DebTreeMergerTest(unittest.TestCase):
         merger = self.merge(source_format='3.0 (quilt)')
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(merger.total_changes_made, 0)
+
+    # We made a change on the left version
+    # The new right version incorporates our change AND makes another
+    # separate change.
+    # Test that we correctly detect that the merged result took the
+    # right version as-is.
+    def test_mergeConvergedIntoRightVersion(self):
+        open(self.base_dir + '/file1', 'w').write(
+            '1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n')
+        open(self.left_dir + '/file1', 'w').write(
+            'oneone\n2\n3\n4\n5\n6\n7\n8\n9\n10\n')
+        open(self.right_dir + '/file1', 'w').write(
+            'oneone\n2\n3\n4\n5\n6\n7\n8\n999\n10\n')
+
+        merger = self.merge()
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertEqual(merger.total_changes_made, 0)
