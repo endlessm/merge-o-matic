@@ -429,3 +429,22 @@ class DebTreeMergerTest(unittest.TestCase):
         self.assertEqual(len(merger.conflicts), 0)
         self.assertEqual(len(merger.notes), 1)
         self.assertIn('myfile', merger.changes_made)
+
+    # We made a downstream change to control.in
+    # Upstream completely removed control.in
+    # Our downstream change should be discarded on the assumption that the
+    # same changes will still be present in control.
+    def test_controlInDropped(self):
+        os.makedirs(self.base_dir + '/debian')
+        with open(self.base_dir + '/debian/control.in', 'w') as fd:
+            fd.write('Source: foo\n'
+                     'Build-Depends: one, two\n')
+
+        os.makedirs(self.left_dir + '/debian')
+        with open(self.left_dir + '/debian/control.in', 'w') as fd:
+            fd.write('Source: foo\n'
+                     'Build-Depends: one, localchange, two\n')
+
+        merger = self.merge(source_format='3.0 (quilt)')
+        self.assertEqual(len(merger.conflicts), 0)
+        self.assertEqual(merger.total_changes_made, 0)

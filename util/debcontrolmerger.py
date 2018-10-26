@@ -25,8 +25,8 @@ def field_name(package, field):
 # by diff3. These strategies will modify the left, right and base versions
 # accordingly.
 class DebControlMerger(object):
-    def __init__(self, left_dir, left_name, right_dir, right_name, base_dir,
-                 merged_dir):
+    def __init__(self, control_path, left_dir, left_name, right_dir,
+                 right_name, base_dir, merged_dir):
         # Merge notes recorded here
         self.notes = []
         # If the merged file was modified (relative to the right version)
@@ -40,7 +40,6 @@ class DebControlMerger(object):
         self.base_dir = base_dir
         self.merged_dir = merged_dir
 
-        control_path = 'debian/control'
         self.left_control_path = os.path.join(left_dir, control_path)
         self.right_control_path = os.path.join(right_dir, control_path)
         self.base_control_path = os.path.join(base_dir, control_path)
