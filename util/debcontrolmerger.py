@@ -69,6 +69,7 @@ class DebControlMerger(object):
 
         merge_funcs = (
             (self.merge_uploaders, ()),
+            (self.merge_paragraphs, ()),
         )
 
         # Try all the merge strategies until diff3 is happy
@@ -96,3 +97,64 @@ class DebControlMerger(object):
         left_control.patch(None, 'Uploaders', base_uploaders)
         left_control.write()
         self.record_note('Dropped uninteresting Uploaders change')
+
+    def merge_paragraph(self, package):
+        base_para = self.base_control.get_paragraph(package)
+        left_para = self.left_control.get_paragraph(package)
+        right_para = self.right_control.get_paragraph(package)
+
+        added_fields = set(left_para.keys()) - set(base_para.keys())
+        if right_para is not None:
+            added_fields -= set(right_para.keys())
+        else:
+            added_fields.clear()
+
+        for field in added_fields:
+            self.right_control.add_field(package, field, left_para[field])
+            self.right_control.write()
+
+            # Remove the field from left version to ease the merge
+            self.left_control.remove_field(package, field)
+            self.left_control.write()
+
+            self.record_note('Readded %s %s' % (package or '', field))
+
+    # Perform simple merge operations on paragraphs and their contents
+    def merge_paragraphs(self):
+        self.merge_paragraph(None)
+
+        for pkg in self.base_control.get_package_names():
+            if self.left_control.get_paragraph(pkg):
+                self.merge_paragraph(pkg)
+                continue
+
+            logger.debug('Carrying forward %s package removal', pkg)
+
+            # Package was removed on left, so remove it on the right
+            self.right_control.remove_package(pkg)
+            self.right_control.write()
+
+            # To ease the merge, also remove it from the base version
+            self.base_control.remove_package(pkg)
+            self.base_control.write()
+
+            self.record_note('Carried forward removal of %s binary package '
+                             % pkg)
+
+        for pkg in self.left_control.get_package_names():
+            if self.base_control.get_paragraph(pkg):
+                continue
+
+            logger.debug('Carrying forward %s package addition', pkg)
+            para = self.left_control.get_paragraph(pkg)
+
+            # Package was added on left, so add it on the right
+            self.right_control.add_paragraph(unicode(para))
+            self.right_control.write()
+
+            # To ease the merge, drop the package addition from the left
+            self.left_control.remove_package(pkg)
+            self.left_control.write()
+
+            self.record_note('Carried forward addition of %s binary package'
+                             % pkg)
