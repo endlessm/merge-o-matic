@@ -15,40 +15,59 @@ from util.debcontrolmerger import DebControlMerger
 
 logger = logging.getLogger('debtreemerger')
 
+class FileInfo(object):
+    def __init__(self, path):
+        self.path = path
 
-def same_file(left_stat, left_dir, right_stat, right_dir, filename):
-    """Are two filesystem objects the same?"""
-    if S_IFMT(left_stat.st_mode) != S_IFMT(right_stat.st_mode):
-        # Different fundamental types
-        return False
-    elif S_ISREG(left_stat.st_mode):
-        # Files with the same size and MD5sum are the same
-        if left_stat.st_size != right_stat.st_size:
+    def __str__(self):
+        return str(self.path)
+
+    def __unicode__(self):
+        return unicode(self.path)
+
+    @property
+    def exists(self):
+        return os.path.exists(self.path) or os.path.islink(self.path)
+
+    # stat the file and cache the results.
+    # Future calls will use the cached data.
+    @property
+    def stat(self):
+        if hasattr(self, 'stat_data'):
+            return self.stat_data
+        try:
+            self.stat_data = os.lstat(self.path)
+        except OSError:
+            self.stat_data = None
+
+        return self.stat_data
+
+    @property
+    def md5sum(self):
+        return md5sum(self.path)
+
+    def same_as(self, other):
+        """Are two filesystem objects the same?"""
+        if S_IFMT(self.stat.st_mode) != S_IFMT(other.stat.st_mode):
+            # Different fundamental types
             return False
-        elif md5sum("%s/%s" % (left_dir, filename)) \
-                != md5sum("%s/%s" % (right_dir, filename)):
-            return False
+        elif S_ISREG(self.stat.st_mode):
+            # Files with the same size and MD5sum are the same
+            if self.stat.st_size != other.stat.st_size:
+                return False
+            return self.md5sum == other.md5sum
+        elif S_ISDIR(self.stat.st_mode) or S_ISFIFO(other.stat.st_mode) \
+                or S_ISSOCK(self.stat.st_mode):
+            # Directories, fifos and sockets are always the same
+            return True
+        elif S_ISCHR(self.stat.st_mode) or S_ISBLK(other.stat.st_mode):
+            # Char/block devices are the same if they have the same rdev
+            return self.stat.st_rdev == other.stat.st_rdev
+        elif S_ISLNK(self.stat.st_mode):
+            # Symbolic links are the same if they have the same target
+            return os.readlink(self.path) == os.readlink(other.path)
         else:
             return True
-    elif S_ISDIR(left_stat.st_mode) or S_ISFIFO(left_stat.st_mode) \
-            or S_ISSOCK(left_stat.st_mode):
-        # Directories, fifos and sockets are always the same
-        return True
-    elif S_ISCHR(left_stat.st_mode) or S_ISBLK(left_stat.st_mode):
-        # Char/block devices are the same if they have the same rdev
-        if left_stat.st_rdev != right_stat.st_rdev:
-            return False
-        else:
-            return True
-    elif S_ISLNK(left_stat.st_mode):
-        # Symbolic links are the same if they have the same target
-        if os.readlink("%s/%s" % (left_dir, filename)) \
-               != os.readlink("%s/%s" % (right_dir, filename)):
-            return False
-        else:
-            return True
-    else:
-        return True
 
 
 class DebTreeMerger(object):
@@ -80,6 +99,7 @@ class DebTreeMerger(object):
         self.right_distro = right_distro
         self.base_dir = base_dir
         self.merged_dir = merged_dir
+        self.files = {}
 
         # Specific merge-related information to flag to the maintainer
         self.notes = []
@@ -92,6 +112,17 @@ class DebTreeMerger(object):
 
         # Files that generated conflicts when merging
         self.conflicts = set()
+
+    def get_file_info(self, path):
+        if path not in self.files:
+            self.files[path] = FileInfo(path)
+
+        return self.files[path]
+
+    def get_all_file_info(self, filename):
+        return (self.get_file_info(os.path.join(self.base_dir, filename)),
+                self.get_file_info(os.path.join(self.left_dir, filename)),
+                self.get_file_info(os.path.join(self.right_dir, filename)))
 
     def record_note(self, note, changelog_worthy=False):
         self.notes.append((note, changelog_worthy))
@@ -143,28 +174,15 @@ class DebTreeMerger(object):
 
         elif change_type == self.PENDING_MERGE:
             # Handle pending merges
-            try:
-                base_stat = os.lstat("%s/%s" % (self.base_dir, filename))
-            except OSError:
-                base_stat = None
-
-            try:
-                left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
-            except OSError:
-                left_stat = None
-
-            try:
-                right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
-            except OSError:
-                right_stat = None
+            base_file_info, left_file_info, right_file_info = \
+                self.get_all_file_info(filename)
 
             # Even though the file was originally enqueued for merge,
             # some of our post-processing might have dropped local
             # changes, in which case we can just use the right
             # version as-is.
-            if left_stat and base_stat \
-                    and same_file(left_stat, self.left_dir,
-                                  base_stat, self.base_dir, filename):
+            if left_file_info.stat and base_file_info.stat \
+                    and left_file_info.same_as(base_file_info):
                 # same file contents in left and base, so just copy
                 # over the right version
                 logger.debug('%s left and base are now the same file',
@@ -173,8 +191,7 @@ class DebTreeMerger(object):
                               "%s/%s" % (self.merged_dir, filename))
                 return 0
 
-            if self.merge_file_contents(left_stat, right_stat, base_stat,
-                                        filename):
+            if self.merge_file_contents(filename):
                 # Merge file permissions
                 self.merge_attr(filename)
                 return self.FILE_MODIFIED
@@ -224,25 +241,16 @@ class DebTreeMerger(object):
                 # Not interested in merging quilt metadata
                 continue
 
-            base_stat = os.lstat("%s/%s" % (self.base_dir, filename))
-            try:
-                left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
-            except OSError:
-                left_stat = None
+            base_file_info, left_file_info, right_file_info = \
+                self.get_all_file_info(filename)
 
-            try:
-                right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
-            except OSError:
-                right_stat = None
-
-            if left_stat is None and right_stat is None:
+            if left_file_info.stat is None and right_file_info.stat is None:
                 # Removed on both sides
                 pass
 
-            elif left_stat is None:
+            elif left_file_info.stat is None:
                 logger.debug("removed from %s: %s", self.left_distro, filename)
-                if not same_file(base_stat, self.base_dir, right_stat,
-                                 self.right_dir, filename):
+                if not base_file_info.same_as(right_file_info):
                     # Changed on RHS
                     self.conflicts.add(filename)
                 else:
@@ -252,35 +260,32 @@ class DebTreeMerger(object):
                                   "%s/%s" % (self.merged_dir, filename))
                     self.record_pending_change(filename, self.PENDING_REMOVE)
 
-            elif right_stat is None:
+            elif right_file_info.stat is None:
                 # Removed on RHS only
                 logger.debug("removed from %s: %s", self.right_distro,
                              filename)
-                if not same_file(base_stat, self.base_dir,
-                                 left_stat, self.left_dir, filename):
+                if not base_file_info.same_as(left_file_info):
                     # Changed on LHS
                     self.record_pending_change(filename, self.PENDING_MERGE)
 
-            elif S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
+            elif S_ISREG(left_file_info.stat.st_mode) \
+                    and S_ISREG(right_file_info.stat.st_mode):
                 # Common case: left and right are both files
-                self.handle_file(left_stat, right_stat, base_stat, filename)
+                self.handle_file(filename)
 
-            elif same_file(left_stat, self.left_dir,
-                           right_stat, self.right_dir, filename):
+            elif left_file_info.same_as(right_file_info):
                 # left and right are the same, doesn't matter which we keep
                 tree.copyfile("%s/%s" % (self.right_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
 
-            elif same_file(base_stat, self.base_dir,
-                           left_stat, self.left_dir, filename):
+            elif base_file_info.same_as(left_file_info):
                 # right has changed in some way, keep that one
                 logger.debug("preserving non-file change in %s: %s",
                              self.right_distro, filename)
                 tree.copyfile("%s/%s" % (self.right_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
 
-            elif same_file(base_stat, self.base_dir,
-                           right_stat, self.right_dir, filename):
+            elif base_file_info.same_as(right_file_info):
                 # left has changed in some way, keep that one
                 logger.debug("preserving non-file change in %s: %s",
                              self.left_distro, filename)
@@ -301,23 +306,23 @@ class DebTreeMerger(object):
                 # Not interested in merging quilt metadata
                 continue
 
-            if tree.exists("%s/%s" % (self.base_dir, filename)):
+            base_file_info, left_file_info, right_file_info = \
+                self.get_all_file_info(filename)
+ 
+            if base_file_info.exists:
                 continue
 
-            if not tree.exists("%s/%s" % (self.right_dir, filename)):
+            if not right_file_info.exists:
                 logger.debug("new in %s: %s", self.left_distro, filename)
                 self.record_pending_change(filename, self.PENDING_ADD)
                 continue
 
-            left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
-            right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
-
-            if S_ISREG(left_stat.st_mode) and S_ISREG(right_stat.st_mode):
+            if S_ISREG(left_file_info.stat.st_mode) \
+                    and S_ISREG(right_file_info.stat.st_mode):
                 # Common case: left and right are both files
-                self.handle_file(left_stat, right_stat, None, filename)
+                self.handle_file(filename)
 
-            elif same_file(left_stat, self.left_dir,
-                           right_stat, self.right_dir, filename):
+            elif left_file_info.same_as(right_file_info):
                 # left and right are the same, doesn't matter which we keep
                 tree.copyfile("%s/%s" % (self.right_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
@@ -382,11 +387,6 @@ class DebTreeMerger(object):
         # If it's not a merge then just resolve it normally
         if self.pending_changes[series_file] != self.PENDING_MERGE:
             return False
-
-        try:
-            base_stat = os.stat("%s/%s" % (self.base_dir, series_file))
-        except OSError:
-            base_stat = None
 
         # If we have a base version, see if diff3 can figure it out cleanly
         if self.diff3_merge(series_file):
@@ -934,21 +934,21 @@ class DebTreeMerger(object):
         else:
             return None
 
-    def handle_file(self, left_stat, right_stat, base_stat, filename):
+    def handle_file(self, filename):
         """Handle the common case of a file in both left and right."""
+        base_file_info, left_file_info, right_file_info = \
+            self.get_all_file_info(filename)
         do_attrs = True
 
-        if base_stat and \
-                same_file(base_stat, self.base_dir,
-                          left_stat, self.left_dir, filename):
+        if base_file_info.stat and \
+                base_file_info.same_as(left_file_info):
             # same file contents in base and left, meaning that the left
             # side was unmodified, so take the right side as-is
             logger.debug("%s was unmodified on the left", filename)
             tree.copyfile("%s/%s" % (self.right_dir, filename),
                           "%s/%s" % (self.merged_dir, filename))
             self.merge_attr(filename)
-        elif same_file(left_stat, self.left_dir,
-                       right_stat, self.right_dir, filename):
+        elif left_file_info.same_as(right_file_info):
             # same file contents in left and right
             logger.debug("%s and %s both turned into same file: %s",
                          self.left_distro, self.right_distro, filename)
@@ -960,7 +960,10 @@ class DebTreeMerger(object):
 
     # Returns True if the merge succeeded, or False if the merge generated
     # conflicts.
-    def merge_file_contents(self, left_stat, right_stat, base_stat, filename):
+    def merge_file_contents(self, filename):
+        base_file_info, left_file_info, right_file_info = \
+            self.get_all_file_info(filename)
+
         if filename == "debian/changelog":
             # two-way merge of changelogs
             try:
@@ -968,7 +971,8 @@ class DebTreeMerger(object):
                 return True
             except Exception:
                 return False
-        elif base_stat is not None and S_ISREG(base_stat.st_mode):
+        elif base_file_info.stat is not None \
+                and S_ISREG(base_file_info.stat.st_mode):
             # was file in base: diff3 possible
             if self.diff3_merge(filename):
                 return True
@@ -1017,13 +1021,11 @@ class DebTreeMerger(object):
 
     def diff3_merge(self, filename):
         """Merge a file using diff3."""
-        try:
-            # Check that we have the 3 input files
-            base_stat = os.lstat("%s/%s" % (self.base_dir, filename))
-            left_stat = os.lstat("%s/%s" % (self.left_dir, filename))
-            right_stat = os.lstat("%s/%s" % (self.right_dir, filename))
-        except OSError:
-            return False
+        base_file_info, left_file_info, right_file_info = \
+            self.get_all_file_info(filename)
+        if not (base_file_info.stat and left_file_info.stat
+                and right_file_info.stat):
+            return
 
         dest = "%s/%s" % (self.merged_dir, filename)
         tree.ensure(dest)
@@ -1034,22 +1036,16 @@ class DebTreeMerger(object):
 
         if not tree.exists(dest) or os.stat(dest).st_size == 0:
             # Probably binary
-            if same_file(left_stat, self.left_dir,
-                         right_stat, self.right_dir,
-                         filename):
+            if left_file_info.same_as(right_file_info):
                 logger.debug("binary files are the same: %s", filename)
                 tree.copyfile("%s/%s" % (self.left_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
-            elif same_file(base_stat, self.base_dir,
-                           left_stat, self.left_dir,
-                           filename):
+            elif base_file_info.same_as(left_file_info):
                 logger.debug("preserving binary change in %s: %s",
                              self.right_distro, filename)
                 tree.copyfile("%s/%s" % (self.right_dir, filename),
                               "%s/%s" % (self.merged_dir, filename))
-            elif same_file(base_stat, self.base_dir,
-                           right_stat, self.right_dir,
-                           filename):
+            elif base_file_info.same_as(right_file_info):
                 logger.debug("preserving binary change in %s: %s",
                              self.left_distro, filename)
                 tree.copyfile("%s/%s" % (self.left_dir, filename),
@@ -1129,8 +1125,8 @@ class DebTreeMerger(object):
 
     def apply_attr(self, base_dir, src_dir, dest_dir, filename):
         """Apply attribute changes from one side to a file."""
-        src_stat = os.stat("%s/%s" % (src_dir, filename))
-        base_stat = os.stat("%s/%s" % (base_dir, filename))
+        src_stat = self.get_file_info("%s/%s" % (src_dir, filename)).stat
+        base_stat = self.get_file_info("%s/%s" % (base_dir, filename)).stat
         changed = False
 
         for shift in range(0, 9):
