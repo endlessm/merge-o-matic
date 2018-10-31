@@ -321,3 +321,61 @@ class DebControlMergerTest(unittest.TestCase):
         merger, merged = self.merge()
         self.assertTrue(merged)
         self.assertFalse(merger.modified)
+
+    # If a package is removed on the left, it should be removed on the right
+    # even if that package definition changed in the update.
+    def test_droppedPackages(self):
+        self.write_base('Source: foo\n\n'
+                        'Package: one\n'
+                        'Suggests: foo2\n\n'
+                        'Package: bar\n'
+                        'Suggests: foo3\n')
+
+        self.write_left('Source: foo\n\n'
+                        'Package: bar\n'
+                        'Suggests: foo3\n')
+
+        self.write_right('Source: foo\n\n'
+                         'Package: one\n'
+                         'Recommends: foo2\n\n'
+                         'Package: bar\n'
+                         'Suggests: foo3\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult('Source: foo\n\n'
+                          'Package: bar\n'
+                          'Suggests: foo3\n')
+
+    # If a package field is added on the left, this addition should be
+    # carried over to the right.
+    def test_fieldAdded(self):
+        self.write_base('Source: foo\n\n'
+                        'Package: one\n'
+                        'Suggests: foo2\n\n'
+                        'Package: bar\n'
+                        'Suggests: foo3\n')
+
+        self.write_left('Source: foo\n\n'
+                        'Package: one\n'
+                        'Breaks: foo7\n'
+                        'Suggests: foo2\n\n'
+                        'Package: bar\n'
+                        'Suggests: foo3\n')
+
+        self.write_right('Source: foo\n\n'
+                         'Package: one\n'
+                         'Recommends: foo37\n\n'
+                         'Package: bar\n'
+                         'Suggests: foo3\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult('Source: foo\n\n'
+                          'Package: one\n'
+                          'Recommends: foo37\n'
+                          'Breaks: foo7\n\n'
+                          'Package: bar\n'
+                          'Suggests: foo3\n')
