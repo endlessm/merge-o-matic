@@ -77,6 +77,8 @@ class DebControlMerger(object):
 
         merge_funcs = (
             (self.merge_uploaders, ()),
+            (self.merge_recommends, ()),
+            (self.merge_suggests, ()),
             (self.merge_architecture, ()),
             (self.merge_depends, (None, 'Build-Depends')),
             (self.merge_depends, (None, 'Build-Depends-Indep')),
@@ -122,6 +124,38 @@ class DebControlMerger(object):
             self.left_control.patch(package, field, base_value)
             self.left_control.write()
         return True
+
+    def __restore_original_package_values(self, field):
+        modified_packages = []
+
+        for left_pkg in self.left_control.parse():
+            if 'Package' not in left_pkg:
+                continue
+            pkg = left_pkg['Package']
+            modified = \
+                self.__restore_original_value(pkg, field)
+            if modified:
+                modified_packages.append(pkg)
+
+        return modified_packages
+
+    # Endless no longer install recommended packages, so we can eliminate
+    # merge noise by dropping changes we had made to Recommends.
+    def merge_recommends(self):
+        modified_packages = \
+            self.__restore_original_package_values('Recommends')
+        for pkg in modified_packages:
+            self.record_note('Dropped uninteresting %s Recommends change'
+                             % pkg, True)
+
+    # Endless doesn't install suggested packages, so we can eliminate
+    # merge noise by dropping any changes to Suggests.
+    def merge_suggests(self):
+        modified_packages = \
+            self.__restore_original_package_values('Suggests')
+        for pkg in modified_packages:
+            self.record_note('Dropped uninteresting %s Suggests change'
+                             % pkg, True)
 
     # Drop Uploaders changes from the left side as they are irrelevant and
     # just generate merge noise.

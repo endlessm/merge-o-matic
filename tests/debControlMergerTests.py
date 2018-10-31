@@ -281,3 +281,43 @@ class DebControlMergerTest(unittest.TestCase):
         merger, merged = self.merge()
         self.assertTrue(merged)
         self.assertFalse(merger.modified)
+
+    # Check that changes to Suggests and Recommends are dropped
+    def test_resetSuggests(self):
+        self.write_base('Source: cryptsetup\n\n'
+                        'Package: cryptsetup\n'
+                        'Suggests: foo, console-setup\n'
+                        'Recommends: bar\n')
+
+        self.write_left('Source: cryptsetup\n\n'
+                        'Package: cryptsetup\n'
+                        'Suggests: foo\n'
+                        'Recommends: bar, console-setup\n')
+
+        self.write_right('Source: cryptsetup\n\n'
+                         'Package: cryptsetup\n'
+                         'Breaks: something\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
+
+    # Test that the Recomends field is restored if it was completely dropped
+    def test_restoreRecommends(self):
+        self.write_base('Source: kbd\n\n'
+                        'Package: kbd\n'
+                        'Recommends: console-setup\n'
+                        'Depends: foo\n')
+
+        self.write_left('Source: kbd\n\n'
+                        'Package: kbd\n'
+                        'Depends: foo\n')
+
+        self.write_right('Source: kbd\n\n'
+                         'Package: kbd\n'
+                         'Recommends: console-setup\n'
+                         'Depends: foo2\n')
+
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertFalse(merger.modified)
