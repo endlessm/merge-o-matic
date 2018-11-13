@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from os import path
-import urllib
+import urllib2
 
 import apt
 import apt_pkg
@@ -133,11 +133,13 @@ class Distro(object):
                 logger.debug("Downloading %s", url)
                 changed = True
                 tree.ensure(filename)
-                try:
-                    urllib.URLopener().retrieve(url, filename)
-                except IOError:
-                    logger.error("Downloading %s failed", url)
-                    raise
+                with open(filename, 'w') as fd:
+                    try:
+                        dl = urllib2.urlopen(url)
+                        fd.write(dl.read())
+                    except IOError:
+                        logger.error("Downloading %s failed", url)
+                        raise
                 logger.debug("Saved %s",
                              tree.subdir(config.get('ROOT'), filename))
 
