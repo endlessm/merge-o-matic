@@ -87,6 +87,7 @@ class DebControlMerger(object):
             (self.merge_package_depends, ('Depends',)),
             (self.merge_package_depends, ('Replaces',)),
             (self.merge_package_depends, ('Provides',)),
+            (self.remove_comments, ()),
         )
 
         # Try all the merge strategies until diff3 is happy
@@ -487,3 +488,27 @@ class DebControlMerger(object):
             if self.left_control.get_paragraph(pkg) \
                     and self.right_control.get_paragraph(pkg):
                 self.merge_depends(pkg, field)
+
+    def __write_non_comments(self, filename):
+        with open(filename, 'r') as fd:
+            base_text = [line for line in fd if not line.startswith('#')]
+        with open(filename, 'w') as fd:
+            fd.writelines(base_text)
+
+    # If we couldn't find a more intelligent merge, try to drop any changes
+    # that were made to the comments in the file. This is done with a heavy
+    # handed approach of removing all the comments from base and left.
+    def remove_comments(self):
+        with open(self.base_control_path, 'r') as fd:
+            base_comments = [line for line in fd if line.startswith('#')]
+
+        with open(self.left_control_path, 'r') as fd:
+            left_comments = [line for line in fd if line.startswith('#')]
+
+        if base_comments == left_comments:
+            return
+
+        logger.debug('Drop all comments from base and left to ease the merge')
+        self.__write_non_comments(self.base_control_path)
+        self.__write_non_comments(self.left_control_path)
+        self.record_note('Dropped comment changes to simplify the merge', True)
