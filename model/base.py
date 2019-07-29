@@ -557,7 +557,13 @@ def files(source):
     @param source a stanza from Sources, as a dictionary in the form
     {"Field": "value"}
     """
-    files = source["Files"].strip("\n").split("\n")
+    # As of buster, Sources files don't include Files, presumably
+    # deprecated by longer checksums entries.
+    if 'Checksums-Sha256' in source:
+        data = source['Checksums-Sha256']
+    else:
+        data = source['Files']
+    files = data.strip("\n").split("\n")
     return [f.split(None, 2) for f in files]
 
 
