@@ -44,7 +44,7 @@ class DebControlMergerTest(unittest.TestCase):
 
     def assertResult(self, result):
         with open(self.merged_path, 'r') as fd:
-            self.assertEqual(fd.read(), result)
+            self.assertMultiLineEqual(fd.read(), result)
 
     def merge(self):
         merger = DebControlMerger('debian/control',
