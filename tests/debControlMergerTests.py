@@ -2,6 +2,7 @@ import os
 import shutil
 from tempfile import mkdtemp
 import unittest
+import textwrap
 
 import testhelper
 from util.debcontrolmerger import DebControlMerger
@@ -429,3 +430,41 @@ class DebControlMergerTest(unittest.TestCase):
         merger, merged = self.merge()
         self.assertTrue(merged)
         self.assertFalse(merger.modified)
+
+    def test_trickyMesonMerge(self):
+        # This is based on a real merge of 0.49.2-1, 0.49.2-1endless1 and
+        # 0.51.1-1.  Downstream, we drop all of the test dependencies. In
+        # Debian, a trick is used to add optional build dependencies by OR-ing
+        # with bash-doc. Previously, the merger would delete one or other
+        # branch of the OR but leave the | in place, causing a parse failure.
+        self.write_base(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              ninja-build (>= 1.6),
+              rustc [i386 amd64] <!nocheck> | bash-doc <!nocheck>,
+              g++-arm-linux-gnueabihf [!armhf] <!nocheck> | bash-doc <!nocheck>,
+              nasm <!nocheck>,
+        """).lstrip())
+        self.write_left(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              ninja-build (>= 1.6),
+        """).lstrip())
+        self.write_right(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              python2-dev <!nocheck>,
+              ninja-build (>= 1.6),
+              rustc [i386 amd64] <!nocheck> | bash-doc <!nocheck>,
+              g++-arm-linux-gnueabihf [!armhf] <!nocheck> | bash-doc <!nocheck>,
+              nasm <!nocheck>,
+        """).lstrip())
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              python2-dev <!nocheck>,
+              ninja-build (>= 1.6),
+        """).lstrip())

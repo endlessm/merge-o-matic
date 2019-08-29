@@ -409,13 +409,26 @@ class ControlFileParser(object):
         end_line = lines[position.end_line - 1]
         end_char = position.end_char
 
+        # If this is the right-hand side of an OR, drop the | but preserve
+        # any following comma.
+        if start_line[start_char - 4:start_char - 1] == ' | ':
+            start_char -= 3
         # If followed by a comma, remove that too
-        if len(end_line) > end_char and end_line[end_char] == ',':
+        elif len(end_line) > end_char and end_line[end_char] == ',':
             end_char += 1
 
         # If followed by whitespace, remove that too
         while len(end_line) > end_char and end_line[end_char].isspace():
             end_char += 1
+
+        # If this is the left-hand side of an OR, drop the | and any following
+        # whitespace.
+        if len(end_line) > end_char and end_line[end_char] == '|':
+            end_char += 1
+            while len(end_line) > end_char and end_line[end_char].isspace():
+                end_char += 1
+
+        position.start_char = start_char
         position.end_char = end_char
 
         # If everything else on the line is empty or whitespace, then just
