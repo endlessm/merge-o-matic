@@ -9,10 +9,11 @@ from util.debcontrolmerger import DebControlMerger
 
 class DebControlMergerTest(unittest.TestCase):
     def setUp(self):
-        self.base_dir = mkdtemp(prefix='mom.control_test.base.')
-        self.left_dir = mkdtemp(prefix='mom.control_test.left.')
-        self.right_dir = mkdtemp(prefix='mom.control_test.right.')
-        self.merged_dir = mkdtemp(prefix='mom.control_test.merged.')
+        self.parent_dir = mkdtemp(prefix='mom.control_test.')
+        self.base_dir   = os.path.join(self.parent_dir, 'base')
+        self.left_dir   = os.path.join(self.parent_dir, 'left')
+        self.right_dir  = os.path.join(self.parent_dir, 'right')
+        self.merged_dir = os.path.join(self.parent_dir, 'merged')
 
         os.makedirs(self.base_dir + '/debian')
         os.makedirs(self.left_dir + '/debian')
@@ -26,10 +27,7 @@ class DebControlMergerTest(unittest.TestCase):
 
     def tearDown(self):
         if testhelper.should_cleanup():
-            shutil.rmtree(self.base_dir)
-            shutil.rmtree(self.left_dir)
-            shutil.rmtree(self.right_dir)
-            shutil.rmtree(self.merged_dir)
+            shutil.rmtree(self.parent_dir)
 
     def write_control(self, path, contents):
         with open(path, 'w') as fd:
