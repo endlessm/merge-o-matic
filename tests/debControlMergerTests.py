@@ -2,6 +2,7 @@ import os
 import shutil
 from tempfile import mkdtemp
 import unittest
+import textwrap
 
 import testhelper
 from util.debcontrolmerger import DebControlMerger
@@ -9,10 +10,11 @@ from util.debcontrolmerger import DebControlMerger
 
 class DebControlMergerTest(unittest.TestCase):
     def setUp(self):
-        self.base_dir = mkdtemp(prefix='mom.control_test.base.')
-        self.left_dir = mkdtemp(prefix='mom.control_test.left.')
-        self.right_dir = mkdtemp(prefix='mom.control_test.right.')
-        self.merged_dir = mkdtemp(prefix='mom.control_test.merged.')
+        self.parent_dir = mkdtemp(prefix='mom.control_test.')
+        self.base_dir   = os.path.join(self.parent_dir, 'base')
+        self.left_dir   = os.path.join(self.parent_dir, 'left')
+        self.right_dir  = os.path.join(self.parent_dir, 'right')
+        self.merged_dir = os.path.join(self.parent_dir, 'merged')
 
         os.makedirs(self.base_dir + '/debian')
         os.makedirs(self.left_dir + '/debian')
@@ -26,10 +28,7 @@ class DebControlMergerTest(unittest.TestCase):
 
     def tearDown(self):
         if testhelper.should_cleanup():
-            shutil.rmtree(self.base_dir)
-            shutil.rmtree(self.left_dir)
-            shutil.rmtree(self.right_dir)
-            shutil.rmtree(self.merged_dir)
+            shutil.rmtree(self.parent_dir)
 
     def write_control(self, path, contents):
         with open(path, 'w') as fd:
@@ -46,7 +45,7 @@ class DebControlMergerTest(unittest.TestCase):
 
     def assertResult(self, result):
         with open(self.merged_path, 'r') as fd:
-            self.assertEqual(fd.read(), result)
+            self.assertMultiLineEqual(fd.read(), result)
 
     def merge(self):
         merger = DebControlMerger('debian/control',
@@ -431,3 +430,41 @@ class DebControlMergerTest(unittest.TestCase):
         merger, merged = self.merge()
         self.assertTrue(merged)
         self.assertFalse(merger.modified)
+
+    def test_trickyMesonMerge(self):
+        # This is based on a real merge of 0.49.2-1, 0.49.2-1endless1 and
+        # 0.51.1-1.  Downstream, we drop all of the test dependencies. In
+        # Debian, a trick is used to add optional build dependencies by OR-ing
+        # with bash-doc. Previously, the merger would delete one or other
+        # branch of the OR but leave the | in place, causing a parse failure.
+        self.write_base(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              ninja-build (>= 1.6),
+              rustc [i386 amd64] <!nocheck> | bash-doc <!nocheck>,
+              g++-arm-linux-gnueabihf [!armhf] <!nocheck> | bash-doc <!nocheck>,
+              nasm <!nocheck>,
+        """).lstrip())
+        self.write_left(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              ninja-build (>= 1.6),
+        """).lstrip())
+        self.write_right(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              python2-dev <!nocheck>,
+              ninja-build (>= 1.6),
+              rustc [i386 amd64] <!nocheck> | bash-doc <!nocheck>,
+              g++-arm-linux-gnueabihf [!armhf] <!nocheck> | bash-doc <!nocheck>,
+              nasm <!nocheck>,
+        """).lstrip())
+        merger, merged = self.merge()
+        self.assertTrue(merged)
+        self.assertTrue(merger.modified)
+        self.assertResult(textwrap.dedent("""
+            Source: meson
+            Build-Depends: debhelper (>= 11),
+              python2-dev <!nocheck>,
+              ninja-build (>= 1.6),
+        """).lstrip())
