@@ -23,6 +23,7 @@ Depends:
  osc,
  patch,
  patchutils,
+ python-apt,
  python-pychart,
  python-jinja2,
  python (>=2.7),
