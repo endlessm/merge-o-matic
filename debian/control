@@ -16,12 +16,19 @@ Depends:
  apache2 | httpd,
  cron,
  diffstat,
+ diffutils,
+ dpkg-dev,
+ gettext,
  logrotate,
  osc,
+ patch,
+ patchutils,
+ python-apt,
  python-pychart,
  python-jinja2,
  python (>=2.7),
- quilt
+ quilt,
+ tar,
 Description: Merge-o-Matic
  Merge-o-Matic is an automated merge system (also known as "mom").
  .
