@@ -16,6 +16,7 @@ Depends:
  apache2 | httpd,
  cron,
  diffstat,
+ diffutils,
  dpkg-dev,
  logrotate,
  osc,
