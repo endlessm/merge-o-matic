@@ -307,7 +307,11 @@ class Distro(object):
                     self.mirrorURL(), dist, " ".join(self.components())))
 
         # Setup configuration
+        for key in apt_pkg.config.keys():
+            apt_pkg.config.clear(key)
+
         apt_pkg.config.set('Dir', path)
+        apt_pkg.init_config()
         cache = apt.Cache(rootdir=path)
         cache.update()
 
