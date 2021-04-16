@@ -342,11 +342,11 @@ class DebTreeMergerTest(unittest.TestCase):
         with open(self.right_dir + '/myfile', 'w') as fd:
             fd.write('one\n2222\nthree\n')
 
-        os.makedirs(self.left_dir + '/debian/patches')
+        os.makedirs(self.left_dir + '/debian/patches/a')
         with open(self.left_dir + '/debian/patches/series', 'w') as fd:
-            fd.write('one.patch\ntwo.patch\n')
+            fd.write('a/one.patch\ntwo.patch\n')
 
-        with open(self.left_dir + '/debian/patches/one.patch', 'w') as fd:
+        with open(self.left_dir + '/debian/patches/a/one.patch', 'w') as fd:
             fd.write('--- foo.orig/myfile\n')
             fd.write('+++ foo/myfile\n')
             fd.write('@@ -1,3 +1,3 @@\n')

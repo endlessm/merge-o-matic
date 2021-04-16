@@ -550,7 +550,7 @@ class DebTreeMerger(object):
         our_added_patches = []
         for patch in our_series:
             if patch not in base_series:
-                our_added_patches.append(os.path.basename(patch))
+                our_added_patches.append(patch)
 
         # Optionally apply all of the patches on the right side, up until
         # we find one of our own patches.
@@ -569,7 +569,6 @@ class DebTreeMerger(object):
 
             last_patch = None
             for patch in merged_series:
-                patch = os.path.basename(patch)
                 if patch in our_added_patches:
                     break
                 last_patch = patch
@@ -592,12 +591,12 @@ class DebTreeMerger(object):
         patches_to_drop = []
         for patch in reversed(our_added_patches):
             # Skip if the patch has already been dropped
-            if 'debian/patches/' + patch not in self.pending_changes:
+            if patch not in self.pending_changes:
                 continue
 
             logging.debug('Trying to revert our patch %s', patch)
             args = ['patch', '--dry-run', '-p1', '--reverse', '-i',
-                    os.path.join(self.left_dir, 'debian', 'patches', patch)]
+                    os.path.join(self.left_dir, patch)]
             with open('/dev/null', 'w') as fd:
                 rc = subprocess.call(args, cwd=tmpdir, stdout=fd)
             if rc != 0:
@@ -618,7 +617,7 @@ class DebTreeMerger(object):
         written = False
         with open(series_file) as series, NamedTemporaryFile() as new_series:
             for line in series.readlines():
-                if line.strip() in patches_to_drop:
+                if 'debian/patches/' + line.strip() in patches_to_drop:
                     continue
                 new_series.write(line)
                 written = True
@@ -628,7 +627,7 @@ class DebTreeMerger(object):
 
         for patch in patches_to_drop:
             logging.debug('Dropping revertable patch %s', patch)
-            del self.pending_changes['debian/patches/' + patch]
+            del self.pending_changes[patch]
             if apply_right:
                 self.record_note('Dropped patch %s because it can be reverted '
                                  'cleanly after applying upstream quilt '
@@ -791,6 +790,9 @@ class DebTreeMerger(object):
             if filename.startswith('debian/patches/') \
                     and filename.endswith('.patch') \
                     and change_type == self.PENDING_ADD:
+                targetdir = os.path.join(tmpdir, os.path.dirname(filename))
+                if not os.path.exists(targetdir):
+                    os.makedirs(targetdir)
                 shutil.copy2(os.path.join(self.left_dir, filename),
                              os.path.join(tmpdir, filename))
 
