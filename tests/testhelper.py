@@ -69,8 +69,8 @@ class TestRepo(object):
 
 
 class TestPackage(object):
-    # version: Should end with '-1' if you want a quilt format package.
-    #                    Otherwise a native package will be built.
+    # version: Use '1.0-1' type notation if you want a quilt format package.
+    #          Otherwise a native package will be built.
     # copy: Only for internal use via __copy__
     def __init__(self, name='package', version='1.0', copy=None):
         if copy is not None:
@@ -87,11 +87,14 @@ class TestPackage(object):
         os.chdir(self.pkg_path)
         args = ['dh_make', '--single', '--yes', '--packagename']
 
-        if version.endswith('-1'):
-            args += [name + '_' + version.rstrip('-1'), '--createorig']
+        if '-' in version:
+            args += [name + '_' + version.rsplit('-', 1)[0], '--createorig']
         else:
             args += [name + '_' + version, '--native']
         quiet_exec(args)
+
+        if '-' in version:
+            quiet_exec(['dch', '-v', version, '-D', 'unstable', 'foo'])
 
     # Special constructor for when we are copying a TestPackage object
     def __copy_object(self, orig):
